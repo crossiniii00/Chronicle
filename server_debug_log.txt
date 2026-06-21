@@ -1,0 +1,90 @@
+[2026-06-21T09:25:37.592Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
+Error: new row for relation "applications" violates check constraint "applications_status_check"
+Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+
+[2026-06-21T09:25:40.111Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
+Error: new row for relation "applications" violates check constraint "applications_status_check"
+Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+
+[2026-06-21T09:25:40.251Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
+Error: new row for relation "applications" violates check constraint "applications_status_check"
+Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+
+[2026-06-21T09:25:40.447Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
+Error: new row for relation "applications" violates check constraint "applications_status_check"
+Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+
+[2026-06-21T09:25:41.393Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
+Error: new row for relation "applications" violates check constraint "applications_status_check"
+Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+
+[2026-06-21T09:25:41.542Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
+Error: new row for relation "applications" violates check constraint "applications_status_check"
+Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+
+[2026-06-21T17:39:48.948Z] PATCH /api/auth/users/cd4f5d87-818b-4ad4-8073-a24b799fb334
+Error: new row for relation "users" violates check constraint "users_role_check"
+Stack: error: new row for relation "users" violates check constraint "users_role_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async UserRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/UserRepository.js:43:24)
+    at async AuthService.updateUser (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/AuthService.js:113:16)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/auth.routes.js:169:22
+
+[2026-06-21T17:39:51.852Z] PATCH /api/auth/users/cd4f5d87-818b-4ad4-8073-a24b799fb334
+Error: new row for relation "users" violates check constraint "users_role_check"
+Stack: error: new row for relation "users" violates check constraint "users_role_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async UserRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/UserRepository.js:43:24)
+    at async AuthService.updateUser (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/AuthService.js:113:16)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/auth.routes.js:169:22
+
+[2026-06-21T17:39:52.011Z] PATCH /api/auth/users/cd4f5d87-818b-4ad4-8073-a24b799fb334
+Error: new row for relation "users" violates check constraint "users_role_check"
+Stack: error: new row for relation "users" violates check constraint "users_role_check"
+    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
+    at async UserRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/UserRepository.js:43:24)
+    at async AuthService.updateUser (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/AuthService.js:113:16)
+    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/auth.routes.js:169:22
+

@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "frequency": "weekly",
+  "time": "02:00",
+  "keepLast": 2,
+  "compress": true,
+  "lastRun": null
+}

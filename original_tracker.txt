@@ -1,0 +1,56 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Keyboard, Search, CheckCircle, XCircle, Award, Percent, Hourglass, ArrowUpDown } from 'lucide-react';
+import { cn } from '@/utils/formatters';
+import { motion } from 'framer-motion';
+import { ApplicationService } from '@/services/ApplicationService';
+import { apiClient } from '@/utils/apiClient';
+import { socketService } from '@/services/socketService';
+import type { Application } from '@/types/application';
+import { useToast } from '@/components/common/useToast';
+
+interface TypingTestSettings {
+    minWpm: number;
+    minAccuracy: number;
+}
+
+export function TypingTestTrackerView() {
+    const { error: toastError } = useToast();
+    const [applications, setApplications] = useState<Application[]>([]);
+    const [settings, setSettings] = useState<TypingTestSettings>({ minWpm: 40, minAccuracy: 95 });
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'PASSED' | 'FAILED'>('ALL');
+    const [dateFilter, setDateFilter] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
+    const [sortField, setSortField] = useState<keyof Application | 'status'>('typing_test_completed_at');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+    const loadData = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
+                                            <td className="px-5 py-3.5 text-right font-medium text-slate-500 tabular-nums">
+                                                {c.typing_test_completed_at ? new Date(c.typing_test_completed_at).toLocaleDateString('en-US', {
+                                                    month: 'short',
+                                                    day: '2-digit',
+                                                    year: 'numeric'
+                                                }) : '---'}
+                                            </td>
+                                            <td className="px-5 py-3.5 text-center">
+                                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                    c.passed
+                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                                }`}>
+                                                    {c.passed ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                                                    {c.passed ? 'PASSED' : 'FAILED'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

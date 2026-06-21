@@ -27,6 +27,8 @@ import { ReceiptModal } from '@/pages/recruiter/components/InterviewRoomsUI';
 import { FullscreenProfileView } from '@/components/features/ApplicantManagement/FullscreenProfileView';
 import { checkValidatorAssignment } from './dashboardUtils';
 import { useActiveAccountStore, parseAccounts } from '@/store/activeAccountStore';
+import { socketService } from '@/services/socketService';
+import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 
 export function InterviewDesk() {
     const navigate = useNavigate();
@@ -68,6 +70,7 @@ export function InterviewDesk() {
     const [rescheduleApp, setRescheduleApp] = useState<Application | null>(null);
     const [rescheduleReason, setRescheduleReason] = useState<string>('');
     const [scheduleWarningApp, setScheduleWarningApp] = useState<Application | null>(null);
+    const [validatorWarningApp, setValidatorWarningApp] = useState<Application | null>(null);
 
     // Sync state from location redirect
     React.useEffect(() => {
@@ -92,9 +95,9 @@ export function InterviewDesk() {
     const { activeAccount } = useActiveAccountStore();
     const accounts = parseAccounts(authUser?.department);
     const hasMultipleAccounts = accounts.length > 1;
-    const resolvedActiveAccount = (hasMultipleAccounts && activeAccount && accounts.some(a => a.toUpperCase() === activeAccount.toUpperCase()))
+    const resolvedActiveAccount = (activeAccount && accounts.map(a => a.toUpperCase()).includes(activeAccount.toUpperCase()))
         ? activeAccount
-        : accounts[0] || 'DOORDASH';
+        : (accounts[0] || 'DOORDASH');
 
     const loadData = React.useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
@@ -107,14 +110,18 @@ export function InterviewDesk() {
         } catch {
             error('Protocol Error', 'Failed to synchronize with central registry.');
         } finally {
-            if (!silent) setIsLoading(false);
+            setIsLoading(false);
         }
     }, [error, loadRooms]);
 
+    useVisibilityPolling(() => void loadData(true), 60000, [loadData]);
+
     React.useEffect(() => {
-        void loadData();
-        const interval = setInterval(() => void loadData(true), 15000);
-        return () => clearInterval(interval);
+        const socket = socketService.getSocket();
+        const handleUpdate = () => void loadData(true);
+        socket.on('applications:updated', handleUpdate);
+        socket.on('rooms:updated', handleUpdate);
+        return () => { socket.off('applications:updated', handleUpdate); socket.off('rooms:updated', handleUpdate); };
     }, [loadData]);
 
     React.useEffect(() => {
@@ -122,28 +129,50 @@ export function InterviewDesk() {
     }, [activeTab]);
 
     const isMatchingAccount = (app: Application) => {
-        if (!app.department) return false;
-        const depts = app.department.split(',').map(s => s.trim().toUpperCase());
-        return depts.includes(resolvedActiveAccount.toUpperCase());
+        const candidateAccount = (app.endorsement_account || app.department || '').trim().toUpperCase();
+        if (!candidateAccount) return false;
+        
+        // Split candidate's department just in case it's a comma-separated list
+        const candidateDepts = candidateAccount.split(',').map(s => s.trim().toUpperCase());
+        
+        return candidateDepts.includes(resolvedActiveAccount.trim().toUpperCase());
     };
 
     const isAssignedToCurrentValidator = (app: Application) => 
-        checkValidatorAssignment(app, authUser) && isMatchingAccount(app);
+        isActuallyAssignedValidator(app) && isMatchingAccount(app);
+
+    const isActuallyAssignedValidator = (app: Application) => {
+        if (authUser?.role === 'admin') return true;
+        const metadata = app.metadata || {};
+        const assignedId = app.assigned_ops_validator_id || metadata.assigned_ops_validator_id;
+        const assignedName = (app.assigned_ops_validator_name || metadata.assigned_ops_validator_name || '').trim().toLowerCase();
+        const assignedEmail = (app.pis?.ops_validator_email || metadata.ops_validator_email || '').trim().toLowerCase();
+        
+        const currentUserId = authUser?.id;
+        const currentUserName = (authUser?.full_name || '').trim().toLowerCase();
+        const currentUserEmail = (authUser?.email || '').trim().toLowerCase();
+
+        return Boolean(
+            (assignedId && assignedId === currentUserId) ||
+            (assignedName && assignedName === currentUserName) ||
+            (assignedEmail && assignedEmail === currentUserEmail)
+        );
+    };
 
     const activeCandidates = applications.filter(a => {
         const isFailedForActiveAccount = a.metadata?.failed_accounts?.some(
-            (f: string) => f.trim().toUpperCase() === resolvedActiveAccount.toUpperCase()
+            (f: string) => f.trim().toLowerCase() === resolvedActiveAccount.trim().toLowerCase()
         );
         if (isFailedForActiveAccount) return false;
 
-        return (a.current_status === 'FINAL_INTERVIEW' || a.current_status === 'FINAL_INTERVIEW_SCHEDULED' || (a.current_status === 'QUEUE_ASSIGNED' && a.queue_type === 'FINAL') || a.current_status === 'INTERVIEW_IN_PROGRESS' || a.current_status === 'ENDORSED') &&
+        return (a.current_status === 'FINAL_INTERVIEW_SCHEDULED' || (a.current_status === 'QUEUE_ASSIGNED' && a.queue_type === 'FINAL') || a.current_status === 'INTERVIEW_IN_PROGRESS' || a.current_status === 'ENDORSED') &&
             isAssignedToCurrentValidator(a);
     });
 
     const pastCandidates = applications.filter(a => {
         const statusUpper = String(a.current_status || '').toUpperCase();
         const isFailedForActiveAccount = a.metadata?.failed_accounts?.some(
-            (f: string) => f.trim().toUpperCase() === resolvedActiveAccount.toUpperCase()
+            (f: string) => f.trim().toLowerCase() === resolvedActiveAccount.trim().toLowerCase()
         );
         const isPast = [
             'PASSED', 'FAILED', 'HIRED', 'HIRED_PROCESSED', 'REJECTED', 
@@ -153,9 +182,9 @@ export function InterviewDesk() {
             'DISQUALIFIED', 'NOT_ELIGIBLE_FOR_REHIRE'
         ].includes(statusUpper);
         
-        // Match validator assignment: either via active assignment, OR if they failed the active account
-        const isAssigned = checkValidatorAssignment(a, authUser) || isFailedForActiveAccount;
-        return (isPast || isFailedForActiveAccount) && isAssigned && isMatchingAccount(a);
+        const isAssigned = isAssignedToCurrentValidator(a);
+        const isMatchingAcc = isMatchingAccount(a);
+        return isPast && (isAssigned || (isFailedForActiveAccount && isMatchingAcc));
     }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
     const filteredList = (activeTab === 'desk' ? activeCandidates : pastCandidates).filter(c => {
@@ -175,11 +204,12 @@ export function InterviewDesk() {
             'CONTRACT_SENT', 'FOR_PAN'
         ].includes(statusUpper) && !isHired;
         
+        const targetAcc = (c.endorsement_account || c.department || '').trim().toLowerCase();
         const isFailed = [
             'FAILED', 'REJECTED', 'DISQUALIFIED', 'WITHDRAWN', 
             'WITHDRAWN BY APPLICANT', 'NOT_ELIGIBLE_FOR_REHIRE'
         ].includes(statusUpper) || c.metadata?.failed_accounts?.some(
-            (f: string) => f.trim().toUpperCase() === resolvedActiveAccount.toUpperCase()
+            (f: string) => f.trim().toLowerCase() === targetAcc
         );
         
         if (statusFilter === 'HIRED') return isHired;
@@ -271,7 +301,13 @@ export function InterviewDesk() {
                 fromStatus: app.current_status,
                 toStatus: 'INTERVIEW_IN_PROGRESS',
                 changedByName: authUser?.full_name || 'OPS Validator',
-                reason: `Interview initiated by validator in Room ${room.room_name}`
+                reason: `Interview initiated by validator in Room ${room.room_name}`,
+                patch: {
+                    metadata: {
+                        ...(app.metadata || {}),
+                        active_interview_type: 'FINAL'
+                    }
+                }
             });
 
             success('Call Initiated', `${app.applicant_name} has been queued and called to Room ${room.room_name}.`);
@@ -480,9 +516,11 @@ export function InterviewDesk() {
                     viewMode={activeTab === 'desk' ? 'active' : 'history'}
                     onRowClick={(app) => setSelectedApplicantProfile(app)}
                     emptyMessage={activeTab === 'desk' ? "Registry Standby: Awaiting candidate endorsement tokens..." : "No historical records found in your evaluation logs."}
+                    activeAccount={resolvedActiveAccount}
                     renderActions={(app) => {
                         if (activeTab === 'desk') {
                             const isToday = isScheduleToday(app.endorsement_meeting_date);
+                            const isAssigned = isActuallyAssignedValidator(app);
                             return (
                                 <div className="flex items-center gap-2">
                                     <motion.button
@@ -492,7 +530,9 @@ export function InterviewDesk() {
                                         transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (isToday) {
+                                            if (!isAssigned) {
+                                                setValidatorWarningApp(app);
+                                            } else if (isToday) {
                                                 void handleInitiate(app);
                                             } else {
                                                 setScheduleWarningApp(app);
@@ -500,14 +540,16 @@ export function InterviewDesk() {
                                         }}
                                         className={cn(
                                             "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-sm whitespace-nowrap text-white transition-colors",
-                                            isToday 
-                                                ? "bg-emerald-600 hover:bg-emerald-700" 
-                                                : "bg-rose-600 hover:bg-rose-700"
+                                            !isAssigned
+                                                ? "bg-amber-600 hover:bg-amber-700"
+                                                : isToday 
+                                                    ? "bg-emerald-600 hover:bg-emerald-700" 
+                                                    : "bg-rose-600 hover:bg-rose-700"
                                         )}
-                                        title={isToday ? "Call Candidate" : "Schedule Not Met"}
+                                        title={!isAssigned ? "Validator Not Met" : isToday ? "Call Candidate" : "Schedule Not Met"}
                                     >
-                                        <Play size={12} fill="currentColor" className={cn(isToday && "animate-pulse")} />
-                                        <span>{isToday ? "Call candidate" : "Schedule not met"}</span>
+                                        <Play size={12} fill="currentColor" className={cn(isToday && isAssigned && "animate-pulse")} />
+                                        <span>{!isAssigned ? "Validator not met" : isToday ? "Call candidate" : "Schedule not met"}</span>
                                     </motion.button>
 
                                     <motion.button
@@ -908,6 +950,78 @@ export function InterviewDesk() {
                                         void handleInitiate(app);
                                     }}
                                     className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm shadow-sm transition-colors"
+                                >
+                                    Proceed Anyway
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Validator Not Met Warning Modal */}
+            <AnimatePresence>
+                {validatorWarningApp && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.98, y: 10 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="bg-white rounded-sm shadow-xl border border-surface-300 w-full max-w-md overflow-hidden flex flex-col relative"
+                        >
+                            {/* Header */}
+                            <div className="px-6 py-6 flex flex-col items-center border-b border-surface-200 bg-surface-50/20 text-center relative">
+                                <button 
+                                    onClick={() => setValidatorWarningApp(null)}
+                                    className="absolute top-4 right-4 p-1.5 text-surface-400 hover:text-surface-700 transition-colors rounded-sm hover:bg-surface-100"
+                                >
+                                    <X size={15} />
+                                </button>
+                                <div className="p-2 bg-amber-50 rounded-full text-amber-600 mb-2">
+                                    <AlertCircle size={20} />
+                                </div>
+                                <h3 
+                                    className="text-xl text-surface-900 tracking-tight"
+                                    style={{ fontFamily: 'var(--font-family-display)', fontWeight: 400, fontStyle: 'italic' }}
+                                >
+                                    Validator Assignment Check
+                                </h3>
+                                <p className="text-[10px] text-surface-400 font-medium tracking-[0.05em] uppercase mt-2">
+                                    Attention required for <span className="font-bold text-surface-700">{validatorWarningApp.applicant_name}</span>
+                                </p>
+                            </div>
+
+                            {/* Body */}
+                            <div className="p-6 text-center space-y-2">
+                                <p className="text-xs text-surface-700 font-semibold leading-relaxed">
+                                    This candidate was endorsed to <span className="font-bold text-slate-800">"{validatorWarningApp.assigned_ops_validator_name || validatorWarningApp.metadata?.assigned_ops_validator_name || validatorWarningApp.pis?.ops_validator_email || 'another validator'}"</span> but you have an option to proceed anyway.
+                                </p>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 py-4 bg-surface-50 border-t border-surface-200 flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setValidatorWarningApp(null)}
+                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border border-surface-300 bg-white hover:bg-surface-50 rounded-sm text-surface-700 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const app = validatorWarningApp;
+                                        setValidatorWarningApp(null);
+                                        
+                                        const isToday = isScheduleToday(app.endorsement_meeting_date);
+                                        if (isToday) {
+                                            void handleInitiate(app);
+                                        } else {
+                                            setScheduleWarningApp(app);
+                                        }
+                                    }}
+                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-white rounded-sm shadow-sm transition-colors"
                                 >
                                     Proceed Anyway
                                 </button>

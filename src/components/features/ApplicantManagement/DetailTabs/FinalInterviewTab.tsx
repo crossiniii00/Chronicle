@@ -1067,7 +1067,7 @@ export const FinalInterviewTab: React.FC<FinalInterviewTabProps> = ({
                                                             title="Schedule this session in-app now without syncing to Outlook"
                                                         >
                                                             <Clock size={14} className="text-surface-500" />
-                                                            Schedule for Later
+                                                            Passed Operations Validator Interview
                                                         </button>
                                                     )}
 
