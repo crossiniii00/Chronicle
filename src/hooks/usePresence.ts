@@ -24,23 +24,39 @@ export function usePresence(currentPage: string) {
 
         const socket = socketService.getSocket();
         
-        // Join presence with user info
-        socket.emit('presence:join', {
-            id: user.id,
-            full_name: user.full_name,
-            role: user.role,
-            page: currentPage
-        });
+        const joinPresence = () => {
+            socket.emit('presence:join', {
+                id: user.id,
+                full_name: user.full_name,
+                role: user.role,
+                page: currentPage
+            });
+        };
+
+        // Join initially
+        joinPresence();
 
         const handlePresenceList = (list: ActiveUser[]) => {
-            // Filter out self and stale users
-            const others = list.filter(u => u.id !== user.id);
+            // Deduplicate by user id (handles multiple tabs open)
+            const uniqueMap = new Map<string, ActiveUser>();
+            list.forEach(u => {
+                if (u.id) {
+                    // Store latest or first, just need one per user
+                    uniqueMap.set(u.id, u);
+                }
+            });
+            const uniqueUsers = Array.from(uniqueMap.values());
+
+            // Filter out self
+            const others = uniqueUsers.filter(u => u.id !== user.id);
             setActiveUsers(others);
         };
 
+        socket.on('connect', joinPresence);
         socket.on('presence:list', handlePresenceList);
 
         return () => {
+            socket.off('connect', joinPresence);
             socket.off('presence:list', handlePresenceList);
         };
     }, [user, currentPage]);

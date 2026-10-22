@@ -39,7 +39,7 @@ export function ImportPreviewModal({ isOpen, onClose, onConfirm, data, isSaving,
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.98 }}
-                    className="relative bg-white w-full max-w-[90vw] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl rounded-sm border border-surface-200"
+                    className="relative bg-white dark:bg-slate-900 w-full max-w-[90vw] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl rounded-sm border border-surface-200"
                 >
                     {/* Header */}
                     <div className="px-6 py-4 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
@@ -62,7 +62,7 @@ export function ImportPreviewModal({ isOpen, onClose, onConfirm, data, isSaving,
                             Please verify the column mappings below before committing to the registry.
                         </div>
 
-                        <div className="flex-1 border border-surface-200 rounded-sm overflow-hidden flex flex-col bg-white">
+                        <div className="flex-1 border border-surface-200 rounded-sm overflow-hidden flex flex-col bg-white dark:bg-slate-900">
                             <div className="flex-1 overflow-auto custom-scrollbar">
                                 <table className="w-full text-left border-collapse table-fixed min-w-[2000px]">
                                     <thead className="sticky top-0 z-20 bg-surface-50 border-b border-surface-200">
@@ -140,7 +140,7 @@ export function ImportPreviewModal({ isOpen, onClose, onConfirm, data, isSaving,
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="px-4 py-2 bg-white border border-surface-300 text-surface-600 text-[10px] font-bold uppercase hover:bg-surface-50 transition-all rounded-sm"
+                                    className="px-4 py-2 bg-white dark:bg-slate-900 border border-surface-300 text-surface-600 text-[10px] font-bold uppercase hover:bg-surface-50 transition-all rounded-sm"
                                 >
                                     Cancel
                                 </button>

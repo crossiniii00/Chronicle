@@ -27,6 +27,8 @@ interface DashboardHeroProps {
     }>>;
     onlineUserCount: number;
     isRecruiterS: boolean;
+    isAccountFilterEnabled?: boolean;
+    setIsAccountFilterEnabled?: React.Dispatch<React.SetStateAction<boolean>>;
     weeksInMonth: { label: string; weekIndex: number; startStr: string; endStr: string }[];
 }
 
@@ -39,6 +41,8 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
     setDateSub,
     onlineUserCount,
     isRecruiterS,
+    isAccountFilterEnabled = true,
+    setIsAccountFilterEnabled,
     weeksInMonth
 }) => {
     const navigate = useNavigate();
@@ -143,11 +147,11 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
             className={cn(
-                "relative z-20 rounded-sm border bg-gradient-to-br",
+                "relative z-20 rounded-none border bg-gradient-to-br",
                 warmGradient
             )}
         >
-            <div className="absolute inset-0 overflow-hidden rounded-sm pointer-events-none">
+            <div className="absolute inset-0 overflow-hidden rounded-none pointer-events-none">
                 <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-[#ef3e36]/10 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#622B89]/10 rounded-full blur-[120px]" />
             </div>
@@ -163,7 +167,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                             aria-label="Open account menu"
                             className="group relative block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-transform hover:scale-[1.03] active:scale-[0.98]"
                         >
-                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full ring-2 ring-white/20 shadow-lg overflow-hidden bg-white/10 backdrop-blur-md flex items-center justify-center">
+                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full ring-2 ring-white/20 shadow-lg overflow-hidden bg-white/10 dark:bg-slate-900/10 backdrop-blur-md flex items-center justify-center">
                                 {user?.avatar_data ? (
                                     <img src={user.avatar_data} alt={firstName} className="w-full h-full object-cover" />
                                ) : (
@@ -172,7 +176,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                                     </span>
                                 )}
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white/15 backdrop-blur-md border border-white/10 shadow-md flex items-center justify-center">
+                            <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white/15 dark:bg-slate-900/15 backdrop-blur-md border border-white/10 shadow-md flex items-center justify-center">
                                 <GreetingIcon size={12} className="text-amber-400" strokeWidth={2.5} />
                             </div>
                             <div className={cn(
@@ -189,7 +193,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                                     exit={{ opacity: 0, y: -6, scale: 0.96 }}
                                     transition={{ duration: 0.15, ease: 'easeOut' }}
                                     role="menu"
-                                    className="absolute left-0 mt-3 w-72 bg-white rounded-sm shadow-2xl border border-surface-200 overflow-hidden z-50 origin-top-left"
+                                    className="absolute left-0 mt-3 w-72 bg-white dark:bg-slate-900 rounded-none shadow-2xl border border-surface-200 overflow-hidden z-50 origin-top-left"
                                 >
                                     <div className="p-4 bg-gradient-to-br from-surface-50 to-white border-b border-surface-100">
                                         <div className="flex items-center gap-3">
@@ -212,7 +216,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white border border-surface-200 text-[9px] font-bold uppercase tracking-[0.15em] text-surface-600">
+                                        <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-surface-200 text-[9px] font-bold uppercase tracking-[0.15em] text-surface-600">
                                             <Shield size={9} className="text-vibrant-emerald" />
                                             {formatUserRole(user?.role)}
                                         </div>
@@ -223,9 +227,9 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                                             type="button"
                                             role="menuitem"
                                             onClick={() => { setIsProfileMenuOpen(false); navigate('/recruiter/profile'); }}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-[12px] font-semibold text-surface-800 hover:bg-surface-50 rounded-sm transition-colors group/item"
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-[12px] font-semibold text-surface-800 hover:bg-surface-50 rounded-none transition-colors group/item"
                                         >
-                                            <span className="w-7 h-7 rounded-sm bg-surface-100 group-hover/item:bg-black group-hover/item:text-white flex items-center justify-center transition-colors">
+                                            <span className="w-7 h-7 rounded-none bg-surface-100 group-hover/item:bg-black group-hover/item:text-white flex items-center justify-center transition-colors">
                                                 <User size={13} />
                                             </span>
                                             <span className="flex-1 text-left">View profile</span>
@@ -238,9 +242,9 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                                             type="button"
                                             role="menuitem"
                                             onClick={handleLogout}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-[12px] font-semibold text-vibrant-pink hover:bg-vibrant-pink/10 rounded-sm transition-colors group/item"
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-[12px] font-semibold text-vibrant-pink hover:bg-vibrant-pink/10 rounded-none transition-colors group/item"
                                         >
-                                            <span className="w-7 h-7 rounded-sm bg-vibrant-pink/10 group-hover/item:bg-vibrant-pink group-hover/item:text-white flex items-center justify-center transition-colors text-vibrant-pink">
+                                            <span className="w-7 h-7 rounded-none bg-vibrant-pink/10 group-hover/item:bg-vibrant-pink group-hover/item:text-white flex items-center justify-center transition-colors text-vibrant-pink">
                                                 <LogOut size={13} />
                                             </span>
                                             <span className="flex-1 text-left">Log out</span>
@@ -254,9 +258,9 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
 
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-[9px] font-bold uppercase tracking-[0.15em] text-white">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 dark:bg-slate-900/10 backdrop-blur-sm border border-white/20 text-[9px] font-bold uppercase tracking-[0.15em] text-white">
                                 <Sparkles size={9} className="text-amber-400" />
-                                {isRecruiterS ? 'Lead Recruiter' : 'Recruiter Workspace'}
+                                {user?.role === 'admin' || user?.role === 'super_admin' ? 'Admin Workspace' : isRecruiterS ? 'Lead Recruiter' : 'Recruiter Workspace'}
                             </span>
                         </div>
                         <h1 
@@ -300,9 +304,31 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    {isRecruiterS && setIsAccountFilterEnabled && (
+                        <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-900/10 backdrop-blur-md px-3 py-1.5 rounded-none border border-white/15 shadow-sm">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-white/90">
+                                Acct Filter
+                            </span>
+                            <button
+                                onClick={() => setIsAccountFilterEnabled(!isAccountFilterEnabled)}
+                                className={cn(
+                                    "relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75",
+                                    isAccountFilterEnabled ? 'bg-amber-400' : 'bg-white/30 dark:bg-slate-900/30'
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "inline-block h-3 w-3 transform rounded-full bg-white dark:bg-slate-900 transition-transform",
+                                        isAccountFilterEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                                    )}
+                                />
+                            </button>
+                        </div>
+                    )}
+                    
                     <div
                         ref={filterBarRef}
-                        className="flex bg-white/10 backdrop-blur-md p-1 rounded-sm border border-white/15 relative z-30 shadow-sm"
+                        className="flex bg-black/25 backdrop-blur-sm p-1 rounded-none border border-white/10 relative z-30 shadow-inner"
                         onMouseLeave={scheduleFilterClose}
                     >
                         {(['TODAY', 'WEEK', 'MONTH', 'ALL'] as const).map((filter) => {
@@ -333,17 +359,17 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                                             }
                                         }}
                                         className={cn(
-                                            "px-3 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors duration-150 rounded-sm flex items-center gap-1 active:scale-95",
+                                            "px-3 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors duration-150 rounded-none flex items-center gap-1 active:scale-95",
                                             isActive
-                                                ? "text-black"
+                                                ? "text-white"
                                                 : "text-white/60 hover:text-white"
                                         )}
                                     >
                                         {filter}
                                         {subLabel && (
                                             <span className={cn(
-                                                "ml-0.5 px-1.5 py-0.5 rounded-sm text-[8px] font-bold",
-                                                isActive ? "bg-black/10 text-black" : "bg-white/10 text-white"
+                                                "ml-0.5 px-1.5 py-0.5 rounded-none text-[8px] font-bold",
+                                                isActive ? "bg-white/20 dark:bg-slate-900/20 text-white" : "bg-white/10 dark:bg-slate-900/10 text-white"
                                             )}>
                                                 {subLabel}
                                             </span>
@@ -354,7 +380,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                                         {isActive && (
                                             <motion.div
                                                 layoutId="dashboardActiveFilterBg"
-                                                className="absolute inset-0 bg-white shadow-sm rounded-sm z-[-1]"
+                                                className="absolute inset-0 brand-gradient shadow-sm rounded-none z-[-1]"
                                                 transition={{ type: 'spring', stiffness: 500, damping: 22, mass: 0.7 }}
                                             />
                                         )}
@@ -396,18 +422,6 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
                             );
                         })}
                     </div>
-                    <motion.div
-                        whileHover={{ scale: 1.04, y: -1 }}
-                        whileTap={{ scale: 0.96 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                    >
-                        <Link
-                            to="/recruiter/tracker/interview-registry"
-                            className="px-4 py-2.5 bg-[#ef3e36] text-white text-[10px] font-bold uppercase tracking-widest rounded-sm hover:bg-[#d32f2f] transition-colors shadow-md hover:shadow-lg flex items-center gap-2"
-                        >
-                            <Plus size={14} /> New Interview
-                        </Link>
-                    </motion.div>
                 </div>
             </div>
         </motion.div>

@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS applications (
     typing_test_accuracy NUMERIC(5,2),
     typing_test_duration_seconds INTEGER,
     typing_test_completed_at TIMESTAMPTZ,
-    assessment_score NUMERIC(5,2),
+    assessment_score TEXT,
     interview_notes TEXT,
     final_interview_notes TEXT,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,

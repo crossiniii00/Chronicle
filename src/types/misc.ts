@@ -42,7 +42,7 @@ export interface InterviewQuestion {
     id: string;
     question_type: 'initial' | 'final' | 'technical' | 'behavioral';
     question_text: string;
-    answer_type: 'text' | 'rating' | 'multiple_choice' | 'yes_no' | 'date';
+    answer_type: 'text' | 'rating' | 'multiple_choice' | 'yes_no' | 'date' | 'none';
     options?: string[];
     max_rating?: number;
     max_length?: number;
@@ -51,6 +51,18 @@ export interface InterviewQuestion {
     is_active: boolean;
     category?: string;
     instructions?: string;
+    allow_notes?: boolean;
+    account?: string;
+    lob?: string;
+}
+
+export interface RoomReservation {
+    time_slot: string;
+    interviewer_name: string;
+    interviewer_id?: string;
+    applicant_name: string;
+    applicant_id?: string;
+    queue_type?: string;
 }
 
 export interface InterviewRoom {
@@ -61,9 +73,11 @@ export interface InterviewRoom {
     current_application_id?: string | null;
     current_applicant_name?: string | null;
     occupied_since?: string | null;
+    occupied_until?: string | null;
     is_active: boolean;
     image_url?: string | null;
     room_type?: 'onsite' | 'online';
+    reservations?: RoomReservation[];
 }
 
 export interface SystemSetting {

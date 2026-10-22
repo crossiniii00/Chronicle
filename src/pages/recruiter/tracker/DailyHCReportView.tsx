@@ -5,8 +5,9 @@ import {
     Filter, TrendingUp, Users, Target, CheckCircle2,
     Calendar, Building2, Layers, Edit3, Plus, Trash,
     Check, X, Save, ChevronRight, Activity, ClipboardList,
-    Loader2, AlertCircle, Info
+    Loader2, AlertCircle, Info, FileDown, Search
 } from 'lucide-react';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { ApplicationService } from '@/services/ApplicationService';
 import { Application } from '@/types/application';
 import { cn } from '@/utils/formatters';
@@ -272,28 +273,23 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
         }
     };
 
-    if (loading) return (
-        <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-10 h-10 text-[#002060] animate-spin mb-4" />
-            <p className="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Generating Live HC Matrix...</p>
-        </div>
-    );
+    if (loading) return <LoadingScreen message="LOADING HC REPORT..." />;
 
     return (
         <div className="flex flex-col lg:flex-row gap-6 p-2 bg-[#f3f2f1] min-h-screen font-sans">
             {/* Sidebar Status Monitor */}
             <div className="w-full lg:w-64 shrink-0 space-y-4">
-                <div className="bg-white border border-[#edebe9] shadow-sm rounded-none overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 shadow-sm rounded-none overflow-hidden">
                     <div className="bg-[#002060] text-white px-4 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                         <Activity size={14} /> Status Monitor
                     </div>
                     <div className="p-2 space-y-1">
                         {Object.entries(statusMetrics).map(([label, count]) => (
                             <div key={label} className="flex items-center justify-between p-2 hover:bg-[#f8f9fa] rounded-none transition-colors border-b border-[#f3f2f1] last:border-0">
-                                <span className="text-[10px] font-bold text-[#323130] uppercase tracking-tight">{label}</span>
+                                <span className="text-[10px] font-bold text-[#323130] dark:text-slate-300 uppercase tracking-tight">{label}</span>
                                 <span className={cn(
                                     "text-[10px] font-black px-2 py-0.5 rounded-none min-w-[24px] text-center",
-                                    count > 0 ? "bg-[#d13438] text-white shadow-sm" : "bg-[#edebe9] text-[#a19f9d]"
+                                    count > 0 ? "bg-[#d13438] text-white shadow-sm" : "bg-[#edebe9] dark:bg-slate-800 text-[#a19f9d]"
                                 )}>
                                     {count}
                                 </span>
@@ -315,7 +311,7 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
                     {isSaving ? 'SYNCING...' : (isEditing ? 'COMMIT CHANGES' : 'MODIFY HC DATA')}
                 </button>
 
-                <div className="p-4 bg-white border border-[#edebe9] rounded-none">
+                <div className="p-4 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none">
                     <p className="text-[9px] font-bold text-surface-400 uppercase tracking-widest flex items-center gap-2 mb-2">
                         <Info size={12} /> Data Source
                     </p>
@@ -329,7 +325,7 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
             {/* Main Content Area */}
             <div className="flex-1 space-y-8 overflow-x-auto pb-20">
                 {/* Section 1: Main Program Roster */}
-                <div className="bg-white border border-[#edebe9] shadow-xl rounded-sm min-w-[1000px] overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 shadow-xl rounded-sm min-w-[1000px] overflow-hidden">
                     <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr] bg-[#002060] text-white text-[10px] font-black uppercase tracking-widest border-b border-white/20">
                         <div className="p-4 border-r border-white/10 flex items-center gap-2"><Building2 size={14}/> Program</div>
                         <div className="p-4 border-r border-white/10 text-center flex items-center justify-center gap-2"><Calendar size={14}/> Roster</div>
@@ -344,12 +340,12 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
                         {liveSection1.map((row, idx) => {
                             const fillRate = (row.acceptedJo / (row.required || 1)) * 100;
                             return (
-                                <div key={idx} className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr] text-[10px] font-bold text-[#323130] hover:bg-[#faf9f8] transition-colors">
+                                <div key={idx} className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr] text-[10px] font-bold text-[#323130] dark:text-slate-300 hover:bg-[#faf9f8] transition-colors">
                                     <div className="p-4 border-r border-[#f3f2f1] font-black text-[#002060]">{row.program}</div>
                                     <div className="p-4 border-r border-[#f3f2f1] text-center">
                                         {isEditing ? (
                                             <input 
-                                                className="w-full bg-white border border-[#edebe9] px-2 py-1 text-center font-bold outline-none focus:border-[#002060]"
+                                                className="w-full bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 px-2 py-1 text-center font-bold outline-none focus:border-[#002060]"
                                                 value={row.rosterDate} 
                                                 onChange={e => handleRowChange(1, idx, 'rosterDate', e.target.value)}
                                             />
@@ -358,7 +354,7 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
                                     <div className="p-4 border-r border-[#f3f2f1] text-center">
                                         {isEditing ? (
                                             <input 
-                                                className="w-full bg-white border border-[#edebe9] px-2 py-1 text-center font-bold outline-none focus:border-[#002060]"
+                                                className="w-full bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 px-2 py-1 text-center font-bold outline-none focus:border-[#002060]"
                                                 value={row.trainingDate} 
                                                 onChange={e => handleRowChange(1, idx, 'trainingDate', e.target.value)}
                                             />
@@ -377,7 +373,7 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
                             <div className="p-4 border-r border-white/10 col-span-3 text-right pr-8">Section Total Metrics</div>
                             <div className="p-4 border-r border-white/10 text-center">{liveSection1.reduce((acc, curr) => acc + curr.required, 0)}</div>
                             <div className="p-4 border-r border-white/10 text-center">{liveSection1.reduce((acc, curr) => acc + curr.acceptedJo, 0)}</div>
-                            <div className="p-4 border-r border-white/10 text-center bg-white/10">
+                            <div className="p-4 border-r border-white/10 text-center bg-white/10 dark:bg-slate-900/10">
                                 {(liveSection1.reduce((acc, curr) => acc + curr.acceptedJo, 0) / (liveSection1.reduce((acc, curr) => acc + curr.required, 0) || 1) * 100).toFixed(2)}%
                             </div>
                             <div className="p-4 border-r border-white/10 text-center">{liveSection1.reduce((acc, curr) => acc + (curr.forOpsVs || 0), 0)}</div>
@@ -387,7 +383,7 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
                 </div>
 
                 {/* Section 2: Specialty / Clinical */}
-                <div className="bg-white border border-[#edebe9] shadow-xl rounded-sm min-w-[1000px] overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 shadow-xl rounded-sm min-w-[1000px] overflow-hidden">
                     <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr_0.8fr] bg-[#323130] text-white text-[10px] font-black uppercase tracking-widest border-b border-white/20">
                         <div className="p-4 border-r border-white/10 flex items-center gap-2"><Target size={14}/> Specialty Program</div>
                         <div className="p-4 border-r border-white/10 text-center">Roster</div>
@@ -403,21 +399,21 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
                         {liveSection2.map((row, idx) => {
                             const fillRate = ((row.doneCi || 0) / (row.required || 1)) * 100;
                             return (
-                                <div key={idx} className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr_0.8fr] text-[10px] font-bold text-[#323130] hover:bg-[#faf9f8] transition-colors">
+                                <div key={idx} className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr_0.8fr] text-[10px] font-bold text-[#323130] dark:text-slate-300 hover:bg-[#faf9f8] transition-colors">
                                     <div className="p-4 border-r border-[#f3f2f1] font-black">{row.program}</div>
-                                    <div className="p-4 border-r border-[#f3f2f1] text-center text-[#605e5c]">
+                                    <div className="p-4 border-r border-[#f3f2f1] text-center text-[#605e5c] dark:text-slate-400">
                                         {isEditing ? (
                                             <input 
-                                                className="w-full bg-white border border-[#edebe9] px-2 py-1 text-center font-bold outline-none focus:border-[#323130]"
+                                                className="w-full bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 px-2 py-1 text-center font-bold outline-none focus:border-[#323130]"
                                                 value={row.rosterDate} 
                                                 onChange={e => handleRowChange(2, idx, 'rosterDate', e.target.value)}
                                             />
                                         ) : row.rosterDate}
                                     </div>
-                                    <div className="p-4 border-r border-[#f3f2f1] text-center text-[#605e5c]">
+                                    <div className="p-4 border-r border-[#f3f2f1] text-center text-[#605e5c] dark:text-slate-400">
                                         {isEditing ? (
                                             <input 
-                                                className="w-full bg-white border border-[#edebe9] px-2 py-1 text-center font-bold outline-none focus:border-[#323130]"
+                                                className="w-full bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 px-2 py-1 text-center font-bold outline-none focus:border-[#323130]"
                                                 value={row.trainingDate} 
                                                 onChange={e => handleRowChange(2, idx, 'trainingDate', e.target.value)}
                                             />
@@ -436,36 +432,36 @@ export function DailyHCReportView({ applications: propApps }: { applications?: A
                 </div>
 
                 {/* Section 3: Pipeline Analytics */}
-                <div className="bg-white border border-[#edebe9] shadow-xl rounded-sm min-w-[1200px] overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 shadow-xl rounded-sm min-w-[1200px] overflow-hidden">
                     <div className="bg-[#d13438] text-white px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3">
                         <ClipboardList size={16} /> Pipeline Analytics & Recruitment Intelligence
                     </div>
-                    <div className="grid grid-cols-[1.5fr_0.8fr_1fr_1fr_1fr_1fr_1fr_0.8fr_2fr] bg-[#f8f9fa] text-[#605e5c] text-[9px] font-black uppercase border-b border-[#edebe9] tracking-widest">
-                        <div className="p-4 border-r border-[#edebe9]">Program</div>
-                        <div className="p-4 border-r border-[#edebe9] text-center">Total Apps</div>
-                        <div className="p-4 border-r border-[#edebe9] text-center">Passed Initial</div>
-                        <div className="p-4 border-r border-[#edebe9] text-center">Passed Assess.</div>
-                        <div className="p-4 border-r border-[#edebe9] text-center">Passed Ops</div>
-                        <div className="p-4 border-r border-[#edebe9] text-center">Endorsed</div>
-                        <div className="p-4 border-r border-[#edebe9] text-center text-[#d13438] bg-[#d13438]/5">Passed</div>
-                        <div className="p-4 border-r border-[#edebe9] text-center">Required</div>
+                    <div className="grid grid-cols-[1.5fr_0.8fr_1fr_1fr_1fr_1fr_1fr_0.8fr_2fr] bg-[#f8f9fa] text-[#605e5c] dark:text-slate-400 text-[9px] font-black uppercase border-b border-[#edebe9] dark:border-slate-800 tracking-widest">
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800">Program</div>
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800 text-center">Total Apps</div>
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800 text-center">Passed Initial</div>
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800 text-center">Passed Assess.</div>
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800 text-center">Passed Ops</div>
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800 text-center">Endorsed</div>
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800 text-center text-[#d13438] bg-[#d13438]/5">Passed</div>
+                        <div className="p-4 border-r border-[#edebe9] dark:border-slate-800 text-center">Required</div>
                         <div className="p-4">Remarks & Intelligence Dossier</div>
                     </div>
                     <div className="divide-y divide-[#f3f2f1]">
                         {livePipelineData.map((row, idx) => (
-                            <div key={idx} className="grid grid-cols-[1.5fr_0.8fr_1fr_1fr_1fr_1fr_1fr_0.8fr_2fr] text-[10px] font-bold text-[#323130] hover:bg-[#fffcf5] transition-colors group">
+                            <div key={idx} className="grid grid-cols-[1.5fr_0.8fr_1fr_1fr_1fr_1fr_1fr_0.8fr_2fr] text-[10px] font-bold text-[#323130] dark:text-slate-300 hover:bg-[#fffcf5] transition-colors group">
                                 <div className="p-4 border-r border-[#f3f2f1] text-[#002060] font-black uppercase truncate">{row.program}</div>
-                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white">{row.apps}</div>
-                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white">{row.passedInitial}</div>
-                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white">{row.passedAssessment}</div>
-                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white">{row.passedOpsInterview}</div>
-                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white">{row.endorsedToClient}</div>
+                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white dark:bg-slate-900">{row.apps}</div>
+                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white dark:bg-slate-900">{row.passedInitial}</div>
+                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white dark:bg-slate-900">{row.passedAssessment}</div>
+                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white dark:bg-slate-900">{row.passedOpsInterview}</div>
+                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white dark:bg-slate-900">{row.endorsedToClient}</div>
                                 <div className="p-4 border-r border-[#f3f2f1] text-center font-black text-[#d13438] bg-[#d13438]/5 group-hover:bg-[#d13438]/10">{row.passedClientHired}</div>
-                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white font-black">{row.hcRequired}</div>
-                                <div className="p-4 text-[#605e5c] italic group-hover:bg-white">
+                                <div className="p-4 border-r border-[#f3f2f1] text-center group-hover:bg-white dark:bg-slate-900 font-black">{row.hcRequired}</div>
+                                <div className="p-4 text-[#605e5c] dark:text-slate-400 italic group-hover:bg-white dark:bg-slate-900">
                                     {isEditing ? (
                                         <input 
-                                            className="w-full bg-white border border-[#edebe9] px-2 py-1 font-medium outline-none focus:border-[#d13438]"
+                                            className="w-full bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 px-2 py-1 font-medium outline-none focus:border-[#d13438]"
                                             value={row.remarks} 
                                             onChange={e => handleRowChange(3, idx, 'remarks', e.target.value)}
                                             placeholder="Enter operational remarks..."

@@ -5,7 +5,7 @@ import { cn } from '@/utils/formatters';
 
 interface AccountCardsProps {
     accountMetrics: any[];
-    setSelectedAccount: (name: string) => void;
+    setSelectedAccount: (name: string[]) => void;
 }
 
 export function AccountCards({ accountMetrics, setSelectedAccount }: AccountCardsProps) {
@@ -17,8 +17,8 @@ export function AccountCards({ accountMetrics, setSelectedAccount }: AccountCard
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    onClick={() => setSelectedAccount(account.name)}
-                    className="group relative text-left bg-white border border-surface-200 p-8 hover:border-[#d13438] hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.08)] transition-all duration-500 overflow-hidden rounded-none"
+                    onClick={() => setSelectedAccount([account.name])}
+                    className="group relative text-left bg-white dark:bg-slate-900 border border-surface-200 p-8 hover:border-[#d13438] hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.08)] transition-all duration-500 overflow-hidden rounded-none"
                 >
                     <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity group-hover:-rotate-12 duration-700">
                         <Building2 size={120} />

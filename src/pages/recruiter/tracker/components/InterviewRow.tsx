@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     AlertTriangle, CheckCircle, CheckCircle2, Loader2, X, Briefcase, 
-    ChevronRight, Square, CheckSquare, ListTodo, User, History as HistoryIcon 
+    ChevronRight, Square, CheckSquare, ListTodo, User, History as HistoryIcon, Clipboard, FileText
 } from 'lucide-react';
 import { cn } from '@/utils/formatters';
 import type { Application } from '@/types/application';
@@ -12,7 +12,11 @@ import type { InterviewQuestion } from '@/types/misc';
 import { 
     SHEET_COLUMNS, PIVOT_COLUMNS, VLIST_COLUMNS, SUPPORT_HIRING_COLUMNS 
 } from '../constants';
+import { PositionService } from '@/services/PositionService';
+import { ApplicationService } from '@/services/ApplicationService';
 import * as helpers from '../utils/tableHelpers';
+import { normalizeOverallStatus } from '../utils/statusMappings';
+import { useAuthStore } from '@/store/authStore';
 import { CandidateIdentityCell, EditableCell } from './InterviewTableUI';
 import { 
     computeHireEligibility, buildMissingTooltip, getColumnWidth
@@ -20,8 +24,8 @@ import {
 
 const rowMissingCache = new Map<string, boolean>();
 
-function AnimatedAvatar({ gender, photoUrl, name }: { gender?: string; photoUrl?: string; name: string }) {
-    const normalizedGender = (gender || '').toLowerCase().trim();
+function AnimatedAvatar({ sex, photoUrl, name }: { sex?: string; photoUrl?: string; name: string }) {
+    const normalizedGender = (sex || '').toLowerCase().trim();
     const isFemale = normalizedGender === 'female' || normalizedGender === 'f';
     const avatarUrl = photoUrl || (isFemale ? '/default-avatar-female.png?v=3' : '/default-avatar-male.png?v=3');
 
@@ -58,15 +62,17 @@ export interface InterviewRowProps {
     accounts?: string[];
     onShowHistory?: (app: Application) => void;
     onViewProfile?: (app: Application) => void;
+    onShowProcedure?: (app: Application) => void;
+    showEssentialOnly?: boolean;
+    hiddenColumns?: Record<string, string[]>;
     userFocus?: Record<string, any>;
     activeUsers: any[];
-    onPromoteToHired?: (app: Application) => Promise<void> | void;
+    onPromoteToHired?: (app: Application, complianceStatus?: 'COMPLIANT' | 'NON_COMPLIANT', positionId?: string) => Promise<void> | void;
     promotingId?: string | null;
     activeHireChecklistAppId?: string | null;
     setActiveHireChecklistAppId: (id: string | null) => void;
     onRowMouseDown: (id: string) => void;
     onRowMouseEnter: (id: string) => void;
-    onShowProcedure?: (app: Application) => void;
     isChecklistOpen: boolean;
     onToggleChecklist: (appId: string, open: boolean) => void;
     highlightedColumns: Record<string, string>;
@@ -76,6 +82,16 @@ export interface InterviewRowProps {
     customColumns?: Record<string, string[]>;
     customColumnMeta?: Record<string, Record<string, { options?: string[] }>>;
     setIsEditing?: (val: boolean) => void;
+    frozenKeys?: string[];
+    frozenRightKeys?: string[];
+    columnLeftOffsets?: Record<string, number>;
+    columnRightOffsets?: Record<string, number>;
+    selectionBounds?: { startRow: number, endRow: number, startCol: number, endCol: number } | null;
+    copiedBounds?: { startRow: number, endRow: number, startCol: number, endCol: number } | null;
+    dragAnchor?: { row: number, col: number, appId: string } | null;
+    onCellMouseDown?: (e: React.MouseEvent, rowIdx: number, colIdx: number, appId: string) => void;
+    onCellMouseEnter?: (rowIdx: number, colIdx: number) => void;
+    onCellMouseUp?: () => void;
 }
 
 export const InterviewRow = React.memo(({
@@ -84,32 +100,111 @@ export const InterviewRow = React.memo(({
     setFocusedApplicant, setShowFullscreen, activeQuestions, questions,
     onShowNotes, isFocused, focusedColKey, focusedColName, setFocusPath,
     search = '',
-    activeUsers,
-    userFocus = {},
     updateActivity,
     accounts,
     onShowHistory,
     onViewProfile,
+    onShowProcedure,
+    showEssentialOnly,
+    hiddenColumns,
+    userFocus = {},
+    activeUsers,
+    onPromoteToHired,
+    promotingId,
+    activeHireChecklistAppId,
+    setActiveHireChecklistAppId,
     onRowMouseDown,
     onRowMouseEnter,
-    onShowProcedure,
     isChecklistOpen,
     onToggleChecklist,
     highlightedColumns,
     highlightedCells,
     onCellPaint,
-    onPromoteToHired,
-    promotingId,
-    activeHireChecklistAppId,
-    setActiveHireChecklistAppId,
     eligibilitySettings,
     customColumns = {},
     customColumnMeta = {},
-    setIsEditing
+    setIsEditing,
+    frozenKeys = [],
+    frozenRightKeys = [],
+    columnLeftOffsets = {},
+    columnRightOffsets = {},
+    selectionBounds,
+    copiedBounds,
+    dragAnchor,
+    onCellMouseDown,
+    onCellMouseEnter,
+    onCellMouseUp
 }: InterviewRowProps) => {
+    const { user } = useAuthStore();
     const navigate = useNavigate();
+    const selectionProps = React.useMemo(() => ({
+        rowIdx: rowIndex,
+        selectionBounds,
+        copiedBounds,
+        dragAnchor,
+        onCellMouseDown,
+        onCellMouseEnter,
+        onCellMouseUp
+    }), [rowIndex, selectionBounds, copiedBounds, dragAnchor, onCellMouseDown, onCellMouseEnter, onCellMouseUp]);
     const warningTriggerRef = React.useRef<HTMLButtonElement | null>(null);
     const [warningPopoverPos, setWarningPopoverPos] = React.useState<{ left: number; top: number; placement: 'down' | 'up' } | null>(null);
+
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const [popoverPos, setPopoverPos] = React.useState<{ left: number; top: number; placement: 'down' | 'up' } | null>(null);
+
+    const isHireChecklistOpen = activeHireChecklistAppId === app.id;
+
+    const [openings, setOpenings] = React.useState<any[]>([]);
+    const [selectedOpeningId, setSelectedOpeningId] = React.useState<string>('');
+
+    React.useEffect(() => {
+        if (!isHireChecklistOpen) return;
+        PositionService.getAllOpen().then(list => {
+            const rawDepts = app.pis?.final_account || app.endorsement_account || app.department || '';
+            const candidateDepts = rawDepts.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean);
+            const matched = list.filter((pos: any) => {
+                const posDept = (pos.department || '').trim().toLowerCase();
+                if (!posDept) return false;
+                return candidateDepts.some(cd => posDept === cd || posDept.includes(cd) || cd.includes(posDept));
+            });
+            setOpenings(matched);
+            if (matched.length > 0) {
+                setSelectedOpeningId(matched[0].id);
+            } else {
+                setSelectedOpeningId('');
+            }
+        }).catch(err => console.error("Failed to load positions:", err));
+    }, [isHireChecklistOpen, app.pis?.final_account, app.endorsement_account, app.department]);
+
+    const closeChecklist = React.useCallback(() => {
+        setActiveHireChecklistAppId(null);
+        setPopoverPos(null);
+    }, [setActiveHireChecklistAppId]);
+
+    React.useEffect(() => {
+        if (!isHireChecklistOpen) return;
+        const updatePos = () => {
+            const rect = triggerRef.current?.getBoundingClientRect();
+            if (rect && popoverPos) {
+                const popoverWidth = 280;
+                const margin = 8;
+                const viewportW = window.innerWidth;
+                let left = rect.left + rect.width / 2 - popoverWidth / 2;
+                left = Math.max(margin, Math.min(left, viewportW - popoverWidth - margin));
+                const estimatedHeight = 260;
+                const viewportH = window.innerHeight;
+                const placeDown = rect.bottom + estimatedHeight + margin < viewportH;
+                const top = placeDown ? rect.bottom + 6 : Math.max(margin, rect.top - estimatedHeight - 6);
+                setPopoverPos({ left, top, placement: placeDown ? 'down' : 'up' });
+            }
+        };
+        window.addEventListener('scroll', updatePos, true);
+        window.addEventListener('resize', updatePos);
+        return () => {
+            window.removeEventListener('scroll', updatePos, true);
+            window.removeEventListener('resize', updatePos);
+        };
+    }, [isHireChecklistOpen, popoverPos]);
 
     const updateWarningPopoverPos = React.useCallback(() => {
         const rect = warningTriggerRef.current?.getBoundingClientRect();
@@ -148,13 +243,58 @@ export const InterviewRow = React.memo(({
             defaultCols = ["#", "Candidate's Name", "Position", "Preferred Set-up", "Willing to Relocate", "Salary", "Status", "Notes"];
         } else if (norm.includes('TEAM_LEADER')) {
             defaultCols = ["#", "Name", "Position", "Background and Experience", "Tenure as TL", "Total BPO Exp", "Salary Expectation", "Source", "Status"];
-        } else if (norm.includes('SHEET') || norm === 'BLACKLIST' || norm === 'NOT_ELIGIBLE') {
-            defaultCols = [...SHEET_COLUMNS].filter(col => !((norm === 'BLACKLIST' || norm === 'NOT_ELIGIBLE') && col === "Hire Eligibility"));
+        } else if (norm.includes('SHEET') || ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(norm)) {
+            defaultCols = [...SHEET_COLUMNS].filter(col => !(['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(norm) && col === "Hire Eligibility"));
         } else {
             return [];
         }
-        return customColumns[tab] || defaultCols;
-    }, [customColumns]);
+        let effective = (customColumns[tab] || defaultCols).map(c => {
+            if (c.toUpperCase() === 'JOB POSTING') return 'Preferred Name';
+            return c;
+        });
+        // Remove duplicates in case they had both
+        effective = Array.from(new Set(effective));
+
+        if (customColumns[tab]) {
+            defaultCols.forEach(d => {
+                if (!effective.includes(d)) {
+                    effective = [...effective, d];
+                }
+            });
+
+            // Force auto-reorder Job Posting after First Name
+            const jobIdx = effective.findIndex(c => c === 'Job Posting');
+            if (jobIdx !== -1) {
+                const newEff = [...effective];
+                const jobCol = newEff.splice(jobIdx, 1)[0];
+                const firstIdx = newEff.findIndex(c => c === 'First Name');
+                if (firstIdx !== -1) {
+                    newEff.splice(firstIdx + 1, 0, jobCol);
+                } else {
+                    newEff.push(jobCol);
+                }
+                effective = newEff;
+            }
+        }
+        
+        if ((hiddenColumns?.[tab] || []).length > 0) {
+            effective = effective.filter(col => {
+                const isCustom = col.startsWith('custom:');
+                const colKey = isCustom ? col : helpers.getSheetColumnKey(col, questions);
+                return !(hiddenColumns![tab] || []).includes(colKey);
+            });
+        }
+        
+        if (showEssentialOnly && norm.includes('SHEET')) {
+            const ess = ['Id', 'Preferred Name', 'Job Posting', 'Date of Birth', 'Contact Number', 'Email Address', 'Current Address', 'Overall Status', 'Timestamp'];
+            effective = effective.filter(e => ess.includes(e));
+        } else if (showEssentialOnly) {
+            const essentialNames = ["#", "Id", "First Name", "Middle Name", "Last Name", "Date of Birth"];
+            effective = effective.filter(c => essentialNames.some(name => c.toLowerCase() === name.toLowerCase()));
+        }
+
+        return effective;
+    }, [customColumns, showEssentialOnly, hiddenColumns, questions]);
 
     const getCellHighlightStyle = (colKey: string) => {
         const cellKey = `${app.id}:${colKey}`;
@@ -184,7 +324,7 @@ export const InterviewRow = React.memo(({
 
         const compute = () => {
             const norm = activeTab.toUpperCase();
-            if (norm.includes('SHEET') || norm === 'BLACKLIST' || norm === 'NOT_ELIGIBLE') {
+            if (norm.includes('SHEET') || ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(norm)) {
                 const columns = getEffectiveColumns(activeTab);
                 const matchesAnyCol = columns.some(c => terms.some(t => c.toLowerCase().includes(t)));
                 return columns.some((col) => {
@@ -230,7 +370,7 @@ export const InterviewRow = React.memo(({
     const columnsChecklist = React.useMemo(() => {
         if (!isChecklistOpen) return [];
         const norm = activeTab.toUpperCase();
-        if (norm.includes('SHEET') || norm === 'BLACKLIST' || norm === 'NOT_ELIGIBLE') {
+        if (norm.includes('SHEET') || ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(norm)) {
             const columns = getEffectiveColumns(activeTab);
             const matchesAnyCol = columns.some(c => terms.some(t => c.toLowerCase().includes(t)));
             return columns.map((col) => {
@@ -283,52 +423,92 @@ export const InterviewRow = React.memo(({
         return [];
     }, [activeTab, app, rowIndex, questions, localChanges, remoteChanges, hasSearch, terms, isChecklistOpen, getEffectiveColumns]);
 
-    const renderIdCell = (col: string, value: string, colKey: string, idx: number, width: number, left: number) => {
+    const renderIdCell = (colName: string, value: string, colKey: string, idx: number, width: number, left: number, isFrozen: boolean) => {
+        const hasHistory = !!((app.pis?.reprofile_history && app.pis.reprofile_history.length > 0) || (app.metadata?.reprofile_history && app.metadata.reprofile_history.length > 0));
+        
+        const effectiveIsFrozen = colName === "#" ? true : isFrozen;
+        const effectiveLeft = colName === "#" 
+            ? (frozenKeys.includes(colKey) ? left : (isSelectMode ? 50 : 0)) 
+            : left;
+
         return (
             <td
                 key={`id-cell-${colKey}`}
                 className={cn(
-                    "border-r border-[#edebe9] p-0 align-middle text-center overflow-hidden",
-                    isReprofiled ? "bg-yellow-50" : "bg-white"
+                    "transition-all hover:scale-110 hover:shadow-xl hover:z-[100] relative duration-300 ease-out hover:bg-white dark:bg-slate-900", "border-b border-r border-surface-200 p-0 align-middle text-center overflow-hidden",
+                    isReprofiled ? "bg-yellow-50" : "bg-white dark:bg-slate-900",
+                    effectiveIsFrozen && "sticky z-20 frozen-column-glow bg-white dark:bg-slate-900"
                 )}
                 style={{
                     width,
                     minWidth: width,
                     maxWidth: width,
+                    left: effectiveIsFrozen ? effectiveLeft : undefined,
                 }}
             >
-                <div className="px-2 py-2 flex items-center justify-center gap-1.5 relative h-full">
-                    <AnimatedAvatar
-                        gender={app.pis?.gender}
-                        photoUrl={app.pis?.photo_data_url}
-                        name={app.applicant_name}
-                    />
-                    <span className="text-surface-700 font-medium text-xs">{value}</span>
-                    <button
-                        ref={warningTriggerRef}
-                        onMouseDown={(e) => {
-                            e.stopPropagation();
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleChecklist(app.id, !isChecklistOpen);
-                        }}
-                        className={cn(
-                            "p-0.5 rounded-sm transition-colors shrink-0 flex items-center justify-center",
-                            hasMissingFields ? "hover:bg-purple-100" : "hover:bg-emerald-100"
-                        )}
-                        title={hasMissingFields ? "Incomplete" : "Complete"}
-                    >
-                        {hasMissingFields ? (
-                            <AlertTriangle size={13} className="text-purple-600 stroke-[2.5]" />
+                <div className="px-2 py-2 flex items-center justify-between gap-1.5 relative h-full">
+                    <div className="flex items-center gap-1.5 pl-1">
+                        <span className="text-surface-700 font-semibold text-xs">{value}</span>
+                        <button
+                            ref={warningTriggerRef}
+                            onMouseDown={(e) => {
+                                e.stopPropagation();
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleChecklist(app.id, !isChecklistOpen);
+                            }}
+                            className={cn(
+                                "p-0.5 rounded-sm transition-colors shrink-0 flex items-center justify-center",
+                                hasMissingFields ? "hover:bg-purple-100" : "hover:bg-emerald-100"
+                            )}
+                            title={hasMissingFields ? "Incomplete" : "Complete"}
+                        >
+                            {hasMissingFields ? (
+                                <AlertTriangle size={13} className="text-purple-600 stroke-[2.5]" />
+                            ) : (
+                                <CheckCircle size={13} className="text-emerald-600 stroke-[2.5]" />
+                            )}
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onViewProfile?.(app); }}
+                            className="h-5 px-1 bg-[#EFF6FF] text-[#0078D4] font-black text-[9px] rounded hover:bg-[#E0EEFE] border border-[#0078D4]/30 transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
+                            title="View Full PIS Profile"
+                        >
+                            PIS
+                        </button>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                onShowNotes(app, rect);
+                            }}
+                            className="h-5 w-5 bg-[#F0FDF4] text-[#16A34A] rounded hover:bg-[#DCFCE7] border border-[#16A34A]/30 transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
+                            title="View Notes"
+                        >
+                            <Clipboard size={10} className="font-black" />
+                        </button>
+                        {hasHistory ? (
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onShowHistory?.(app); }}
+                                className="h-5 w-5 bg-[#FAF5FF] text-[#9333EA] rounded hover:bg-[#F3E8FF] border border-[#9333EA]/30 transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
+                                title="View Reprofile History"
+                            >
+                                <HistoryIcon size={10} className="font-black" />
+                            </button>
                         ) : (
-                            <CheckCircle size={13} className="text-emerald-600 stroke-[2.5]" />
+                            <div className="w-5 h-5 shrink-0" />
                         )}
-                    </button>
+                    </div>
 
                     {isChecklistOpen && warningPopoverPos && createPortal(
                         <>
-                            {/* Backdrop to close checklist popover */}
                             <div 
                                 className="fixed inset-0 z-[2147483000]" 
                                 onClick={(e) => {
@@ -337,7 +517,6 @@ export const InterviewRow = React.memo(({
                                 }}
                                 onMouseDown={(e) => e.stopPropagation()}
                             />
-                            {/* Checklist Popover */}
                             <motion.div 
                                 initial={{ opacity: 0, scale: 0.92, y: warningPopoverPos.placement === 'down' ? -4 : 4 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -350,11 +529,11 @@ export const InterviewRow = React.memo(({
                                     zIndex: 2147483647,
                                     width: 288
                                 }}
-                                className="bg-white border border-[#edebe9] shadow-premium p-3 rounded-none text-left max-h-72 flex flex-col"
+                                className="bg-white dark:bg-slate-900 border border-surface-200 shadow-premium p-3 rounded-none text-left max-h-72 flex flex-col"
                                 onClick={(e) => e.stopPropagation()}
                                 onMouseDown={(e) => e.stopPropagation()}
                             >
-                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#edebe9]">
+                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-surface-200">
                                     <span className="text-[10px] font-bold text-surface-800 uppercase tracking-wider flex items-center gap-1">
                                         <ListTodo size={12} className="text-primary-600" /> Columns Checklist
                                     </span>
@@ -402,373 +581,10 @@ export const InterviewRow = React.memo(({
         );
     };
 
-    const renderHireEligibilityCell = (idx: number, left: number) => {
-        const eligibility = computeHireEligibility(app, rowLocalChanges, eligibilitySettings);
-        const isPromotingThisRow = promotingId === app.id;
-        const effectiveCurrentStatus = (rowLocalChanges?.current_status !== undefined ? rowLocalChanges.current_status : app.current_status) as string;
-        const isAlreadyHired = effectiveCurrentStatus?.toLowerCase().trim() === 'hired';
-        const isHireChecklistOpen = activeHireChecklistAppId === app.id;
-        const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-        const [popoverPos, setPopoverPos] = React.useState<{ left: number; top: number; placement: 'down' | 'up' } | null>(null);
-
-        const openChecklist = (e: React.MouseEvent) => {
-            e.stopPropagation();
-            if (isAlreadyHired || isPromotingThisRow) return;
-            if (eligibility.isEligible) {
-                if (onPromoteToHired) onPromoteToHired(app);
-                return;
-            }
-            const rect = triggerRef.current?.getBoundingClientRect();
-            if (rect) {
-                const popoverWidth = 280;
-                const margin = 8;
-                const viewportW = window.innerWidth;
-                let left = rect.left + rect.width / 2 - popoverWidth / 2;
-                left = Math.max(margin, Math.min(left, viewportW - popoverWidth - margin));
-                const estimatedHeight = 260;
-                const viewportH = window.innerHeight;
-                const placeDown = rect.bottom + estimatedHeight + margin < viewportH;
-                const top = placeDown ? rect.bottom + 6 : Math.max(margin, rect.top - estimatedHeight - 6);
-                setPopoverPos({ left, top, placement: placeDown ? 'down' : 'up' });
-            }
-            setActiveHireChecklistAppId(isHireChecklistOpen ? null : app.id);
-        };
-
-        const closeChecklist = React.useCallback(() => {
-            setActiveHireChecklistAppId(null);
-            setPopoverPos(null);
-        }, [setActiveHireChecklistAppId]);
-
-        React.useEffect(() => {
-            if (!isHireChecklistOpen) return;
-            const updatePos = () => {
-                const rect = triggerRef.current?.getBoundingClientRect();
-                if (rect && popoverPos) {
-                    const popoverWidth = 280;
-                    const margin = 8;
-                    const viewportW = window.innerWidth;
-                    let left = rect.left + rect.width / 2 - popoverWidth / 2;
-                    left = Math.max(margin, Math.min(left, viewportW - popoverWidth - margin));
-                    const estimatedHeight = 260;
-                    const viewportH = window.innerHeight;
-                    const placeDown = rect.bottom + estimatedHeight + margin < viewportH;
-                    const top = placeDown ? rect.bottom + 6 : Math.max(margin, rect.top - estimatedHeight - 6);
-                    setPopoverPos({ left, top, placement: placeDown ? 'down' : 'up' });
-                }
-            };
-            window.addEventListener('scroll', updatePos, true);
-            window.addEventListener('resize', updatePos);
-            return () => {
-                window.removeEventListener('scroll', updatePos, true);
-                window.removeEventListener('resize', updatePos);
-            };
-        }, [isHireChecklistOpen, popoverPos]);
-
-        const getFieldKeyForLabel = (label: string): string => {
-            switch (label) {
-                case 'Status': return 'current_status';
-                case '1st Day Show up': return 'master_first_day_show_up';
-                case 'Final Specific Status': return 'pis_final_specific_status';
-                case 'PEME Status': return 'master_peme_status';
-                case 'BGS Status': return 'master_bgs_status';
-                case 'RCBC Status': return 'master_rcbc_status';
-                case 'NBI Status': return 'master_nbi_status';
-                case '2nd Day Show up': return 'master_second_day_show_up';
-                default: return '';
-            }
-        };
-
-        const handleRequirementClick = (label: string) => {
-            const fieldKey = getFieldKeyForLabel(label);
-            if (!fieldKey) return;
-            
-            closeChecklist();
-            navigate('../masterlist', {
-                state: {
-                    autoSpotlightAppId: app.id,
-                    autoSpotlightField: fieldKey,
-                    autoStatus: app.current_status || app.master_status
-                }
-            });
-        };
-
-        const popoverNode = isHireChecklistOpen && popoverPos ? createPortal(
-            <>
-                <div
-                    className="fixed inset-0 z-[2147483000]"
-                    onClick={closeChecklist}
-                />
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.92, y: popoverPos.placement === 'down' ? -4 : 4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.92, y: popoverPos.placement === 'down' ? -4 : 4 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 22, mass: 0.6 }}
-                    style={{
-                        position: 'fixed',
-                        left: popoverPos.left,
-                        top: popoverPos.top,
-                        zIndex: 2147483647,
-                        width: 310
-                    }}
-                    className="bg-white border border-[#edebe9] rounded-sm shadow-premium"
-                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                    onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
-                >
-                    <div className="px-3 py-2 border-b border-[#edebe9] flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                            <Briefcase size={12} className="text-emerald-600" strokeWidth={2.5} />
-                            <span className="text-[11px] font-bold text-[#323130] uppercase tracking-tight">Hire Eligibility</span>
-                        </div>
-                        <span className={cn(
-                            "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm",
-                            eligibility.isEligible
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "bg-rose-50 text-rose-700 border border-rose-200"
-                        )}>
-                            {eligibility.metRequired}/{eligibility.totalRequired}
-                            {eligibility.metOptional ? <span className="text-emerald-600">+1</span> : <span className="text-rose-500">+0</span>}
-                        </span>
-                    </div>
-                    <div className="px-3 py-2 space-y-1.5">
-                        <div className="text-[9.5px] font-bold text-[#605e5c] uppercase tracking-wider">Required</div>
-                        {eligibility.requiredChecks.map((c, i) => (
-                            <div
-                                key={`req-${i}`}
-                                onClick={() => handleRequirementClick(c.label)}
-                                className="flex items-center justify-between gap-2 text-[11.5px] py-1.5 px-1.5 rounded-sm hover:bg-[#f3f2f1] cursor-pointer group/item transition-colors"
-                                title={`Click to redirect to Masterlist and edit ${c.label}`}
-                            >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                    {c.met ? (
-                                        <CheckCircle2 size={12} className="text-emerald-600 shrink-0 group-hover/item:scale-110 transition-transform" strokeWidth={2.5} />
-                                    ) : (
-                                        <X size={12} className="text-rose-500 shrink-0 group-hover/item:scale-110 transition-transform" strokeWidth={3} />
-                                    )}
-                                    <span className={cn(
-                                        "truncate",
-                                        c.met ? "text-[#323130]" : "text-rose-700 font-medium group-hover/item:text-rose-950 transition-colors"
-                                    )}>{c.label}</span>
-                                    {(c as any).source === 'interview' ? (
-                                        <span className="text-[8px] font-bold text-purple-600 bg-purple-50/70 border border-purple-100 px-1 py-0.2 rounded-sm shrink-0 uppercase tracking-tight scale-90 select-none">
-                                            Interview Form
-                                        </span>
-                                    ) : (
-                                        <span className="text-[8px] font-bold text-blue-600 bg-blue-50/70 border border-blue-100 px-1 py-0.2 rounded-sm shrink-0 uppercase tracking-tight scale-90 select-none">
-                                            Masterlist
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className={cn(
-                                        "text-[9.5px] font-bold uppercase tracking-wide tabular-nums shrink-0 opacity-80 group-hover/item:opacity-100 transition-opacity",
-                                        c.met ? "text-emerald-600" : "text-rose-500"
-                                    )}>
-                                        {c.met ? 'Met' : 'Missing'}
-                                    </span>
-                                    <ChevronRight size={10} className="text-[#a19f9d] group-hover/item:text-[#0078d4] transition-colors" />
-                                </div>
-                            </div>
-                        ))}
-                        {eligibility.optionalChecks.length > 0 && (
-                            <>
-                                <div className="text-[9.5px] font-bold text-[#605e5c] uppercase tracking-wider pt-1">Optional</div>
-                                {eligibility.optionalChecks.map((c, i) => (
-                                    <div
-                                        key={`opt-${i}`}
-                                        onClick={() => handleRequirementClick(c.label)}
-                                        className="flex items-center justify-between gap-2 text-[11.5px] py-1.5 px-1.5 rounded-sm hover:bg-[#f3f2f1] cursor-pointer group/item transition-colors"
-                                        title={`Click to redirect to Masterlist and edit ${c.label}`}
-                                    >
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                            {c.met ? (
-                                                <CheckCircle2 size={12} className="text-emerald-600 shrink-0 group-hover/item:scale-110 transition-transform" strokeWidth={2.5} />
-                                            ) : (
-                                                <Square size={12} className="text-[#a19f9d] shrink-0 group-hover/item:scale-110 transition-transform" strokeWidth={2.5} />
-                                            )}
-                                            <span className={cn(
-                                                "truncate",
-                                                c.met ? "text-[#323130]" : "text-[#605e5c] group-hover/item:text-surface-800 transition-colors"
-                                            )}>{c.label}</span>
-                                            {(c as any).source === 'interview' ? (
-                                                <span className="text-[8px] font-bold text-purple-600 bg-purple-50/70 border border-purple-100 px-1 py-0.2 rounded-sm shrink-0 uppercase tracking-tight scale-90 select-none">
-                                                    Interview Form
-                                                </span>
-                                            ) : (
-                                                <span className="text-[8px] font-bold text-blue-600 bg-blue-50/70 border border-blue-100 px-1 py-0.2 rounded-sm shrink-0 uppercase tracking-tight scale-90 select-none">
-                                                    Masterlist
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                            <span className={cn(
-                                                "text-[9.5px] font-bold uppercase tracking-wide tabular-nums shrink-0 opacity-80 group-hover/item:opacity-100 transition-opacity",
-                                                c.met ? "text-emerald-600" : "text-[#a19f9d]"
-                                            )}>
-                                                {c.met ? 'Met' : 'Pending'}
-                                            </span>
-                                            <ChevronRight size={10} className="text-[#a19f9d] group-hover/item:text-[#0078d4] transition-colors" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </>
-                        )}
-                    </div>
-                    <div className="px-3 py-2 border-t border-[#edebe9] bg-[#faf9f8] flex items-center justify-between gap-2">
-                        <span className="text-[10px] text-[#605e5c]">
-                            {isAlreadyHired
-                                ? 'Already hired'
-                                : eligibility.isEligible
-                                    ? 'All required criteria met'
-                                    : `${eligibility.totalRequired - eligibility.metRequired} required missing`}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                            {eligibility.isEligible && !isAlreadyHired && !isPromotingThisRow && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        closeChecklist();
-                                        if (onPromoteToHired) onPromoteToHired(app);
-                                    }}
-                                    className="h-6 px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wide rounded-sm transition-colors"
-                                >
-                                    Set Hired
-                                </button>
-                            )}
-                            <button
-                                type="button"
-                                onClick={closeChecklist}
-                                className="h-6 px-2 bg-white border border-[#c8c6c4] text-[#323130] hover:bg-[#f3f2f1] text-[10px] font-bold uppercase tracking-wide rounded-sm transition-colors"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </motion.div>
-            </>,
-            document.body
-        ) : null;
-
-        return (
-            <td
-                className={cn(
-                    "border-r border-[#edebe9] p-0 align-middle text-center overflow-hidden",
-                    isReprofiled ? "bg-yellow-50" : "bg-white"
-                )}
-                style={{
-                    width: 170,
-                    minWidth: 170,
-                    maxWidth: 170,
-                }}
-            >
-                <div
-                    className="px-2 py-1.5 flex items-center justify-center gap-1.5 h-full animate-fade-in"
-                    title={eligibility.isEligible ? 'All required criteria met. Click to promote to HIRED.' : buildMissingTooltip(eligibility)}
-                >
-                    <AnimatePresence mode="wait" initial={false}>
-                        {isAlreadyHired ? (
-                            <motion.button
-                                ref={triggerRef as any}
-                                type="button"
-                                onClick={openChecklist}
-                                key="already-hired"
-                                initial={{ opacity: 0, scale: 0.6 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.6 }}
-                                transition={{ type: 'spring', stiffness: 500, damping: 18, mass: 0.6 }}
-                                whileHover={{ scale: 1.04 }}
-                                whileTap={{ scale: 0.97 }}
-                                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-sm bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold tracking-tight cursor-pointer hover:bg-emerald-100"
-                            >
-                                <CheckCircle2 size={13} className="text-emerald-600" strokeWidth={2.5} />
-                                <span>Hired</span>
-                            </motion.button>
-                        ) : eligibility.isEligible ? (
-                            <motion.button
-                                ref={triggerRef as any}
-                                key="eligible-action"
-                                type="button"
-                                onClick={openChecklist}
-                                disabled={isPromotingThisRow}
-                                initial={{ opacity: 0, scale: 0.6, rotate: -20 }}
-                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                                exit={{ opacity: 0, scale: 0.6, rotate: 20 }}
-                                transition={{ type: 'spring', stiffness: 500, damping: 18, mass: 0.6 }}
-                                whileHover={{ scale: 1.06 }}
-                                whileTap={{ scale: 0.96 }}
-                                className={cn(
-                                    "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-sm",
-                                    "bg-emerald-50 border border-emerald-300 text-emerald-700",
-                                    "hover:bg-emerald-100 hover:border-emerald-400",
-                                    "text-[11px] font-semibold tracking-tight",
-                                    "transition-colors",
-                                    isPromotingThisRow && "opacity-60 cursor-wait"
-                                )}
-                            >
-                                {isPromotingThisRow ? (
-                                    <Loader2 size={12} className="animate-spin" strokeWidth={2.5} />
-                                ) : (
-                                    <motion.span
-                                        key="check"
-                                        initial={{ scale: 0, rotate: -90 }}
-                                        animate={{ scale: 1, rotate: 0 }}
-                                        transition={{ type: 'spring', stiffness: 600, damping: 16, mass: 0.5, delay: 0.05 }}
-                                        className="inline-flex"
-                                    >
-                                        <CheckCircle2 size={13} className="text-emerald-600" strokeWidth={2.5} />
-                                    </motion.span>
-                                )}
-                                <span>{isPromotingThisRow ? 'Hiring…' : 'Set to Hired'}</span>
-                            </motion.button>
-                        ) : (
-                            <motion.button
-                                ref={triggerRef as any}
-                                type="button"
-                                onClick={openChecklist}
-                                key="not-eligible"
-                                initial={{ opacity: 0, scale: 0.6, rotate: 15 }}
-                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                                exit={{ opacity: 0, scale: 0.6, rotate: -15 }}
-                                transition={{ type: 'spring', stiffness: 500, damping: 18, mass: 0.6 }}
-                                whileHover={{ scale: 1.06 }}
-                                whileTap={{ scale: 0.96 }}
-                                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-sm bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-semibold tracking-tight cursor-pointer hover:bg-rose-100"
-                            >
-                                <motion.span
-                                    key="x"
-                                    initial={{ scale: 0, rotate: 90 }}
-                                    animate={{ scale: 1, rotate: 0 }}
-                                    transition={{ type: 'spring', stiffness: 600, damping: 16, mass: 0.5 }}
-                                    className="inline-flex"
-                                >
-                                    <X size={13} className="text-rose-600" strokeWidth={3} />
-                                </motion.span>
-                                <span className="tabular-nums">{eligibility.metRequired}/{eligibility.totalRequired}</span>
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
-                </div>
-                {popoverNode}
-            </td>
-        );
-    };
-
     const isColumnEditable = (tab: string, column: string) => {
         if (!isEditing) return false;
-        const normalizedTab = tab.toUpperCase();
-        if (normalizedTab.includes('SHEET')) {
-            const immutableFields = ["Id", "Start time", "Completion time"];
-            return !immutableFields.includes(column);
-        }
-        if (normalizedTab === 'PIVOT') {
-            const editable = ["Overall Status", "Final Specific Status", "CEFR"];
-            return editable.includes(column);
-        }
-        if (normalizedTab === 'VLIST') {
-            const editable = ["Specific Status", "Overall Status", "Personality Test", "CEFR", "Wonderlic", "Leadership Assessment", "Ops Val Status", "Client Interview Status", "Final Account"];
-            return editable.includes(column);
-        }
-        return column !== "#";
+        const immutableFields = ["Id", "Start time", "Completion time", "#"];
+        return !immutableFields.includes(column);
     };
 
     const getCellPresence = (colKey: string) => {
@@ -782,7 +598,6 @@ export const InterviewRow = React.memo(({
             .map((u: any) => u.full_name)
             .filter(Boolean);
 
-        // Merge with the new userFocus state from useInterviewReports
         Object.values(userFocus).forEach((focus: any) => {
             if (focus.appId === app.id && focus.field === colKey && focus.fullName) {
                 if (!edits.includes(focus.fullName)) {
@@ -794,13 +609,9 @@ export const InterviewRow = React.memo(({
         return { hovers, edits };
     };
 
-    const handleCellHover = (colKey: string) => {
-        updateActivity({ type: 'hover', targetId: `${app.id}:${colKey}` });
-    };
+    const handleCellHover = (colKey: string) => {};
 
-    const handleCellLeave = () => {
-        updateActivity(null);
-    };
+    const handleCellLeave = () => {};
 
     const renderCells = () => {
         const norm = activeTab.toUpperCase();
@@ -812,7 +623,6 @@ export const InterviewRow = React.memo(({
                 const isCustom = col.startsWith('custom:');
                 const colKey = isCustom ? col : helpers.getBilingualsColumnKey(col);
                 
-                // Get value from customColumnMeta if custom dropdown, else get from app
                 const isMetaCustom = customColumnMeta[activeTab]?.[colKey];
                 const customOpts = isMetaCustom?.options;
 
@@ -823,22 +633,27 @@ export const InterviewRow = React.memo(({
                     value = helpers.getBilingualsCellValue(app, col, rowIndex);
                 }
 
+                const isFrozen = frozenKeys.includes(colKey);
+                const isFrozenRight = frozenRightKeys.includes(colKey);
+
                 if (col === "#") {
-                    return renderIdCell(col, value, colKey, idx, 90, 0);
+                    return renderIdCell(col, value, colKey, idx, 90, columnLeftOffsets[colKey] || 0, isFrozen);
                 }
 
                 return (
-                    <EditableCell
+                    <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                         key={idx}
-                        width={col === "#" ? 60 : col === "Notes" ? 400 : 240}
+                        width={isCustom ? 140 : 240}
+                        id={`cell-${app.id}-${colKey}`}
                         className={cn(
-                            col === "#" ? "text-center sticky z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)]" : "text-left",
-                            !localChanges[colKey] && !!remoteChanges[colKey] && "italic text-primary-600 bg-primary-50/5"
+                            "text-left",
+                            !localChanges[colKey] && !!remoteChanges[colKey] && "italic text-primary-600 bg-primary-50/5",
+                            isFrozen && "sticky z-20 frozen-column-glow bg-white dark:bg-slate-900",
+                            isFrozenRight && "sticky z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900"
                         )}
                         style={{
-                            position: col === "#" ? 'sticky' : undefined,
-                            left: col === "#" ? (isSelectMode ? 50 : 0) : undefined,
-                            backgroundColor: col === "#" ? 'white' : undefined,
+                            left: isFrozen ? columnLeftOffsets[colKey] : undefined,
+                            right: isFrozenRight ? columnRightOffsets[colKey] : undefined,
                             ...getCellHighlightStyle(colKey)
                         } as any}
                         value={localChanges[colKey] ?? remoteChanges[colKey] ?? value}
@@ -856,6 +671,8 @@ export const InterviewRow = React.memo(({
                         presence={getCellPresence(colKey)}
                         colKey={colKey}
                         isStatus={colKey === 'current_status' || colKey === 'pis_final_specific_status' || colKey === 'pis_overall_status' || colKey === 'overall_status'}
+                        colIdx={idx}
+                        {...selectionProps}
                     />
                 );
             });
@@ -866,7 +683,6 @@ export const InterviewRow = React.memo(({
                 const isCustom = col.startsWith('custom:');
                 const colKey = isCustom ? col : helpers.getTeamLeaderColumnKey(col);
                 
-                // Get value from customColumnMeta if custom dropdown, else get from app
                 const isMetaCustom = customColumnMeta[activeTab]?.[colKey];
                 const customOpts = isMetaCustom?.options;
 
@@ -877,22 +693,27 @@ export const InterviewRow = React.memo(({
                     value = helpers.getTeamLeaderCellValue(app, col, rowIndex);
                 }
 
+                const isFrozen = frozenKeys.includes(colKey);
+                const isFrozenRight = frozenRightKeys.includes(colKey);
+
                 if (col === "#") {
-                    return renderIdCell(col, value, colKey, idx, getColumnWidth(col), 0);
+                    return renderIdCell(col, value, colKey, idx, getColumnWidth(col), columnLeftOffsets[colKey] || 0, isFrozen);
                 }
 
                 return (
-                    <EditableCell
+                    <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                         key={idx}
                         width={getColumnWidth(col)}
+                        id={`cell-${app.id}-${colKey}`}
                         className={cn(
-                            col === "#" ? "text-center sticky z-20 shadow-[2px_0_4px_rgba(0,0,0,0.02)]" : "text-left",
-                            !localChanges[colKey] && !!remoteChanges[colKey] && "italic text-primary-600 bg-primary-50/5"
+                            "text-left",
+                            !localChanges[colKey] && !!remoteChanges[colKey] && "italic text-primary-600 bg-primary-50/5",
+                            isFrozen && "sticky z-20 frozen-column-glow bg-white dark:bg-slate-900",
+                            isFrozenRight && "sticky z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900"
                         )}
                         style={{
-                            position: col === "#" ? 'sticky' : undefined,
-                            left: col === "#" ? (isSelectMode ? 50 : 0) : undefined,
-                            backgroundColor: col === "#" ? 'white' : undefined,
+                            left: isFrozen ? columnLeftOffsets[colKey] : undefined,
+                            right: isFrozenRight ? columnRightOffsets[colKey] : undefined,
                             ...getCellHighlightStyle(colKey)
                         } as any}
                         value={localChanges[colKey] ?? remoteChanges[colKey] ?? value}
@@ -912,17 +733,21 @@ export const InterviewRow = React.memo(({
                         isStatus={colKey === 'current_status' || colKey === 'pis_final_specific_status' || colKey === 'pis_overall_status' || colKey === 'overall_status'}
                         isAccount={colKey === 'master_wave'}
                         accounts={colKey === 'master_wave' ? accounts : undefined}
+                        colIdx={idx}
+                        {...selectionProps}
                     />
                 );
             });
-        } else if (norm.includes('SHEET') || norm === 'BLACKLIST' || norm === 'NOT_ELIGIBLE') {
-            const matchesAnyCol = SHEET_COLUMNS.some(c => terms.some(t => c.toLowerCase().includes(t)));
+        } else if (norm.includes('SHEET') || ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(norm)) {
             const columns = getEffectiveColumns(activeTab);
+            const matchesAnyCol = columns.some(c => terms?.some(t => c.toLowerCase().includes(t)));
+            
             cells = columns.map((col, idx) => {
-                if (hasSearch && matchesAnyCol && !terms.some(t => col.toLowerCase().includes(t)) && !col.toLowerCase().includes('name')) return null;
+                if (hasSearch && matchesAnyCol && !terms?.some(t => col.toLowerCase().includes(t)) && !col.toLowerCase().includes('name')) return null;
+                
                 const isCustom = col.startsWith('custom:');
                 const colKey = isCustom ? col : helpers.getSheetColumnKey(col, questions);
-                const isNameCol = col.toLowerCase().includes("candidate's complete name");
+                const isNameCol = col.toLowerCase().includes("name");
 
                 const isMetaCustom = customColumnMeta[activeTab]?.[colKey];
                 const customOpts = isMetaCustom?.options;
@@ -934,65 +759,57 @@ export const InterviewRow = React.memo(({
                     value = helpers.getSheetCellValue(app, col, rowIndex, questions);
                 }
 
+                const isFrozen = frozenKeys.includes(colKey);
+                const isFrozenRight = frozenRightKeys.includes(colKey);
+
                 if (col === "Id") {
-                    return renderIdCell(col, value, colKey, idx, getColumnWidth(col), 0);
+                    return renderIdCell(col, value, colKey, idx, getColumnWidth(col), columnLeftOffsets[colKey] || 0, isFrozen);
                 }
 
-                if (col === "Hire Eligibility") {
-                    const cell = renderHireEligibilityCell(idx, 0);
-                    if (norm === 'BLACKLIST' || norm === 'NOT_ELIGIBLE') {
-                        return null;
-                    }
-                    return cell ? React.cloneElement(cell, { key: `hire-eligibility-${idx}` }) : null;
-                }
-                if (isNameCol && !isEditing && onViewProfile) {
+
+                if (isNameCol) {
                     const nameVal = localChanges[colKey] ?? remoteChanges[colKey] ?? value;
-                    const hasHistory = !!((app.pis?.reprofile_history && app.pis.reprofile_history.length > 0) || (app.metadata?.reprofile_history && app.metadata.reprofile_history.length > 0));
                     return (
-                        <td 
-                            key={`name-cell-${idx}`} 
-                            style={{ 
-                                width: getColumnWidth(col), 
-                                minWidth: getColumnWidth(col),
-                                maxWidth: getColumnWidth(col),
-                            }} 
+                        <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
+                            key={`name-cell-${idx}`}
+                            value={nameVal}
+                            isEditing={true}
+                            isActive={isFocused && focusedColKey === colKey && focusedColName === col}
+                            onPaint={(e) => onCellPaint(e, app, col, colKey)}
+                            onStartEdit={() => setFocusPath?.({ appId: app.id, colKey, colName: col })}
+                            style={{
+                                left: isFrozen ? columnLeftOffsets[colKey] : undefined,
+                                right: isFrozenRight ? columnRightOffsets[colKey] : undefined,
+                                ...getCellHighlightStyle(colKey)
+                            } as any}
+                            onChange={(val) => {
+                                handleInputChange(app.id, colKey, val);
+                                updateActivity({ type: 'edit', targetId: `${app.id}:${colKey}` });
+                            }}
+                            onHover={() => handleCellHover(colKey)}
+                            onLeave={handleCellLeave}
+                            presence={getCellPresence(colKey)}
+                            colKey={colKey}
+                            placeholder={`Enter ${col}...`}
+                            width={getColumnWidth(col)}
                             className={cn(
-                                "border-r border-[#edebe9] p-0 align-top text-left overflow-hidden cursor-pointer", 
-                                isReprofiled ? "bg-yellow-50" : "bg-white"
+                                isReprofiled ? "bg-yellow-50" : "bg-white dark:bg-slate-900",
+                                isFrozen && "sticky z-20 frozen-column-glow bg-white dark:bg-slate-900",
+                                isFrozenRight && "sticky z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900"
                             )}
-                            onDoubleClick={() => onViewProfile(app)}
-                        >
-                            <div className="px-4 py-2 flex items-center gap-2 group/pis min-w-0 w-full">
-                                <span className="text-[12px] text-surface-700 font-medium truncate flex-1 min-w-0">{nameVal || <span className="text-[#a19f9d]">—</span>}</span>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onViewProfile(app); }}
-                                    className="opacity-30 hover:opacity-100 p-1 bg-[#f0f2f5] text-[#0078d4] rounded-none hover:bg-[#e1dfdd] transition-all shadow-sm shrink-0 border border-[#edebe9]"
-                                    title="View Full PIS Profile"
-                                    >
-                                    <User size={12} />
-                                </button>
-                                {hasHistory && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onShowHistory?.(app); }}
-                                        className="opacity-30 hover:opacity-100 p-1 bg-[#f0f2f5] text-purple-600 rounded-none hover:bg-[#e1dfdd] transition-all shadow-sm shrink-0 border border-[#edebe9]"
-                                        title="View Reprofile History"
-                                    >
-                                        <HistoryIcon size={12} />
-                                    </button>
-                                )}
-                            </div>
-                        </td>
+                            colIdx={idx}
+                            {...selectionProps}
+                        />
                     );
                 }
 
                 return (
-                    <EditableCell
+                    <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                         key={idx}
                         id={`cell-${app.id}-${colKey}`}
                         width={isCustom ? 140 : getColumnWidth(col)}
                         value={localChanges[colKey] ?? remoteChanges[colKey] ?? value}
                         isEditing={isEditing && isColumnEditable(activeTab, col)}
-                        setIsEditing={setIsEditing}
                         options={customOpts}
                         isActive={isFocused && focusedColKey === colKey && focusedColName === col}
                         onPaint={(e) => onCellPaint(e, app, col, colKey)}
@@ -1009,24 +826,36 @@ export const InterviewRow = React.memo(({
                         isAccount={colKey === 'pis_initial_account_assignment' || colKey === 'master_wave' || colKey === 'pis_final_account'}
                         accounts={(colKey === 'pis_initial_account_assignment' || colKey === 'master_wave' || colKey === 'pis_final_account') ? accounts : undefined}
                         onShowHistory={((colKey === 'pis_initial_account_assignment' || colKey === 'pis_ops_validator_email' || colKey === 'pis_ops_validator_status' || colKey === 'pis_ops_validator_notes' || colKey === 'ops_validator_email' || colKey === 'ops_validator_status' || colKey === 'ops_validator_notes' || colKey.includes('ops_val')) && onShowHistory && !!((app.pis?.reprofile_history && app.pis.reprofile_history.length > 0) || (app.metadata?.reprofile_history && app.metadata.reprofile_history.length > 0))) ? () => onShowHistory(app) : undefined}
-                        onShowProcedure={colKey === 'pis_final_specific_status' && onShowProcedure ? () => onShowProcedure(app) : undefined}
                         onClose={() => setFocusPath(null)}
-                        className={isReprofiled ? "bg-yellow-50" : "bg-white"}
-                        style={getCellHighlightStyle(colKey)}
+                        className={cn(
+                            isReprofiled ? "bg-yellow-50" : "bg-white dark:bg-slate-900",
+                            isFrozen && "sticky z-20 frozen-column-glow bg-white dark:bg-slate-900",
+                            isFrozenRight && "sticky z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900"
+                        )}
+                        style={{
+                            left: isFrozen ? columnLeftOffsets[colKey] : undefined,
+                            right: isFrozenRight ? columnRightOffsets[colKey] : undefined,
+                            ...getCellHighlightStyle(colKey)
+                        } as any}
+                        colIdx={idx}
+                        {...selectionProps}
                     />
                 );
             }).filter(Boolean);
         } else {
             switch (norm) {
                 case 'PIVOT': {
-                    const matchesAnyCol = PIVOT_COLUMNS.some(c => terms.some(t => c.toLowerCase().includes(t)));
                     cells = PIVOT_COLUMNS.map((col, idx) => {
-                        if (hasSearch && matchesAnyCol && !terms.some(t => col.toLowerCase().includes(t)) && !col.toLowerCase().includes('name')) return null;
                         const colKey = helpers.getPivotColumnKey(col);
+                        let val = localChanges[colKey] ?? remoteChanges[colKey] ?? helpers.getPivotCellValue(app, col);
+                        if (colKey === 'pis_overall_status' || colKey === 'overall_status') {
+                            val = normalizeOverallStatus(val);
+                        }
+
                         return (
-                            <EditableCell
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                 key={idx}
-                                value={localChanges[colKey] ?? remoteChanges[colKey] ?? helpers.getPivotCellValue(app, col)}
+                                value={val}
                                 isEditing={isEditing && isColumnEditable(activeTab, col)}
                                 isActive={isFocused && focusedColKey === colKey && focusedColName === col}
                                 onPaint={(e) => onCellPaint(e, app, col, colKey)}
@@ -1041,22 +870,27 @@ export const InterviewRow = React.memo(({
                                 presence={getCellPresence(colKey)}
                                 colKey={colKey}
                                 isStatus={colKey === 'current_status' || colKey === 'pis_final_specific_status' || colKey === 'pis_overall_status' || colKey === 'overall_status'}
-                                onShowProcedure={colKey === 'pis_final_specific_status' && onShowProcedure ? () => onShowProcedure(app) : undefined}
+                                colIdx={idx}
+                                {...selectionProps}
                             />
                         );
                     }).filter(Boolean);
                     break;
                 }
                 case 'VLIST': {
-                    const matchesAnyCol = VLIST_COLUMNS.some(c => terms.some(t => c.toLowerCase().includes(t)));
                     cells = VLIST_COLUMNS.map((col, idx) => {
-                        if (hasSearch && matchesAnyCol && !terms.some(t => col.toLowerCase().includes(t)) && !col.toLowerCase().includes('name')) return null;
                         const colKey = helpers.getVlistColumnKey(col);
                         const isStatus = colKey === 'current_status' || colKey === 'ops_val_status' || colKey === 'client_interview_status' || colKey === 'pis_final_specific_status' || colKey === 'pis_overall_status' || colKey === 'overall_status';
+                        
+                        let val = localChanges[colKey] ?? remoteChanges[colKey] ?? helpers.getVlistCellValue(app, col);
+                        if (colKey === 'pis_overall_status' || colKey === 'overall_status') {
+                            val = normalizeOverallStatus(val);
+                        }
+
                         return (
-                            <EditableCell
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                 key={idx}
-                                value={localChanges[colKey] ?? remoteChanges[colKey] ?? helpers.getVlistCellValue(app, col)}
+                                value={val}
                                 isEditing={isEditing && isColumnEditable(activeTab, col)}
                                 isActive={isFocused && focusedColKey === colKey && focusedColName === col}
                                 onPaint={(e) => onCellPaint(e, app, col, colKey)}
@@ -1073,25 +907,24 @@ export const InterviewRow = React.memo(({
                                 isStatus={isStatus}
                                 isAccount={colKey === 'master_wave'}
                                 accounts={colKey === 'master_wave' ? accounts : undefined}
-                                onShowProcedure={colKey === 'pis_final_specific_status' && onShowProcedure ? () => onShowProcedure(app) : undefined}
+                                colIdx={idx}
+                                {...selectionProps}
                             />
                         );
                     }).filter(Boolean);
                     break;
                 }
                 case 'SUPPORT_HIRING': {
-                    const matchesAnyCol = SUPPORT_HIRING_COLUMNS.some(c => terms.some(t => c.toLowerCase().includes(t)));
                     cells = SUPPORT_HIRING_COLUMNS.map((col, idx) => {
-                        if (hasSearch && matchesAnyCol && !terms.some(t => col.toLowerCase().includes(t)) && !col.toLowerCase().includes('name')) return null;
                         const colKey = helpers.getSupportHiringColumnKey(col);
                         const value = helpers.getSupportHiringCellValue(app, col, rowIndex);
 
                         if (col === "#") {
-                            return renderIdCell(col, value, colKey, idx, getColumnWidth(col), 0);
+                            return renderIdCell(col, value, colKey, idx, getColumnWidth(col), 0, false);
                         }
 
                         return (
-                            <EditableCell
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                 key={idx}
                                 value={localChanges[colKey] ?? remoteChanges[colKey] ?? value}
                                 isEditing={isEditing && isColumnEditable(activeTab, col)}
@@ -1108,6 +941,8 @@ export const InterviewRow = React.memo(({
                                 presence={getCellPresence(colKey)}
                                 colKey={colKey}
                                 isStatus={colKey === 'current_status'}
+                                colIdx={idx}
+                                {...selectionProps}
                             />
                         );
                     }).filter(Boolean);
@@ -1122,11 +957,11 @@ export const InterviewRow = React.memo(({
                     const matchesAnyField = matchesQuestion || matchesPos || matchesAcc || matchesStat || matchesRemarks;
 
                     cells = [
-                        ...activeQuestions.map(q => {
+                        ...activeQuestions.map((q, qIdx) => {
                             if (hasSearch && matchesAnyField && !terms.some(t => q.question_text.toLowerCase().includes(t))) return null;
                             const value = localChanges[q.id] ?? remoteChanges[q.id] ?? app.interview_responses?.[q.id] ?? '';
                             return (
-                                <EditableCell
+                                <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                     key={q.id}
                                     value={value}
                                     isEditing={isEditing}
@@ -1143,11 +978,13 @@ export const InterviewRow = React.memo(({
                                     presence={getCellPresence(q.id)}
                                     colKey={q.id}
                                     placeholder="Log response text..."
+                                    colIdx={qIdx}
+                                    {...selectionProps}
                                 />
                             );
                         }).filter(Boolean),
                         ...[(!hasSearch || !matchesAnyField || terms.some(t => "remarks".includes(t))) && (
-                            <EditableCell
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                 key="final_interview_notes"
                                 value={localChanges.final_interview_notes ?? remoteChanges.final_interview_notes ?? app.final_interview_notes ?? ''}
                                 isEditing={isEditing}
@@ -1165,6 +1002,8 @@ export const InterviewRow = React.memo(({
                                 colKey="final_interview_notes"
                                 placeholder="Enter final remarks..."
                                 width={400}
+                                colIdx={activeQuestions.length}
+                                {...selectionProps}
                             />
                         )].filter(Boolean)
                     ];
@@ -1173,8 +1012,7 @@ export const InterviewRow = React.memo(({
         }
 
         const isCustomizableTab = norm.includes('SHEET') ||
-            norm === 'BLACKLIST' ||
-            norm === 'NOT_ELIGIBLE' ||
+            ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(norm) ||
             norm.includes('TEAM_LEADER') ||
             norm.includes('BILINGUALS');
 
@@ -1182,7 +1020,7 @@ export const InterviewRow = React.memo(({
             cells.push(
                 <td 
                     key="add-column-placeholder"
-                    className="bg-emerald-50/10 border-r border-[#edebe9]"
+                    className="transition-all hover:scale-110 hover:shadow-xl hover:z-[100] relative duration-300 ease-out hover:bg-white dark:bg-slate-900 bg-emerald-50/10 border-r border-surface-200"
                     style={{ width: 120, minWidth: 120, maxWidth: 120 }}
                 />
             );
@@ -1194,8 +1032,7 @@ export const InterviewRow = React.memo(({
     const normalizedTabUpper = activeTab.toUpperCase();
     const isSpecialTab = (
         normalizedTabUpper.includes('SHEET') ||
-        normalizedTabUpper === 'BLACKLIST' ||
-        normalizedTabUpper === 'NOT_ELIGIBLE' ||
+        ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(normalizedTabUpper) ||
         normalizedTabUpper === 'PIVOT' ||
         normalizedTabUpper === 'VLIST' ||
         normalizedTabUpper.includes('TEAM_LEADER') ||
@@ -1215,14 +1052,18 @@ export const InterviewRow = React.memo(({
 
     return (
         <motion.tr
+            data-ai-spotlight={`candidate-${app.id}`}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, delay: Math.min(rowIndex * 0.01, 0.2) }}
-            onMouseDown={() => onRowMouseDown(app.id)}
+            onMouseDown={(e) => {
+                if (isSelectMode) e.preventDefault();
+                onRowMouseDown(app.id);
+            }}
             onMouseEnter={() => onRowMouseEnter(app.id)}
             className={cn(
-                "border-b border-[#edebe9] text-left group/row",
-                isReprofiled ? "bg-yellow-50 hover:bg-yellow-100/70" : "bg-white hover:bg-[#f8f9fa]",
+                "border-b border-surface-200 text-left group/row h-[36px] min-h-[36px] max-h-[36px]",
+                isReprofiled ? "bg-yellow-50 hover:bg-yellow-100/70" : "bg-white dark:bg-slate-900 hover:bg-[#f8f9fa]",
                 isSelectMode && "select-none",
                 app.highlight_color && app.highlight_color !== '---' && app.highlight_color !== 'clear' && `row-highlight-${app.highlight_color}`
             )}
@@ -1231,8 +1072,8 @@ export const InterviewRow = React.memo(({
                 <td 
                     style={{ position: 'sticky', left: 0, zIndex: 20 }}
                     className={cn(
-                        "border-r border-[#edebe9] px-3 text-center w-[50px] min-w-[50px] max-w-[50px] sticky shadow-[2px_0_4px_rgba(0,0,0,0.02)]",
-                        isReprofiled ? "bg-yellow-50" : "bg-white"
+                        "transition-all hover:scale-110 hover:shadow-xl hover:z-[100] relative duration-300 ease-out hover:bg-white dark:bg-slate-900", "border-b border-r border-surface-200 px-3 text-center w-[50px] min-w-[50px] max-w-[50px] sticky shadow-[2px_0_4px_rgba(0,0,0,0.02)]",
+                        isReprofiled ? "bg-yellow-50" : "bg-white dark:bg-slate-900"
                     )}
                 >
                     <input
@@ -1244,7 +1085,7 @@ export const InterviewRow = React.memo(({
                 </td>
             )}
 
-            {!(activeTab.toUpperCase().trim().includes('SHEET') || activeTab.toUpperCase().trim() === 'BLACKLIST' || activeTab.toUpperCase().trim() === 'NOT_ELIGIBLE' || activeTab.toUpperCase().trim().includes('BILINGUALS') || activeTab.toUpperCase().trim().includes('TEAM_LEADER')) && (
+            {!(activeTab.toUpperCase().trim().includes('SHEET') || ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(activeTab.toUpperCase().trim()) || activeTab.toUpperCase().trim().includes('BILINGUALS') || activeTab.toUpperCase().trim().includes('TEAM_LEADER')) && (
                 <CandidateIdentityCell
                     app={app}
                     isSelectMode={isSelectMode}
@@ -1261,23 +1102,46 @@ export const InterviewRow = React.memo(({
                     className={cn(
                         "z-30 transition-shadow",
                         isSelectMode ? "left-[50px]" : "left-0",
-                        isReprofiled ? "bg-yellow-50 group-hover/row:bg-yellow-100/70" : "bg-white group-hover:bg-[#f8f9fa]",
+                        isReprofiled ? "bg-yellow-50 group-hover/row:bg-yellow-100/70" : "bg-white dark:bg-slate-900 group-hover:bg-[#f8f9fa]",
                         "group-hover/row:shadow-[4px_0_12px_rgba(0,0,0,0.05)]"
                     )}
                 />
             )}
 
             {!(activeTab.toUpperCase().trim().includes('SHEET') ||
-                activeTab.toUpperCase().trim() === 'BLACKLIST' ||
-                activeTab.toUpperCase().trim() === 'NOT_ELIGIBLE' ||
+                ['BLACKLIST', 'BLACKLISTED', 'NOT_ELIGIBLE', 'NOT_ELIGIBLE_FOR_REHIRE', 'WAITLISTED', 'WITHDRAWN', 'PROMOTED', 'LATERAL_TRANSFER'].includes(activeTab.toUpperCase().trim()) ||
                 activeTab.toUpperCase().trim().includes('PIVOT') ||
                 activeTab.toUpperCase().trim().includes('VLIST') ||
                 activeTab.toUpperCase().trim().includes('TEAM_LEADER') ||
                 activeTab.toUpperCase().trim().includes('BILINGUALS') ||
                 activeTab.toUpperCase().trim().includes('SUPPORT_HIRING')) && (
                     <>
+                        {(!hasSearchActive || !termMatchesAnyDefault || terms.some(t => "posting".includes(t) || "job".includes(t))) && (
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
+                                value={localChanges.preferred_nickname ?? remoteChanges.preferred_nickname ?? app.preferred_nickname ?? app.pis?.preferred_nickname ?? ''}
+                                isEditing={isEditing}
+                                isActive={isFocused && focusedColKey === 'preferred_nickname' && focusedColName === 'Job Posting'}
+                                onPaint={() => {
+                                    setFocusPath({ appId: app.id, colKey: 'preferred_nickname', colName: 'Job Posting' });
+                                    updateActivity({ type: 'focus', targetId: `${app.id}:preferred_nickname:Job Posting` });
+                                }}
+                                onChange={(val) => {
+                                    handleInputChange(app.id, 'preferred_nickname', val);
+                                    updateActivity({ type: 'edit', targetId: `${app.id}:preferred_nickname` });
+                                }}
+                                onHover={() => handleCellHover('preferred_nickname')}
+                                onLeave={handleCellLeave}
+                                presence={getCellPresence('preferred_nickname')}
+                                colKey="preferred_nickname"
+                                placeholder="Preferred Name..."
+                                width={140}
+                                className="sticky left-[280px] z-20 bg-white dark:bg-slate-900"
+                                colIdx={0}
+                                {...selectionProps}
+                            />
+                        )}
                         {(!hasSearchActive || !termMatchesAnyDefault || terms.some(t => "position".includes(t))) && (
-                            <EditableCell
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                 value={localChanges.position_title ?? remoteChanges.position_title ?? app.position_title ?? ''}
                                 isEditing={isEditing}
                                 isActive={isFocused && focusedColKey === 'position_title' && focusedColName === 'Position'}
@@ -1295,11 +1159,13 @@ export const InterviewRow = React.memo(({
                                 colKey="position_title"
                                 placeholder="Position..."
                                 width={getColumnWidth('Position')}
-                                className="sticky left-[280px] z-20 bg-white"
+                                className="sticky left-[420px] z-20 bg-white dark:bg-slate-900"
+                                colIdx={1}
+                                {...selectionProps}
                             />
                         )}
                         {(!hasSearchActive || !termMatchesAnyDefault || terms.some(t => "account".includes(t))) && (
-                            <EditableCell
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                 value={localChanges.department ?? remoteChanges.department ?? app.department ?? ''}
                                 isEditing={isEditing}
                                 isActive={isFocused && focusedColKey === 'department' && focusedColName === 'Account'}
@@ -1317,10 +1183,12 @@ export const InterviewRow = React.memo(({
                                 colKey="department"
                                 placeholder="Account..."
                                 width={getColumnWidth('Account')}
+                                colIdx={1}
+                                {...selectionProps}
                             />
                         )}
                         {(!hasSearchActive || !termMatchesAnyDefault || terms.some(t => "status".includes(t))) && (
-                            <EditableCell
+                            <EditableCell setIsEditing={setIsEditing} currentStep={app.current_status || ''}
                                 value={localChanges.current_status ?? remoteChanges.current_status ?? app.current_status ?? ''}
                                 isEditing={isEditing}
                                 isActive={isFocused && focusedColKey === 'current_status' && focusedColName === 'Status'}
@@ -1338,6 +1206,8 @@ export const InterviewRow = React.memo(({
                                 colKey="current_status"
                                 isStatus={true}
                                 width={getColumnWidth('Status')}
+                                colIdx={2}
+                                {...selectionProps}
                             />
                         )}
                     </>
@@ -1346,4 +1216,28 @@ export const InterviewRow = React.memo(({
             {renderCells()}
         </motion.tr>
     );
+}, (prev, next) => {
+    return prev.app === next.app &&
+        prev.rowIndex === next.rowIndex &&
+        prev.activeTab === next.activeTab &&
+        prev.isEditing === next.isEditing &&
+        prev.isSelectMode === next.isSelectMode &&
+        prev.isSelected === next.isSelected &&
+        prev.isFocused === next.isFocused &&
+        prev.focusedColKey === next.focusedColKey &&
+        prev.focusedColName === next.focusedColName &&
+        prev.search === next.search &&
+        prev.promotingId === next.promotingId &&
+        prev.activeHireChecklistAppId === next.activeHireChecklistAppId &&
+        prev.localChanges === next.localChanges &&
+        prev.remoteChanges === next.remoteChanges &&
+        prev.columnLeftOffsets === next.columnLeftOffsets &&
+        prev.showEssentialOnly === next.showEssentialOnly &&
+        JSON.stringify(prev.frozenKeys) === JSON.stringify(next.frozenKeys) &&
+        JSON.stringify(prev.userFocus) === JSON.stringify(next.userFocus) &&
+        JSON.stringify(prev.activeUsers) === JSON.stringify(next.activeUsers);
 });
+
+
+
+

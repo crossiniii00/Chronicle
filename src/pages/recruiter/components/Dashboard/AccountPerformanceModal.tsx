@@ -18,7 +18,7 @@ export const AccountPerformanceModal: React.FC<AccountPerformanceModalProps> = (
     const filteredData = useMemo(() => {
         const term = search.trim().toLowerCase();
         if (!term) return accountPerformanceData;
-        return accountPerformanceData.filter(a => a.name.toLowerCase().includes(term));
+        return accountPerformanceData.filter(a => (a.name || '').toLowerCase().includes(term));
     }, [accountPerformanceData, search]);
 
     return (
@@ -43,7 +43,7 @@ export const AccountPerformanceModal: React.FC<AccountPerformanceModalProps> = (
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search account…"
-                    className="w-full pl-9 pr-9 py-2 bg-white border border-surface-200 text-[12px] font-medium placeholder:text-surface-400 focus:border-black transition-all outline-none rounded-none"
+                    className="w-full pl-9 pr-9 py-2 bg-white dark:bg-slate-900 border border-surface-200 text-[12px] font-medium placeholder:text-surface-400 focus:border-black transition-all outline-none rounded-none"
                 />
                 {search && (
                     <button

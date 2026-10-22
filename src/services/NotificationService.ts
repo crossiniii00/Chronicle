@@ -19,6 +19,10 @@ export class NotificationService {
         await apiClient.delete(`/notifications/${id}`);
     }
 
+    static async deleteBulk(ids: string[]): Promise<void> {
+        await apiClient.post('/notifications/delete-bulk', { ids });
+    }
+
     static async notify(userId: string, title: string, message: string, type: NotificationType = 'system_announcement') {
         const response = await apiClient.post('/notifications', {
             userId,

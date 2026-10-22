@@ -2,7 +2,7 @@ import type { H2RRecord } from '@/services/MhrtService';
 
 export const COLUMN_HEADERS = [
     "Account", "LOB", "Job Location", "Division", "Line of Business",
-    "Department", "Reports To", "Training", "Nesting"
+    "Department", "Reports To", "Training", "Nesting", "Start Date", "Headcount", "Req. ID"
 ];
 
 export const REAL_H2R: H2RRecord[] = [
@@ -212,36 +212,36 @@ export const REAL_H2R: H2RRecord[] = [
     },
     {
         "id": "18",
-        "account": "Exact Sciences",
+        "account": "Abbott",
         "lob": "Customer Service Representative",
         "jobLocation": "Cebu - Skyrise 4B",
         "division": "Operations Direct",
         "lineOfBusiness": "Exact Science Extended Adherence Campaign (EAC)\nExact Science Lifeline Outreach\nExact Science Positive Outbound\nExact Science Precision Oncology\nExact Science Provide Support",
-        "department": "Exact Sciences",
+        "department": "Abbott",
         "reportsTo": "Ana Cawas Cerojano",
         "training": "2 weeks",
         "nesting": "2 weeks"
     },
     {
         "id": "19",
-        "account": "Exact Sciences",
+        "account": "Abbott",
         "lob": "Mandarin Bilingual",
         "jobLocation": "Cebu - Skyrise 4B",
         "division": "Operations Direct",
         "lineOfBusiness": "Exact Science Mandarin",
-        "department": "Exact Sciences",
+        "department": "Abbott",
         "reportsTo": "Dolores Meek",
         "training": "2 weeks",
         "nesting": "2 weeks"
     },
     {
         "id": "20",
-        "account": "Exact Sciences",
+        "account": "Abbott",
         "lob": "Cantonese Bilingual",
         "jobLocation": "Cebu - Skyrise 4B",
         "division": "Operations Direct",
         "lineOfBusiness": "Exact Science Cantonese",
-        "department": "Exact Sciences",
+        "department": "Abbott",
         "reportsTo": "Dolores Meek",
         "training": "2 weeks",
         "nesting": "2 weeks"
@@ -368,12 +368,12 @@ export const REAL_H2R: H2RRecord[] = [
     },
     {
         "id": "31",
-        "account": "Third Party Verifier (TPV) 360",
+        "account": "Third Party Verifier (TPV)",
         "lob": "Customer Service Representative",
         "jobLocation": "Cebu - Skyrise Alpha",
         "division": "Operations Direct",
-        "lineOfBusiness": "TPV 360",
-        "department": "TPV 360 LLC",
+        "lineOfBusiness": "TPV",
+        "department": "TPV",
         "reportsTo": "Fritzgerard Gerundio",
         "training": "2 weeks",
         "nesting": "2 weeks"
@@ -426,4 +426,24 @@ export const REAL_H2R: H2RRecord[] = [
         "training": "2 weeks",
         "nesting": "2 weeks"
     }
+,
+    {"id":"1000","account":"Keller Postman","lob":"Agent - Case Manager","jobLocation":"Cebu","division":"Keller Postman","lineOfBusiness":"Keller Postman","department":"Keller Postman","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 22, 2026","headcount":"9","reqId":"1233247120"},
+    {"id":"1001","account":"The Facilities Group","lob":"Agent - TFG Accounts Receivable","jobLocation":"Cebu","division":"The Facilities Group","lineOfBusiness":"The Facilities Group","department":"The Facilities Group","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 22, 2026","headcount":"1","reqId":"391376414"},
+    {"id":"1002","account":"Paessler","lob":"Commercial Renewal Specialist","jobLocation":"Cebu","division":"Paessler","lineOfBusiness":"Paessler","department":"Paessler","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 22, 2026","headcount":"2","reqId":"1276324379"},
+    {"id":"1003","account":"Admin","lob":"Safety Officer II","jobLocation":"Cebu","division":"Admin","lineOfBusiness":"Admin","department":"Admin","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 22, 2026","headcount":"1","reqId":"N/A"},
+    {"id":"1004","account":"Facilities","lob":"Facilities Supervisor","jobLocation":"Cebu","division":"Facilities","lineOfBusiness":"Facilities","department":"Facilities","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 29, 2026","headcount":"1","reqId":"N/A"},
+    {"id":"1005","account":"Finance","lob":"Payroll Associate","jobLocation":"Cebu","division":"Finance","lineOfBusiness":"Finance","department":"Finance","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 29, 2026","headcount":"1","reqId":"N/A"},
+    {"id":"1006","account":"Facilities","lob":"Asset Property Specialist","jobLocation":"Cebu","division":"Facilities","lineOfBusiness":"Facilities","department":"Facilities","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 29, 2026","headcount":"1","reqId":"N/A"},
+    {"id":"1007","account":"Admin","lob":"Safety Officer II","jobLocation":"Cebu","division":"Admin","lineOfBusiness":"Admin","department":"Admin","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"June 30, 2026","headcount":"1","reqId":"N/A"},
+    {"id":"1008","account":"Keller Postman","lob":"Agent - Case Manager","jobLocation":"Cebu","division":"Keller Postman","lineOfBusiness":"Keller Postman","department":"Keller Postman","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"July 20, 2026","headcount":"7","reqId":"918312356 | 1473510491"},
+    {"id":"1009","account":"Enercare","lob":"Quality Assurance Analyst","jobLocation":"Cebu","division":"Enercare","lineOfBusiness":"Enercare","department":"Enercare","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"July 27, 2026","headcount":"2","reqId":"2107228469"},
+    {"id":"1010","account":"Enercare","lob":"Team Leader","jobLocation":"Cebu","division":"Enercare","lineOfBusiness":"Enercare","department":"Enercare","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"July 27, 2026","headcount":"3","reqId":"2132966097"},
+    {"id":"1011","account":"Enercare","lob":"Agent (Back-office)","jobLocation":"Cebu","division":"Enercare","lineOfBusiness":"Enercare","department":"Enercare","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"July 27, 2026","headcount":"44","reqId":"966008220"},
+    {"id":"1012","account":"Paessler","lob":"Team Lead - Network Engineer","jobLocation":"Cebu","division":"Paessler","lineOfBusiness":"Paessler","department":"Paessler","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"August 3, 2026","headcount":"3","reqId":"2106572391"},
+    {"id":"1013","account":"Oncourse","lob":"Agent","jobLocation":"Cebu","division":"Oncourse","lineOfBusiness":"Oncourse","department":"Oncourse","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"August 3, 2026","headcount":"25","reqId":"414547808"},
+    {"id":"1014","account":"Paessler","lob":"Team Lead - Network Engineer","jobLocation":"Cebu","division":"Paessler","lineOfBusiness":"Paessler","department":"Paessler","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"August 17, 2026","headcount":"3","reqId":"1273803116"},
+    {"id":"1015","account":"Paessler","lob":"Agent - Technical Support Engineer I","jobLocation":"Cebu","division":"Paessler","lineOfBusiness":"Paessler","department":"Paessler","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"August 24, 2026","headcount":"16","reqId":"Pending"},
+    {"id":"1016","account":"Paessler","lob":"Agent - Customer Service","jobLocation":"Cebu","division":"Paessler","lineOfBusiness":"Paessler","department":"Paessler","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"August 24, 2026","headcount":"2","reqId":"Pending"},
+    {"id":"1017","account":"Paessler","lob":"Trainer and QA - Tech Support Engineer","jobLocation":"Cebu","division":"Paessler","lineOfBusiness":"Paessler","department":"Paessler","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"August 24, 2026","headcount":"1","reqId":"1021633209"},
+    {"id":"1018","account":"Oncourse","lob":"Team Lead","jobLocation":"Cebu","division":"Oncourse","lineOfBusiness":"Oncourse","department":"Oncourse","reportsTo":"N/A","training":"N/A","nesting":"N/A","startDate":"September 7, 2026","headcount":"1","reqId":"1108115154"}
 ];

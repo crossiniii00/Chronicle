@@ -71,6 +71,15 @@ export function useAccounts() {
         }
     };
 
+    const handleInlineSave = async (id: string, field: keyof MHRTAccount, value: any) => {
+        try {
+            const updated = await MhrtService.updateAccount(id, { [field]: value });
+            setAccounts(prev => prev.map(a => a.id === id ? updated : a));
+        } catch (error) {
+            console.error('Failed to inline save account:', error);
+        }
+    };
+
     const handleDelete = async () => {
         if (deletingId) {
             try {
@@ -94,6 +103,11 @@ export function useAccounts() {
 
     const handleMouseUp = () => {
         setIsDragging(false);
+        if (scrollRef.current) {
+            setTimeout(() => {
+                if (scrollRef.current) delete scrollRef.current.dataset.dragging;
+            }, 50);
+        }
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
@@ -103,6 +117,10 @@ export function useAccounts() {
         scrollRef.current.scrollLeft = scrollLeft - walkX;
         const deltaY = (e.pageY - startY) * 1.5;
         window.scrollTo(0, startWinY - deltaY);
+
+        if (Math.abs(walkX) > 5 || Math.abs(deltaY) > 5) {
+            scrollRef.current.dataset.dragging = "true";
+        }
     };
 
     const filteredAccounts = useMemo(() => {
@@ -123,7 +141,7 @@ export function useAccounts() {
         deletingId, setDeletingId,
         formData, setFormData,
         scrollRef, isDragging,
-        handleAdd, handleEdit, handleSave, handleDelete,
+        handleAdd, handleEdit, handleSave, handleInlineSave, handleDelete,
         handleMouseDown, handleMouseUp, handleMouseMove,
         filteredAccounts
     };

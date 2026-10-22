@@ -1,0 +1,99 @@
+﻿ {                                                                  +
+     "age": "",                                                     +
+     "pis": {                                                       +
+         "full_name": "Mark Frederick Montes",                      +
+         "last_name": "Montes",                                     +
+         "first_name": "Mark Frederick",                            +
+         "middle_name": null,                                       +
+         "ops_validator_status": "Pending"                          +
+     },                                                             +
+     "sex": "Male",                                                 +
+     "email": "masdansnake0@gmail.com",                             +
+     "course": null,                                                +
+     "ratings": {                                                   +
+         "empathy": "",                                             +
+         "remarks": "",                                             +
+         "confidence": "",                                          +
+         "workHabits": "",                                          +
+         "personalRating": 5,                                       +
+         "communicationSkills": "",                                 +
+         "languageClassification": ""                               +
+     },                                                             +
+     "religion": "Christian",                                       +
+     "checklist": {                                                 +
+     },                                                             +
+     "full_name": "Mark Frederick Montes",                          +
+     "languages": [                                                 +
+     ],                                                             +
+     "background": {                                                +
+         "nonBpo": "",                                              +
+         "bpoChat": "",                                             +
+         "bpoVoice": "",                                            +
+         "goAbroad": "",                                            +
+         "education": "Senior High School Graduate",                +
+         "shsStrand": "ABM (Accountancy, Business, and Management)",+
+         "dateOfBirth": "",                                         +
+         "emailAddress": "masdansnake0@gmail.com",                  +
+         "contactNumber": "",                                       +
+         "medicalIssues": "",                                       +
+         "pursueStudies": "",                                       +
+         "transportMode": "",                                       +
+         "shiftingIssues": "",                                      +
+         "candidateSource": "",                                     +
+         "salaryExpectation": "",                                   +
+         "startAvailability": ""                                    +
+     },                                                             +
+     "custom_lob": "INBOUND PATIENT SUPPORT",                       +
+     "tenure_bpo": "None",                                          +
+     "course_year": "Senior High School Graduate",                  +
+     "scheduled_by": null,                                          +
+     "change_reason": "Autosave",                                   +
+     "comp_teamwork": null,                                         +
+     "draft_seconds": 4,                                            +
+     "final_account": "Abbott",                                     +
+     "bpo_experience": "No",                                        +
+     "certifications": [                                            +
+     ],                                                             +
+     "interview_mode": "ON-SITE",                                   +
+     "overall_status": "OPEN",                                      +
+     "question_notes": {                                            +
+     },                                                             +
+     "skipped_stages": [                                            +
+         "initial"                                                  +
+     ],                                                             +
+     "Specific Status": "Personality Test - Passed",                +
+     "comp_leadership": null,                                       +
+     "work_experience": [                                           +
+     ],                                                             +
+     "interviewer_name": "Namier Vedra Navales",                    +
+     "account_schedules": {                                         +
+         "abbott": "Namier Vedra Navales"                           +
+     },                                                             +
+     "comp_adaptability": null,                                     +
+     "form_submitted_at": "2026-09-09T06:28:15.169Z",               +
+     "comp_customer_focus": null,                                   +
+     "endorsement_account": "Abbott",                               +
+     "ops_validator_email": "steven.oblena@cp-360.com",             +
+     "ops_validator_notes": "",                                     +
+     "pending_from_status": null,                                   +
+     "typing_test_attempts": 0,                                     +
+     "Final Specific Status": "Personality Test - Passed",          +
+     "active_interview_type": "FINAL",                              +
+     "comp_technical_skills": null,                                 +
+     "endorsement_confirmed": "true",                               +
+     "final_specific_status": "Personality Test - Passed",          +
+     "comp_critical_thinking": null,                                +
+     "final_interview_result": "",                                  +
+     "endorsed_to_recruiter_s": false,                              +
+     "comp_attention_to_detail": null,                              +
+     "active_ops_validator_name": "Claer Agan Rubio",               +
+     "pregenerated_queue_number": 32,                               +
+     "pregenerated_queue_prefix": "Q",                              +
+     "assigned_ops_validator_ids": [                                +
+         "dfcc49dc-a09e-4317-9128-cd10ff1691a7"                     +
+     ],                                                             +
+     "initial_account_assignment": "Abbott",                        +
+     "assigned_ops_validator_email": null,                          +
+     "recruiter_s_scheduling_status": null                          +
+ }
+

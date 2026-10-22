@@ -27,15 +27,15 @@ function Field({ label, value, onChange, type = 'text' }: {
     onChange: (value: string) => void;
     type?: string;
 }) {
-    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white text-surface-900 shadow-sm';
+    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white dark:bg-slate-900 text-surface-900 shadow-sm';
     return (
         <label className="block space-y-1.5 text-left">
             <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">{label}</span>
-            <input 
-                type={type} 
-                value={value} 
-                onChange={(event) => onChange(event.target.value)} 
-                className={className} 
+            <input
+                type={type}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className={className}
             />
         </label>
     );
@@ -43,9 +43,9 @@ function Field({ label, value, onChange, type = 'text' }: {
 
 export function FamilyBackground({ form, updateForm, onBack, onNext }: FamilyBackgroundProps) {
     return (
-        <div 
+        <div
             className="min-h-screen w-full relative text-white pt-36 pb-16 px-4 overflow-x-hidden brand-gradient flex flex-col items-center justify-start"
-            style={{ 
+            style={{
                 fontFamily: "'Mulish', 'Segoe UI', 'Inter', sans-serif"
             }}
         >
@@ -58,13 +58,11 @@ export function FamilyBackground({ form, updateForm, onBack, onNext }: FamilyBac
             {/* Premium Transparent Header */}
             <header className="fixed top-0 left-0 w-full z-[100] flex items-center justify-between px-6 md:px-10 py-5 bg-black/20 backdrop-blur-xl border-b border-white/10">
                 <div className="flex items-center gap-4 cursor-pointer group">
-                    <div className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
-                        <img src="/contactpoint-logo.png?v=2" alt="CP360" className="w-7 h-7 object-contain" />
+                    <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
+                        <img src="/contactpoint-logo.png?v=2" alt="ContactPoint 360" className="w-7 h-7 object-contain" />
                     </div>
                     <div className="flex flex-col text-left">
-                        <h1 className="text-white font-black text-[15px] tracking-[0.1em] uppercase leading-none">
-                            ContactPoint<span className="text-[#ef3e36]">360</span>
-                        </h1>
+                        <h1 className="text-white font-black text-[15px] tracking-[0.15em] uppercase leading-none">ContactPoint<span className="text-[#ef3e36]">360</span></h1>
                         <span className="text-white/60 font-black text-[9px] tracking-[0.3em] uppercase mt-1">
                             Talent Acquisition
                         </span>
@@ -72,14 +70,14 @@ export function FamilyBackground({ form, updateForm, onBack, onNext }: FamilyBac
                 </div>
 
                 <div className="flex items-center gap-4 md:gap-6">
-                    <button 
-                        onClick={onBack} 
+                    <button
+                        onClick={onBack}
                         className="inline-flex items-center gap-2 text-white/70 hover:text-white text-xs font-black uppercase tracking-widest transition-colors"
                     >
                         <ArrowLeft size={14} />
                         <span className="hidden sm:inline">Back</span>
                     </button>
-                    <div className="h-4 w-[1px] bg-white/20" />
+                    <div className="h-4 w-[1px] bg-white/20 dark:bg-slate-900/20" />
                     <div className="text-[10px] font-black uppercase tracking-widest text-[#ef3e36] bg-[#ef3e36]/10 px-3.5 py-2 border border-[#ef3e36]/20 rounded-full">
                         Step 2 of 6: Family
                     </div>
@@ -90,10 +88,10 @@ export function FamilyBackground({ form, updateForm, onBack, onNext }: FamilyBac
 
 
                 {/* Form Card */}
-                <div className="w-full bg-white rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
+                <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
                     {/* Brand Top Border */}
                     <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#ef3e36]" />
-                    
+
                     <h2 className="mb-8 text-3xl font-black text-surface-900 tracking-tight uppercase border-b border-surface-100 pb-4">
                         Family Background
                     </h2>

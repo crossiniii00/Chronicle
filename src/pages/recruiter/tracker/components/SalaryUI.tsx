@@ -9,7 +9,7 @@ interface SalaryHeaderProps {
 
 export function SalaryHeader({ searchTerm, setSearchTerm }: SalaryHeaderProps) {
     return (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-surface-200 bg-white px-2 mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-surface-200 bg-white dark:bg-slate-900 px-2 mb-4">
             <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-[#002060]/5 rounded-sm text-[#002060] border border-[#002060]/10">
                     <Wallet size={24} />
@@ -42,7 +42,7 @@ export function AccountCard({ account, onSelect }: AccountCardProps) {
     return (
         <div
             onClick={() => onSelect(account)}
-            className="group p-4 bg-white border border-surface-200 rounded-none shadow-sm hover:shadow-md hover:border-[#002060]/30 transition-all cursor-pointer text-left"
+            className="group p-4 bg-white dark:bg-slate-900 border border-surface-200 rounded-none shadow-sm hover:shadow-md hover:border-[#002060]/30 transition-all cursor-pointer text-left"
         >
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -76,7 +76,7 @@ interface TierTableProps {
 
 export function TierTable({ tier }: TierTableProps) {
     return (
-        <div className="bg-white border border-surface-300 rounded-sm overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-surface-300 rounded-sm overflow-hidden shadow-sm">
             <div className="bg-surface-50 px-4 py-2 border-b border-surface-300 flex items-center justify-between">
                 <span className="text-[12px] font-bold text-[#002060]">{tier.name}</span>
                 <span className="text-[10px] text-surface-400">Position grid</span>

@@ -1,17 +1,28 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useAuthStore } from '@/store/authStore';
 import { Modal } from '@/components/common/Modal';
 import {
     X, Download, FileText, Briefcase, GraduationCap,
     Award, AlertTriangle, User, Phone, Mail, Calendar,
     ChevronDown, ChevronUp, ExternalLink, Loader2,
     CheckCircle2, Target, GavelIcon, ClipboardList, Star,
-    MessageSquare, ListChecks, Headphones
+    MessageSquare, ListChecks, Headphones, Edit3, Save, Settings, Layers, History as HistoryIcon
 } from 'lucide-react';
-import { cn } from '@/utils/formatters';
+import { cn, getStatusLabel } from '@/utils/formatters';
 import type { Application, PersonalInfoSheet } from '@/types/application';
 import { QuestionService, InterviewQuestion } from '@/services/QuestionService';
+import { ApplicationTab as SharedApplicationTab } from './DetailTabs/ApplicationTab';
+import { NotesTab } from './DetailTabs/NotesTab';
+import { extractRemarks } from './utils/evaluationHelpers';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { PISExportTemplate } from './PISExportTemplate';
+import { CandidateDataExportTemplate } from './CandidateDataExportTemplate';
+import { ClientInterviewRemarksSection } from './components/ClientInterviewRemarksSection';
+import { ValidatorRemarksSection } from './components/ValidatorRemarksSection';
+import { ResumeManagerModal } from './ResumeManagerModal';
 
-type ProfileTab = 'application' | 'initial_interview' | 'interview_results' | 'interview_recording' | 'assessment' | 'final_interview' | 'verdict';
+type ProfileTab = 'application' | 'initial_interview' | 'interview_results' | 'interview_recording' | 'assessment' | 'final_interview' | 'verdict' | 'log' | 'notes';
 
 interface FullscreenProfileViewProps {
     open: boolean;
@@ -65,11 +76,6 @@ function getStatusPill(status: string | undefined) {
     return STATUS_PILL_STYLES[status.toUpperCase()] || 'bg-surface-100 text-surface-700 ring-surface-200';
 }
 
-function formatStatusLabel(status: string | undefined): string {
-    if (!status) return 'Unknown';
-    return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
 function formatDate(value: string | undefined | null): string {
     if (!value) return '—';
     try {
@@ -108,9 +114,6 @@ function getInitials(name: string | undefined | null): string {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-// Mirror the rubric criteria defined in InterviewSession.tsx so we can render
-// the saved checklist in a structured, read-only view. Keys are generated with
-// the same `${prefix}_${category}_${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}` rule.
 const RUBRIC_CRITERIA: Array<{
     title: string;
     prefix: 'accent' | 'pron' | 'gram' | 'fluency';
@@ -118,76 +121,76 @@ const RUBRIC_CRITERIA: Array<{
     categoryB: string[];
     categoryA: string[];
 }> = [
-    {
-        title: 'Accent Assessment',
-        prefix: 'accent',
-        categoryC: ['Close to English Native Speaker', 'Neutral Accent'],
-        categoryB: ['Filipino Sounding to Neutral', 'Filipino Sounding'],
-        categoryA: ['Filipino Sounding to Regional', 'Painfully Regional'],
-    },
-    {
-        title: 'Pronunciation Assessment',
-        prefix: 'pron',
-        categoryC: ['Able to produce all vowels and consonants'],
-        categoryB: [
-            'Mild or Inconsistent /i/ vs /I/ vs /E/',
-            'Mild or Inconsistent /u/ vs /U/ vs /o/ vs /aw/',
-            '/ae/ vs /a/ vs /uh/ or misuse of /ae/',
-            '/d/ or /t/ vs /th/',
-            '/p/ vs /f/',
-        ],
-        categoryA: [
-            'Consistent /i/ vs /I/ vs /E/',
-            'Consistent /u/ vs /U/ vs /o/',
-            'Consistent /ae/ vs /a/ vs /uh/',
-            '/b/ vs /v/ consistent',
-            '4 or More Sound Challenges',
-        ],
-    },
-    {
-        title: 'Grammar & Vocabulary',
-        prefix: 'gram',
-        categoryC: ['Grammar is Good', 'Good Vocabulary'],
-        categoryB: [
-            'Subject - Verb Agreement',
-            'Tenses (Past Tense vs Present Tense)',
-            'Prepositions (in, on, at...etc)',
-            'Conjunctions (and, but, for, because...etc)',
-            'Noun vs Adjective | verb vs adjective',
-            'Articles',
-            'Pluralization',
-            'Can make complete sentences',
-            'Few Challenges in Vocabulary',
-        ],
-        categoryA: [
-            'Too Many lapses / Consistent lapses on Tenses',
-            'Can only make Fragments / cannot construct proper sentences',
-            '3 More Grammar Lapses',
-            'Cannot convey thoughts or limited vocabulary',
-        ],
-    },
-    {
-        title: 'Fluency & Comprehension',
-        prefix: 'fluency',
-        categoryC: [
-            'Thought Organization is good',
-            'Can answer questions immediately and directly',
-            'Answers are clear and concise',
-        ],
-        categoryB: [
-            'Has Dead Air but able to convey thoughts',
-            'Has Few Fillers / Fillers are habitual',
-            'Answers are related to the question',
-        ],
-        categoryA: [
-            'Habitual Cebuano Fillers',
-            'Lots of Fillers while thinking about the answer',
-            'Lots of stuttering',
-            'Answers are not related to the question / unclear',
-            'Stuck on questions',
-        ],
-    },
-];
+        {
+            title: 'Accent Assessment',
+            prefix: 'accent',
+            categoryC: ['Close to English Native Speaker', 'Neutral Accent'],
+            categoryB: ['Filipino Sounding to Neutral', 'Filipino Sounding'],
+            categoryA: ['Filipino Sounding to Regional', 'Painfully Regional'],
+        },
+        {
+            title: 'Pronunciation Assessment',
+            prefix: 'pron',
+            categoryC: ['Able to produce all vowels and consonants'],
+            categoryB: [
+                'Mild or Inconsistent /i/ vs /I/ vs /E/',
+                'Mild or Inconsistent /u/ vs /U/ vs /o/ vs /aw/',
+                '/ae/ vs /a/ vs /uh/ or misuse of /ae/',
+                '/d/ or /t/ vs /th/',
+                '/p/ vs /f/',
+            ],
+            categoryA: [
+                'Consistent /i/ vs /I/ vs /E/',
+                'Consistent /u/ vs /U/ vs /o/',
+                'Consistent /ae/ vs /a/ vs /uh/',
+                '/b/ vs /v/ consistent',
+                '4 or More Sound Challenges',
+            ],
+        },
+        {
+            title: 'Grammar & Vocabulary',
+            prefix: 'gram',
+            categoryC: ['Grammar is Good', 'Good Vocabulary'],
+            categoryB: [
+                'Subject - Verb Agreement',
+                'Tenses (Past Tense vs Present Tense)',
+                'Prepositions (in, on, at...etc)',
+                'Conjunctions (and, but, for, because...etc)',
+                'Noun vs Adjective | verb vs adjective',
+                'Articles',
+                'Pluralization',
+                'Can make complete sentences',
+                'Few Challenges in Vocabulary',
+            ],
+            categoryA: [
+                'Too Many lapses / Consistent lapses on Tenses',
+                'Can only make Fragments / cannot construct proper sentences',
+                '3 More Grammar Lapses',
+                'Cannot convey thoughts or limited vocabulary',
+            ],
+        },
+        {
+            title: 'Fluency & Comprehension',
+            prefix: 'fluency',
+            categoryC: [
+                'Thought Organization is good',
+                'Can answer questions immediately and directly',
+                'Answers are clear and concise',
+            ],
+            categoryB: [
+                'Has Dead Air but able to convey thoughts',
+                'Has Few Fillers / Fillers are habitual',
+                'Answers are related to the question',
+            ],
+            categoryA: [
+                'Habitual Cebuano Fillers',
+                'Lots of Fillers while thinking about the answer',
+                'Lots of stuttering',
+                'Answers are not related to the question / unclear',
+                'Stuck on questions',
+            ],
+        },
+    ];
 
 function rubricKey(prefix: string, cat: 'c' | 'b' | 'a', label: string) {
     return `${prefix}_${cat}_${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -198,7 +201,7 @@ function FieldGrid({ items, cols = 3 }: { items: { label: string; value: React.R
     return (
         <div className={cn('grid gap-px bg-surface-200 border border-surface-200 rounded-lg overflow-hidden', colsClass)}>
             {items.map((it, i) => (
-                <div key={i} className="bg-white px-4 py-3">
+                <div key={i} className="bg-white dark:bg-slate-900 px-4 py-3">
                     <p className="text-[9.5px] font-bold text-surface-400 uppercase tracking-widest">{it.label}</p>
                     <p className={cn(
                         'text-[12.5px] mt-1 break-words',
@@ -217,7 +220,7 @@ function FieldGrid({ items, cols = 3 }: { items: { label: string; value: React.R
 
 function Field({ label, value }: { label: string; value: string | undefined | null }) {
     return (
-        <div className="bg-white border border-surface-200 rounded-lg px-4 py-3">
+        <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-lg px-4 py-3">
             <p className="text-[9.5px] font-bold text-surface-400 uppercase tracking-widest">{label}</p>
             <p className={cn(
                 'text-[12.5px] mt-1 break-words',
@@ -229,11 +232,12 @@ function Field({ label, value }: { label: string; value: string | undefined | nu
     );
 }
 
-function SectionCard({ icon: Icon, title, subtitle, accent = 'indigo', children }: {
+function SectionCard({ icon: Icon, title, subtitle, accent = 'indigo', action, children }: {
     icon: React.ComponentType<{ size?: number; className?: string }>;
     title: string;
     subtitle?: string;
     accent?: 'indigo' | 'amber' | 'emerald' | 'rose' | 'sky' | 'violet' | 'slate';
+    action?: React.ReactNode;
     children: React.ReactNode;
 }) {
     const accentColors: Record<string, string> = {
@@ -246,15 +250,18 @@ function SectionCard({ icon: Icon, title, subtitle, accent = 'indigo', children 
         slate: 'text-surface-700 bg-surface-100',
     };
     return (
-        <div className="bg-white border border-surface-200 rounded-lg overflow-hidden">
-            <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-3">
-                <div className={cn('w-9 h-9 rounded-md flex items-center justify-center shrink-0', accentColors[accent])}>
-                    <Icon size={16} />
+        <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-lg overflow-hidden">
+            <div className="px-5 py-4 border-b border-surface-100 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn('w-9 h-9 rounded-md flex items-center justify-center shrink-0', accentColors[accent])}>
+                        <Icon size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[13.5px] font-bold text-surface-900 leading-tight tracking-tight">{title}</p>
+                        {subtitle && <p className="text-[10.5px] text-surface-500 mt-0.5">{subtitle}</p>}
+                    </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                    <p className="text-[13.5px] font-bold text-surface-900 leading-tight tracking-tight">{title}</p>
-                    {subtitle && <p className="text-[10.5px] text-surface-500 mt-0.5">{subtitle}</p>}
-                </div>
+                {action && <div className="shrink-0">{action}</div>}
             </div>
             <div className="p-5">{children}</div>
         </div>
@@ -263,12 +270,12 @@ function SectionCard({ icon: Icon, title, subtitle, accent = 'indigo', children 
 
 function FullPisPanel({ pis }: { pis: Partial<PersonalInfoSheet> }) {
     return (
-        <div className="mt-2 bg-white border border-surface-200 rounded-lg p-5 space-y-5 animate-fade-in">
+        <div className="mt-2 bg-white dark:bg-slate-900 border border-surface-200 rounded-lg p-5 space-y-5 animate-fade-in">
             <div>
                 <h4 className="text-[10.5px] font-bold text-surface-500 uppercase tracking-widest mb-2">Identity</h4>
                 <FieldGrid items={[
                     { label: 'Full Name', value: pis.full_name },
-                    { label: 'Nickname', value: pis.nick_name },
+                    { label: 'Middle Name', value: pis.nick_name },
                     { label: 'Place of Birth', value: pis.place_of_birth },
                     { label: 'Religion', value: pis.religion },
                     { label: 'Current Address', value: pis.current_address },
@@ -354,7 +361,6 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
 
     return (
         <div className="p-6 space-y-5">
-            {/* PROFILE INTELLIGENCE */}
             <section>
                 <div className="flex items-baseline gap-2 mb-3">
                     <User size={13} className="text-indigo-600" />
@@ -365,16 +371,16 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
                     { label: 'Civil Status', value: pis.civil_status },
                     { label: 'Date of Birth', value: pis.birth_date },
                     { label: 'Religion', value: pis.religion },
-                    { label: 'Nickname', value: pis.nick_name },
+                    { label: 'Middle Name', value: pis.nick_name },
+                    { label: 'Preferred Nickname', value: pis.preferred_nickname },
                     { label: 'Age', value: pis.age },
                     { label: 'Nationality', value: pis.nationality },
                     { label: 'Phone Number', value: pis.phone, mono: true },
-                    { label: 'Gender', value: pis.gender },
+                    { label: 'Sex', value: pis.sex },
                     { label: 'Email', value: pis.email || applicant.applicant_email, mono: true },
                 ]} />
             </section>
 
-            {/* GOVERNMENT IDS */}
             <section>
                 <FieldGrid cols={4} items={[
                     { label: 'SSS No.', value: pis.sss_no, mono: true },
@@ -384,8 +390,7 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
                 ]} />
             </section>
 
-            {/* VIEW FULL PIS (expandable) */}
-            <section className="bg-white border border-surface-200 rounded-lg overflow-hidden">
+            <section className="bg-white dark:bg-slate-900 border border-surface-200 rounded-lg overflow-hidden">
                 <button
                     onClick={() => setShowFullPis(!showFullPis)}
                     className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-50 transition-colors text-left"
@@ -408,7 +413,6 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
                 )}
             </section>
 
-            {/* ADDRESSES */}
             <section>
                 <div className="flex items-center gap-2 mb-3">
                     <Award size={12} className="text-indigo-600" />
@@ -420,7 +424,6 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
                 ]} />
             </section>
 
-            {/* EDUCATION */}
             <section>
                 <div className="flex items-center gap-2 mb-3">
                     <GraduationCap size={12} className="text-indigo-600" />
@@ -434,7 +437,6 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
                 ]} />
             </section>
 
-            {/* WORK EXPERIENCE */}
             {workExperience.length > 0 && (
                 <section>
                     <div className="flex items-center gap-2 mb-3">
@@ -443,7 +445,7 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
                     </div>
                     <div className="space-y-2">
                         {workExperience.map((w, i) => (
-                            <div key={i} className="bg-white border border-surface-200 rounded-md p-3">
+                            <div key={i} className="bg-white dark:bg-slate-900 border border-surface-200 rounded-md p-3">
                                 <div className="flex items-baseline justify-between gap-3">
                                     <p className="text-[12px] font-bold text-surface-900">{w.position}</p>
                                     <p className="text-[10px] text-surface-500 font-mono shrink-0">{w.duration_from} → {w.duration_to}</p>
@@ -456,7 +458,6 @@ function ApplicationTab({ applicant, pis }: { applicant: Application; pis: Parti
                 </section>
             )}
 
-            {/* SKILLS & COMPETENCIES */}
             {skills.length > 0 && (
                 <section>
                     <div className="flex items-center gap-2 mb-3">
@@ -499,13 +500,37 @@ function InitialInterviewTab({ applicant }: { applicant: Application }) {
         </div>
     );
 }
-
-function InterviewResultsTab({ applicant }: { applicant: Application }) {
+function InterviewResultsTab({
+    applicant,
+    isEditing,
+    handleUpdateApplication,
+    tempRemarks,
+    setTempRemarks,
+    setLocalApplicant
+}: {
+    applicant: Application;
+    isEditing?: boolean;
+    handleUpdateApplication?: (id: string, patch: any) => void;
+    tempRemarks?: string | null;
+    setTempRemarks?: React.Dispatch<React.SetStateAction<string | null>>;
+    setLocalApplicant?: React.Dispatch<React.SetStateAction<Application | null>>;
+}) {
     const [subTab, setSubTab] = React.useState<'initial' | 'final' | 'recording'>('initial');
-    
+    const [selectedFinalAccount, setSelectedFinalAccount] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!isEditing && setTempRemarks) {
+            setTempRemarks(null);
+        }
+    }, [isEditing, setTempRemarks]);
+
+
+
     const metadata = typeof applicant.metadata === 'string'
         ? (() => { try { return JSON.parse(applicant.metadata); } catch { return {}; } })()
         : (applicant.metadata || {});
+
+
     const checklist: Record<string, boolean> = (metadata.checklist as Record<string, boolean>) || {};
     const ratings: Record<string, any> = (metadata.ratings as Record<string, any>) || {};
     const responses: Record<string, string> = (applicant.interview_responses as Record<string, string>) || {};
@@ -515,9 +540,18 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
     const getFallbackAnswer = (q: InterviewQuestion): string => {
         const val = responses[q.id] || responses[q.question_text] || '';
         if (val && val !== '---') return val;
-        
+
+        const rawPisFallback: any = applicant.pis || {};
+        const metaFallback: any = applicant.metadata || {};
+        const pis = {
+            ...metaFallback,
+            ...rawPisFallback,
+            transportation_mode: rawPisFallback.transportation_mode || rawPisFallback.travel_method || metaFallback.travel_method || '',
+            full_name: rawPisFallback.full_name || metaFallback.full_name || '',
+            initial_account_assignment: rawPisFallback.initial_account_assignment || metaFallback.initial_account_assignment || '',
+            summary_of_background: rawPisFallback.summary_of_background || rawPisFallback.background_summary || metaFallback.summary_of_background || metaFallback.background_summary || '',
+        };
         const qText = (q.question_text || '').toLowerCase().trim();
-        const pis = applicant.pis || {};
         if (qText.includes('interview date')) return formatDate(applicant.interview_completed_at || applicant.applied_at);
         if (qText.includes("candidate's complete name") || qText.includes("complete name")) return applicant.applicant_name || pis.full_name || '';
         if (qText.includes('position applying for')) return applicant.position_title || pis.initial_account_assignment || '';
@@ -541,7 +575,7 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
 
     React.useEffect(() => {
         QuestionService.getAll()
-            .then(qs => setQuestions(qs.filter(q => q.is_active)))
+            .then(qs => setQuestions(qs || []))
             .catch(() => setQuestions([]))
             .finally(() => setQuestionsLoading(false));
     }, []);
@@ -560,7 +594,6 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
     const hasGrading = gradingEntries.length > 0;
     const hasAnyData = hasChecklist || hasRatings || hasResponses || hasGrading;
 
-    // Background data from metadata
     const background = {
         bpoChat: metadata.bpo_experience_chat,
         bpoVoice: metadata.bpo_experience_voice,
@@ -575,6 +608,23 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
         startAvailability: metadata.availability_to_start,
         salaryExpectation: metadata.salary_expectations,
         candidateSource: metadata.candidate_source,
+    };
+
+    const handleChecklistChange = (key: string) => {
+        if (!handleUpdateApplication) return;
+        const currentChecklist = (typeof applicant.metadata === 'string'
+            ? (() => { try { return JSON.parse(applicant.metadata).checklist; } catch { return {}; } })()
+            : (applicant.metadata?.checklist)) || {};
+
+        handleUpdateApplication(applicant.id, {
+            metadata: {
+                ...(typeof applicant.metadata === 'string' ? (() => { try { return JSON.parse(applicant.metadata); } catch { return {}; } })() : (applicant.metadata || {})),
+                checklist: {
+                    ...currentChecklist,
+                    [key]: !currentChecklist[key]
+                }
+            }
+        });
     };
 
     const renderCategory = (
@@ -606,8 +656,10 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                         return (
                             <div
                                 key={item}
+                                onClick={() => { if (isEditing) handleChecklistChange(k); }}
                                 className={cn(
-                                    'flex items-start gap-2 text-[11px] py-0.5 select-none',
+                                    'flex items-start gap-2 text-[11px] py-0.5 select-none -ml-1 pl-1 rounded-sm transition-colors',
+                                    isEditing && 'cursor-pointer hover:bg-surface-50',
                                     isChecked ? 'text-surface-900 font-bold' : 'text-surface-500'
                                 )}
                             >
@@ -617,7 +669,7 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                                         ? cat === 'c' ? 'bg-emerald-500 border-emerald-500 text-white'
                                             : cat === 'b' ? 'bg-amber-500 border-amber-500 text-white'
                                                 : 'bg-rose-500 border-rose-500 text-white'
-                                        : 'bg-white border-surface-300'
+                                        : 'bg-white dark:bg-slate-900 border-surface-300'
                                 )}>
                                     {isChecked && (
                                         <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -640,7 +692,7 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
             return list.some(c => checklist[rubricKey(section.prefix, cat, c)]);
         });
         return (
-            <div className="bg-white border border-surface-200 p-4 rounded-lg shadow-sm space-y-3">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 p-4 rounded-lg shadow-sm space-y-3">
                 <h4 className="text-[10px] font-black text-surface-800 uppercase tracking-widest border-b border-surface-100 pb-2 flex items-center justify-between">
                     <span>{section.title}</span>
                     {!anyChecked && <span className="text-[9px] text-surface-400 font-bold">No flags</span>}
@@ -658,22 +710,48 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
 
     const personalRating = Number(ratings.personalRating) || 0;
 
-    // Group questions by category for Interview Evaluation display
-    const questionsByCategory = React.useMemo(() => {
+    const applicableQs = React.useMemo(() => {
+        const rawVal = applicant.pis?.final_account || applicant.endorsement_account || applicant.department || (applicant as any).account || '';
+        const candidateAcc = rawVal.split(',')[0]?.trim() || '';
+        const candidateLob = (applicant as any).custom_lob || applicant.metadata?.custom_lob || applicant.pis?.custom_lob || applicant.pis?.hiring_type || (applicant as any).hiring_type || (applicant as any).lob || '';
+
+        return questions.filter(q => {
+            if (applicant.interview_responses && (applicant.interview_responses as any)[q.id] && (applicant.interview_responses as any)[q.id] !== '---') {
+                return true;
+            }
+            if (applicant.interview_responses && (applicant.interview_responses as any)[q.question_text] && (applicant.interview_responses as any)[q.question_text] !== '---') {
+                return true;
+            }
+            if (q.is_active === false) return false;
+            const filtered = QuestionService.filterForApplication([q], candidateAcc, candidateLob);
+            return filtered.length > 0;
+        });
+    }, [questions, applicant]);
+
+    const initialQuestionsByCategory = React.useMemo(() => {
         const grouped: Record<string, InterviewQuestion[]> = {};
-        questions.forEach(q => {
+        applicableQs.filter(q => q.question_type !== 'final').forEach(q => {
             const cat = q.category || 'General Evaluation';
             if (!grouped[cat]) grouped[cat] = [];
             grouped[cat].push(q);
         });
         return grouped;
-    }, [questions]);
+    }, [applicableQs]);
+
+    const finalQuestionsByCategory = React.useMemo(() => {
+        const grouped: Record<string, InterviewQuestion[]> = {};
+        applicableQs.filter(q => q.question_type === 'final').forEach(q => {
+            const cat = q.category || 'Final Evaluation';
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(q);
+        });
+        return grouped;
+    }, [applicableQs]);
 
     return (
         <div className="p-6 space-y-6">
-            {/* Header metadata strip */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-white border border-surface-200 rounded-lg">
-                <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border border-surface-200 rounded-lg">
+                <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center shrink-0">
                     {subTab === 'recording' ? (
                         <Headphones size={14} className="text-slate-600" />
                     ) : (
@@ -715,7 +793,6 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                 )}
             </div>
 
-            {/* Sub-Tab Navigation Bar */}
             <div className="flex border-b border-surface-200 gap-4 mb-4">
                 <button
                     onClick={() => setSubTab('initial')}
@@ -750,10 +827,8 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
             </div>
 
             {subTab === 'initial' ? (
-                /* Side-by-Side 2-Column Proportional Grid for Initial Interview */
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-                    
-                    {/* ── LEFT COLUMN: INTERVIEW EVALUATION ── */}
+
                     <div className="space-y-6">
                         <SectionCard icon={MessageSquare} title="Interview Evaluation" accent="indigo" subtitle="Questions, answers, and observations">
                             {questionsLoading ? (
@@ -761,11 +836,11 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                                     <Loader2 size={14} className="animate-spin text-surface-400" />
                                     <span className="text-[11px] text-surface-400">Loading questions…</span>
                                 </div>
-                            ) : questions.length === 0 ? (
+                            ) : Object.keys(initialQuestionsByCategory).length === 0 ? (
                                 <p className="text-[12px] text-surface-400 italic">No interview questions configured.</p>
                             ) : (
                                 <div className="space-y-6">
-                                    {Object.entries(questionsByCategory).map(([category, qs]) => (
+                                    {Object.entries(initialQuestionsByCategory).map(([category, qs]) => (
                                         <div key={category}>
                                             <p className="text-[9.5px] font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                                                 <span className="inline-block w-3 h-[2px] bg-indigo-400 rounded" />
@@ -794,19 +869,34 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                                                                             {q.answer_type}
                                                                         </span>
                                                                     </div>
-                                                                    {score != null && (
-                                                                        <span className="shrink-0 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded">
-                                                                            Score: {score}
-                                                                        </span>
-                                                                    )}
+
                                                                 </div>
                                                                 <div className={cn(
-                                                                    'ml-7 px-3 py-2 rounded-md border text-[12px] leading-relaxed',
-                                                                    hasAnswer
-                                                                        ? 'bg-white border-surface-200 text-surface-900 font-medium'
+                                                                    'ml-7 px-3 py-2 rounded-md border text-[12px] leading-relaxed whitespace-pre-wrap break-words',
+                                                                    hasAnswer || isEditing
+                                                                        ? 'bg-white dark:bg-slate-900 border-surface-200 text-surface-900 font-medium'
                                                                         : 'bg-surface-100 border-surface-200 text-surface-400 italic'
                                                                 )}>
-                                                                    {hasAnswer ? answer : 'No answer recorded'}
+                                                                    {isEditing ? (
+                                                                        <textarea
+                                                                            value={answer || ''}
+                                                                            onChange={(e) => {
+                                                                                if (handleUpdateApplication) {
+                                                                                    handleUpdateApplication(applicant.id, {
+                                                                                        interview_responses: {
+                                                                                            ...(applicant.interview_responses as any),
+                                                                                            [q.id]: e.target.value
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                            }}
+                                                                            className="w-full text-[12px] font-medium text-surface-900 bg-white dark:bg-slate-900 border border-surface-300 rounded px-2 py-1 outline-none focus:border-indigo-500"
+                                                                            rows={2}
+                                                                            placeholder="Enter answer..."
+                                                                        />
+                                                                    ) : (
+                                                                        hasAnswer ? answer : 'No answer recorded'
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         );
@@ -819,9 +909,7 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                         </SectionCard>
                     </div>
 
-                    {/* ── RIGHT COLUMN: ASSESSMENT & BACKGROUND ── */}
                     <div className="space-y-6">
-                        {/* Interviewer's Assessment */}
                         <SectionCard icon={ListChecks} title="Interviewer's Assessment" accent="amber" subtitle="Ratings, rubrics, and background evaluation">
                             <div className="space-y-3 mb-5 pb-5 border-b border-dashed border-surface-200">
                                 <div className="flex items-center gap-4">
@@ -855,7 +943,6 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                             </div>
                         </SectionCard>
 
-                        {/* Background & Experience */}
                         <SectionCard icon={Briefcase} title="Background & Experience" accent="sky" subtitle="Candidate background captured during interview">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Field label="BPO Experience (Chat)" value={background.bpoChat} />
@@ -873,7 +960,6 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
                             </div>
                         </SectionCard>
 
-                        {/* Per-Question Grading */}
                         {hasGrading && (
                             <SectionCard icon={Star} title="Per-Question Grading" accent="violet">
                                 <div className="space-y-1">
@@ -895,20 +981,299 @@ function InterviewResultsTab({ applicant }: { applicant: Application }) {
 
                 </div>
             ) : subTab === 'final' ? (
-                /* Final Interview Sub-tab: Only displays Interviewer Remarks */
-                <div className="max-w-3xl mx-auto space-y-6">
-                    <SectionCard icon={MessageSquare} title="Final Interviewer's Remarks" accent="amber">
-                        <div className="px-4 py-3 bg-amber-50/60 border border-amber-100 rounded-md">
-                            {ratings.remarks ? (
-                                <p className="text-[13px] text-surface-800 whitespace-pre-wrap leading-relaxed">{String(ratings.remarks)}</p>
-                            ) : (
-                                <p className="text-[12.5px] text-surface-400 italic">No final interviewer's remarks recorded yet.</p>
-                            )}
-                        </div>
-                    </SectionCard>
-                </div>
+                <div className="max-w-[1600px] mx-auto">
+                    {(() => {
+                        const reprofileHistory: any[] = applicant.pis?.reprofile_history || (metadata as any)?.reprofile_history || [];
+                        const failedAccounts: string[] = [
+                            ...((metadata as any)?.failed_accounts || []),
+                            ...reprofileHistory.map((h: any) => h.previous_account).filter(Boolean)
+                        ];
+                        
+                        let currentAccount = (metadata as any)?.reprofile_active_account || '';
+                        if (!currentAccount || currentAccount.includes(',')) {
+                            const rawDepts = (applicant.department || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+                            const nonFailedDepts = rawDepts.filter((d: string) => !failedAccounts.some((fa: string) => fa.toLowerCase() === d.toLowerCase()));
+                            currentAccount = nonFailedDepts.length > 0 ? nonFailedDepts[0] : (rawDepts[0] || applicant.department || 'Current Account');
+                        }
+
+                        const currentValidatorName = (metadata as any)?.active_ops_validator_name || applicant.assigned_ops_validator_name || (metadata as any)?.ops_validator_name || (applicant.pis as any)?.ops_validator_name || 'Assigned Validator';
+
+                        const getCleanOpsRemarks = (raw: string) => {
+                            const cleaned = extractRemarks(raw);
+                            if (!cleaned) return '';
+                            const lower = cleaned.toLowerCase();
+
+                            const genericStatuses = ['confirmed training', 'confirmed_training', 'sent jo and bgc', 'sent_jo_and_bgc', 'for pan', 'for_pan', 'hired', 'passed', 'failed', 'rejected', 'reprofiled', 'no show', 'no_show', 'withdrawn'];
+                            if (genericStatuses.includes(lower)) {
+                                return '';
+                            }
+
+                            const initialScreeningMarkers = [
+                                'about the company',
+                                'no plans to pursue studies',
+                                'comfortable with peme',
+                                'comfortable with background check',
+                                'confirms to work on a shifting schedule',
+                                'have a positive role in the company',
+                                'no other commitments',
+                                'no planned events',
+                                'no plans to go abroad',
+                                'no medical issues'
+                            ];
+
+                            if (initialScreeningMarkers.some(marker => lower.includes(marker))) {
+                                return '';
+                            }
+
+                            return cleaned;
+                        };
+
+                        const getOpsValidatorRemarks = (): string => {
+                            const directNotes = 
+                                (applicant as any).ops_validator_notes ||
+                                applicant.pis?.ops_validator_notes ||
+                                (applicant.pis as any)?.ops_val_notes ||
+                                (metadata as any)?.ops_validator_notes ||
+                                (metadata as any)?.ops_validation_remarks ||
+                                '';
+
+                            const cleanDirect = getCleanOpsRemarks(directNotes);
+                            if (cleanDirect) return cleanDirect;
+
+                            const responses = applicant.interview_responses || {};
+                            const responseNotes = 
+                                (responses['pis_ops_validator_notes'] ? String(responses['pis_ops_validator_notes']) : '') ||
+                                (responses['ops_validator_notes'] ? String(responses['ops_validator_notes']) : '') ||
+                                (responses['ops_validation_remarks'] ? String(responses['ops_validation_remarks']) : '') ||
+                                '';
+
+                            const cleanResponse = getCleanOpsRemarks(responseNotes);
+                            if (cleanResponse) return cleanResponse;
+
+                            if (questions && questions.length > 0) {
+                                const valQ = questions.find(q => {
+                                    const txt = (q.question_text || '').toLowerCase();
+                                    return txt.includes("operations validation") || txt.includes("final interviewer's remarks") || txt.includes("ops val") || txt.includes("validator remarks");
+                                });
+                                if (valQ && responses[valQ.id]) {
+                                    const cleanQ = getCleanOpsRemarks(String(responses[valQ.id]));
+                                    if (cleanQ) return cleanQ;
+                                }
+                            }
+
+                            for (const [key, val] of Object.entries(responses)) {
+                                if (val && typeof val === 'string' && val.trim()) {
+                                    const kLower = key.toLowerCase();
+                                    if (kLower.includes('ops_val') || kLower.includes('validator') || kLower.includes('validation')) {
+                                        const cleanK = getCleanOpsRemarks(val);
+                                        if (cleanK) return cleanK;
+                                    }
+                                }
+                            }
+
+                            return getCleanOpsRemarks(applicant.final_interview_notes || '');
+                        };
+
+                        const currentRemarks = tempRemarks !== null ? tempRemarks : getOpsValidatorRemarks();
+                        const currentStatus = String((applicant as any).ops_validator_status || applicant.pis?.ops_validator_status || (metadata as any)?.ops_validator_status || applicant.final_verdict || 'PENDING').toUpperCase();
+
+                        const historicalSessions = reprofileHistory
+                            .filter((h: any) => h.previous_account || h.account || h.department)
+                            .map((h: any) => ({
+                                account: h.previous_account || h.account || h.department || 'Previous Account',
+                                validatorName: h.previous_ops_validator_name || h.ops_validator_name || h.assigned_ops_validator_name || 'Previous Validator',
+                                remarks: getCleanOpsRemarks(h.previous_ops_validator_notes || h.notes || h.remarks || ''),
+                                status: String(h.previous_ops_validator_status || h.status || 'REPROFILED').toUpperCase(),
+                                date: h.changed_at ? new Date(h.changed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : (h.date ? new Date(h.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Previous Session'),
+                            }));
+
+                        const allSessions = [
+                            {
+                                id: 'active',
+                                isCurrent: true,
+                                account: currentAccount,
+                                validatorName: currentValidatorName,
+                                remarks: currentRemarks,
+                                status: currentStatus,
+                                date: 'Active Session',
+                                isEditing: isEditing
+                            },
+                            ...historicalSessions.map((s: any, idx: number) => ({
+                                id: `hist-${idx}`,
+                                isCurrent: false,
+                                account: s.account,
+                                validatorName: s.validatorName,
+                                remarks: s.remarks,
+                                status: s.status,
+                                date: s.date,
+                                isEditing: false
+                            }))
+                        ];
+
+                        const activeSessionId = selectedFinalAccount || 'active';
+                        const currentDisplaySession = allSessions.find(s => s.id === activeSessionId) || allSessions[0];
+
+                        return (
+                            <div className="space-y-6 max-w-5xl mx-auto">
+                                {/* Top Navigation for Sessions */}
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h3 className="text-[11px] font-black uppercase tracking-wider text-surface-500 mr-2">Evaluation Sessions</h3>
+                                    {allSessions.map(session => {
+                                        const isSelected = activeSessionId === session.id;
+                                        return (
+                                            <button
+                                                key={session.id}
+                                                onClick={() => setSelectedFinalAccount(session.id)}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full border text-[11.5px] font-bold transition-all flex items-center gap-2",
+                                                    isSelected 
+                                                        ? "bg-indigo-50 border-indigo-200 text-indigo-800 shadow-sm" 
+                                                        : "bg-white dark:bg-slate-900 border-surface-200 text-surface-600 hover:bg-surface-50 hover:text-surface-900"
+                                                )}
+                                            >
+                                                {session.account}
+                                                <span className={cn(
+                                                    "px-1.5 py-0.5 text-[9px] font-black uppercase rounded",
+                                                    session.status === 'PASSED' ? 'bg-emerald-100 text-emerald-700' : 
+                                                    session.status === 'FAILED' ? 'bg-rose-100 text-rose-700' : 
+                                                    'bg-amber-100 text-amber-700'
+                                                )}>
+                                                    {session.status}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Document-style Evaluation Area */}
+                                <div className="bg-white dark:bg-slate-900 border-2 border-surface-200 rounded-xl shadow-sm overflow-hidden">
+                                    {/* Header Banner - formal document style */}
+                                    <div className={cn(
+                                        "px-8 py-6 border-b-4",
+                                        currentDisplaySession.isCurrent ? "bg-indigo-50/30 border-indigo-500" : "bg-surface-50 border-surface-400"
+                                    )}>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h2 className="text-xl font-black uppercase tracking-tight text-surface-900 mb-1">
+                                                    {currentDisplaySession.account} Evaluation
+                                                </h2>
+                                                <p className="text-[12.5px] text-surface-600 uppercase tracking-widest font-bold flex items-center gap-2">
+                                                    <span>Ops Validator: {currentDisplaySession.validatorName}</span>
+                                                    {currentDisplaySession.isCurrent && (
+                                                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                            Active Session
+                                                        </span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[10px] text-surface-500 font-bold uppercase tracking-widest mb-1.5">Status</div>
+                                                <span className={cn(
+                                                    "px-4 py-1.5 text-[13px] font-black uppercase tracking-widest border-2 rounded",
+                                                    currentDisplaySession.status === 'PASSED' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' :
+                                                    currentDisplaySession.status === 'FAILED' ? 'border-rose-500 bg-rose-50 text-rose-700' :
+                                                    'border-amber-400 bg-amber-50 text-amber-700'
+                                                )}>
+                                                    {currentDisplaySession.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-8 space-y-10">
+                                        {/* Final Questions Breakdown - Only show if Active Session */}
+                                        {currentDisplaySession.isCurrent && (
+                                            <div>
+                                                <h3 className="text-[13px] font-black text-surface-900 uppercase tracking-widest border-b-2 border-surface-100 pb-2 mb-5 flex items-center gap-2">
+                                                    <ListChecks className="w-4 h-4 text-surface-400" />
+                                                    Question & Answer Breakdown
+                                                </h3>
+                                                <div className="space-y-4 pl-1">
+                                                    {applicableQs
+                                                        .filter(q => q.question_type === 'final' && !q.question_text.includes("Operations Validation Remarks") && !q.question_text.includes("Final Interviewer's Remarks"))
+                                                        .sort((a, b) => a.question_order - b.question_order)
+                                                        .map((q, qi) => {
+                                                            const answer = getFallbackAnswer(q);
+                                                            const hasAnswer = !!answer && answer !== '---';
+                                                            return (
+                                                                <div key={q.id} className="border-l-4 border-surface-200 pl-4 py-1">
+                                                                    <div className="flex items-start gap-2">
+                                                                        <span className="text-[11.5px] font-bold text-surface-400 mt-0.5">{qi + 1}.</span>
+                                                                        <div className="flex-1">
+                                                                            <p className="text-[12.5px] font-bold text-surface-900 mb-1.5">
+                                                                                {q.question_text}
+                                                                                {q.is_required && <span className="text-rose-400 ml-1">*</span>}
+                                                                            </p>
+                                                                            {currentDisplaySession.isEditing ? (
+                                                                                <textarea
+                                                                                    value={answer || ''}
+                                                                                    onChange={(e) => {
+                                                                                        if (handleUpdateApplication) {
+                                                                                            handleUpdateApplication(applicant.id, {
+                                                                                                interview_responses: {
+                                                                                                    ...(applicant.interview_responses as any),
+                                                                                                    [q.id]: e.target.value
+                                                                                                }
+                                                                                            });
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-full text-[12px] font-medium text-surface-900 bg-white dark:bg-slate-900 border border-surface-300 rounded px-3 py-2 outline-none focus:border-indigo-500 focus:bg-white dark:bg-slate-900 transition-colors"
+                                                                                    rows={2}
+                                                                                    placeholder="Enter answer..."
+                                                                                />
+                                                                            ) : (
+                                                                                <p className="text-[12px] text-surface-700 whitespace-pre-wrap leading-relaxed">
+                                                                                    {hasAnswer ? answer : <span className="text-surface-400 italic">No answer recorded</span>}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Validator Remarks */}
+                                        <div className="mt-4">
+                                            <ValidatorRemarksSection
+                                                applicant={applicant}
+                                                isEditing={currentDisplaySession.isEditing}
+                                                remarksRaw={currentDisplaySession.remarks}
+                                                account={currentDisplaySession.account}
+                                                onUpdate={(val) => {
+                                                    if (setTempRemarks) setTempRemarks(val);
+                                                    if (setLocalApplicant) {
+                                                        setLocalApplicant((prev: any) => prev ? {
+                                                            ...prev,
+                                                            ops_validator_notes: val,
+                                                            pis: {
+                                                                ...(prev.pis || {}),
+                                                                ops_validator_notes: val
+                                                            }
+                                                        } : prev);
+                                                    }
+                                                    if (handleUpdateApplication) {
+                                                        handleUpdateApplication(applicant.id, {
+                                                            ops_validator_notes: val,
+                                                            pis: {
+                                                                ops_validator_notes: val
+                                                            }
+                                                        });
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                    </div>
             ) : (
-                /* Recording Sub-tab */
                 <InterviewRecordingTab applicant={applicant} hideHeader />
             )}
 
@@ -928,12 +1293,10 @@ function InterviewRecordingTab({ applicant, hideHeader = false }: { applicant: A
     const metadata = typeof applicant.metadata === 'string'
         ? (() => { try { return JSON.parse(applicant.metadata); } catch { return {}; } })()
         : (applicant.metadata || {});
-    
-    // Initial Interview Recording & Transcript
+
     const initialRecording = metadata.initial_recording_url || (!metadata.final_recording_url ? applicant.interview_recording_url : null);
     const initialTranscript = metadata.initial_transcript?.blocks || [];
 
-    // Final Interview Recording & Transcript
     const finalRecording = metadata.final_recording_url || (metadata.final_recording_url ? applicant.interview_recording_url : null);
     const finalTranscript = metadata.final_transcript?.blocks || [];
 
@@ -941,11 +1304,11 @@ function InterviewRecordingTab({ applicant, hideHeader = false }: { applicant: A
 
     const renderRecordingSection = (title: string, recordingUrl: string | null, blocks: any[], accent: 'indigo' | 'amber') => {
         return (
-            <div className="bg-white border border-surface-200 p-5 rounded-lg shadow-sm space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 p-5 rounded-lg shadow-sm space-y-4">
                 <h4 className="text-[11px] font-black text-surface-800 uppercase tracking-widest border-b border-surface-100 pb-2 flex items-center justify-between">
                     <span>{title}</span>
                 </h4>
-                
+
                 {recordingUrl ? (
                     <div className="p-3 bg-surface-50 border border-surface-200 rounded-md flex flex-col gap-2">
                         <p className="text-[10px] font-bold text-surface-500 uppercase tracking-wider">Audio Playback</p>
@@ -965,8 +1328,8 @@ function InterviewRecordingTab({ applicant, hideHeader = false }: { applicant: A
                                 <div key={idx} className="space-y-0.5 text-left">
                                     <span className={cn(
                                         "text-[9px] font-bold uppercase tracking-wider block text-left",
-                                        block.speaker === 'Interviewer' 
-                                            ? accent === 'indigo' ? "text-indigo-600" : "text-amber-600" 
+                                        block.speaker === 'Interviewer'
+                                            ? accent === 'indigo' ? "text-indigo-600" : "text-amber-600"
                                             : "text-purple-600"
                                     )}>
                                         {block.speaker}:
@@ -990,8 +1353,8 @@ function InterviewRecordingTab({ applicant, hideHeader = false }: { applicant: A
     return (
         <div className={hideHeader ? "space-y-6" : "p-6 space-y-6"}>
             {!hideHeader && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-white border border-surface-200 rounded-lg">
-                    <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border border-surface-200 rounded-lg">
+                    <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center shrink-0">
                         <Headphones size={14} className="text-slate-600" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1009,7 +1372,7 @@ function InterviewRecordingTab({ applicant, hideHeader = false }: { applicant: A
                     {renderRecordingSection("Final Interview Record", finalRecording, finalTranscript, "amber")}
                 </div>
             ) : (
-                <div className="py-12 text-center bg-white border border-surface-200 rounded-lg shadow-sm">
+                <div className="py-12 text-center bg-white dark:bg-slate-900 border border-surface-200 rounded-lg shadow-sm">
                     <div className="w-12 h-12 rounded-full bg-surface-100 flex items-center justify-center mx-auto mb-3">
                         <Headphones size={20} className="text-surface-300" />
                     </div>
@@ -1034,14 +1397,36 @@ function AssessmentTab({ applicant, pis }: { applicant: Application; pis: Partia
     return (
         <div className="p-7 space-y-6">
             <SectionCard icon={Target} title="Assessment Scores" accent="violet">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="px-4 py-3 bg-violet-50 border border-violet-100 rounded-md">
-                        <p className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Internal Score</p>
-                        <p className="text-[24px] font-extrabold text-violet-900 mt-1">{applicant.assessment_score ?? '—'}<span className="text-[12px] text-violet-400 font-bold ml-1">/ 100</span></p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="px-5 py-4 bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-sm">
+                        <p className="text-[10px] font-semibold text-surface-500 uppercase tracking-widest">SpeechX Score</p>
+                        <p className="text-[22px] font-bold text-surface-900 mt-1 flex items-baseline">
+                            {applicant.assessment_score ?? pis.speechx_score ?? '—'}
+                            {applicant.assessment_score != null && !isNaN(Number(applicant.assessment_score)) && (
+                                <span className="text-[12px] text-surface-400 font-medium ml-1">/ 100</span>
+                            )}
+                        </p>
                     </div>
-                    <div className="px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-md">
-                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Client Assessment</p>
-                        <p className="text-[24px] font-extrabold text-indigo-900 mt-1">{applicant.client_assessment_score ?? '—'}<span className="text-[12px] text-indigo-400 font-bold ml-1">/ 100</span></p>
+                    <div className="px-5 py-4 bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-sm">
+                        <p className="text-[10px] font-semibold text-surface-500 uppercase tracking-widest">Client Assessment</p>
+                        <p className="text-[22px] font-bold text-surface-900 mt-1 flex items-baseline">
+                            {applicant.client_assessment_score ?? '—'}
+                            {applicant.client_assessment_score != null && !isNaN(Number(applicant.client_assessment_score)) && (
+                                <span className="text-[12px] text-surface-400 font-medium ml-1">/ 100</span>
+                            )}
+                        </p>
+                    </div>
+                    <div className="px-5 py-4 bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-sm">
+                        <p className="text-[10px] font-semibold text-surface-500 uppercase tracking-widest">Wonderlic Score</p>
+                        <p className="text-[22px] font-bold text-surface-900 mt-1">{pis.wonderlic_score ?? '—'}</p>
+                    </div>
+                    <div className="px-5 py-4 bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-sm">
+                        <p className="text-[10px] font-semibold text-surface-500 uppercase tracking-widest">Leadership Score</p>
+                        <p className="text-[22px] font-bold text-surface-900 mt-1">{pis.leadership_score ?? '—'}</p>
+                    </div>
+                    <div className="px-5 py-4 bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-sm col-span-2 lg:col-span-4">
+                        <p className="text-[10px] font-semibold text-surface-500 uppercase tracking-widest">Assessment Taken</p>
+                        <p className="text-[16px] font-bold text-surface-900 mt-1">{pis.overall_assessment || <span className="text-surface-400 italic font-normal text-[14px]">Not specified</span>}</p>
                     </div>
                 </div>
                 {pis.cefr_level && (
@@ -1096,7 +1481,7 @@ function FinalInterviewTab({ applicant, pis }: { applicant: Application; pis: Pa
         <div className="p-7 space-y-6">
             <SectionCard icon={User} title="Final Interview Details" accent="slate">
                 <FieldGrid items={[
-                    { label: 'Ops Validator', value: applicant.assigned_ops_validator_name },
+                    { label: 'Final Interviewer', value: applicant.assigned_ops_validator_name },
                     { label: 'Ops Status', value: pis.ops_validator_status },
                     { label: 'Client Interviewer', value: pis.client_interviewer_email },
                     { label: 'Client Status', value: pis.client_interview_status },
@@ -1111,13 +1496,11 @@ function FinalInterviewTab({ applicant, pis }: { applicant: Application; pis: Pa
                 )}
             </SectionCard>
 
-            <SectionCard icon={FileText} title="Client Interview Remarks" accent="sky">
-                {applicant.client_interview_remarks ? (
-                    <div className="text-[12.5px] text-surface-700 whitespace-pre-wrap leading-relaxed">{applicant.client_interview_remarks}</div>
-                ) : (
-                    <p className="text-[12.5px] text-surface-400 italic">No client interview remarks</p>
-                )}
-            </SectionCard>
+            <ClientInterviewRemarksSection 
+                applicant={applicant}
+                isEditing={false}
+                remarksRaw={applicant.client_interview_remarks}
+            />
         </div>
     );
 }
@@ -1133,7 +1516,7 @@ function VerdictTab({ applicant, pis }: { applicant: Application; pis: Partial<P
                 'rounded-lg p-6 flex items-center gap-4',
                 isPositive ? 'bg-emerald-50 border border-emerald-200'
                     : isNegative ? 'bg-rose-50 border border-rose-200'
-                    : 'bg-amber-50 border border-amber-200'
+                        : 'bg-amber-50 border border-amber-200'
             )}>
                 <div className={cn(
                     'w-14 h-14 rounded-full flex items-center justify-center shrink-0',
@@ -1145,14 +1528,14 @@ function VerdictTab({ applicant, pis }: { applicant: Application; pis: Partial<P
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-[9.5px] font-bold uppercase tracking-widest text-surface-500">Current Verdict</p>
-                    <p className="text-[24px] font-extrabold text-surface-900 leading-tight tracking-tight mt-0.5">{formatStatusLabel(verdict)}</p>
+                    <p className="text-[24px] font-extrabold text-surface-900 leading-tight tracking-tight mt-0.5">{getStatusLabel(verdict)}</p>
                     {applicant.hired_at && <p className="text-[10.5px] text-surface-500 mt-1">Hired {formatDate(applicant.hired_at)}</p>}
                 </div>
             </div>
 
             <SectionCard icon={ClipboardList} title="Decision Details" accent="slate">
                 <FieldGrid items={[
-                    { label: 'Final Verdict', value: applicant.final_verdict ? formatStatusLabel(applicant.final_verdict) : '—' },
+                    { label: 'Final Verdict', value: applicant.final_verdict ? getStatusLabel(applicant.final_verdict) : '—' },
                     { label: 'Specific Status', value: pis.final_specific_status },
                     { label: 'Overall Status', value: applicant.overall_status },
                     { label: 'Final Account', value: pis.final_account },
@@ -1192,15 +1575,15 @@ function ApplicationLogTab({ applicant }: { applicant: Application }) {
             try {
                 const { ApplicationService } = await import('@/services/ApplicationService');
                 const allApps = await ApplicationService.getAll();
-                
-                const matched = allApps.filter((a: any) => 
+
+                const matched = allApps.filter((a: any) =>
                     (a.applicant_email && applicant.applicant_email && a.applicant_email.toLowerCase() === applicant.applicant_email.toLowerCase()) ||
                     (applicant.applicant_id && a.applicant_id === applicant.applicant_id) ||
                     (a.applicant_name && applicant.applicant_name && a.applicant_name.toLowerCase() === applicant.applicant_name.toLowerCase())
                 );
-                
+
                 matched.sort((a, b) => new Date(b.applied_at || 0).getTime() - new Date(a.applied_at || 0).getTime());
-                
+
                 const matchedWithHistory = await Promise.all(
                     matched.map(async (app) => {
                         try {
@@ -1211,7 +1594,7 @@ function ApplicationLogTab({ applicant }: { applicant: Application }) {
                         }
                     })
                 );
-                
+
                 if (isMounted) {
                     setHistoryApps(matchedWithHistory);
                     setLoading(false);
@@ -1256,22 +1639,22 @@ function ApplicationLogTab({ applicant }: { applicant: Application }) {
                 <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Application Log</h2>
                 <span className="text-[12px] text-surface-500 font-semibold">({historyApps.length} applications logged)</span>
             </div>
-            
+
             <div className="space-y-6">
                 {historyApps.map((app, index) => {
                     const statusUpper = (app.current_status || '').toUpperCase();
                     const isFail = ['REJECTED', 'FAILED', 'NOT_ELIGIBLE_FOR_REHIRE'].includes(statusUpper);
                     const appliedDate = formatDate(app.applied_at);
                     const isExpanded = !!expandedApps[app.id];
-                    
+
                     return (
                         <div
                             key={app.id}
                             className={cn(
                                 "border rounded-lg p-5 shadow-sm transition-all",
-                                isFail 
-                                    ? "bg-rose-50/40 border-rose-200 hover:border-rose-300" 
-                                    : "bg-white border-surface-200 hover:border-surface-300 hover:shadow-md"
+                                isFail
+                                    ? "bg-rose-50/40 border-rose-200 hover:border-rose-300"
+                                    : "bg-white dark:bg-slate-900 border-surface-200 hover:border-surface-300 hover:shadow-md"
                             )}
                         >
                             <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
@@ -1296,11 +1679,11 @@ function ApplicationLogTab({ applicant }: { applicant: Application }) {
                                 <div className="flex items-center gap-3">
                                     <span className={cn(
                                         "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ring-1",
-                                        isFail 
-                                            ? "bg-rose-100 text-rose-700 ring-rose-200" 
+                                        isFail
+                                            ? "bg-rose-100 text-rose-700 ring-rose-200"
                                             : getStatusPill(app.current_status)
                                     )}>
-                                        {formatStatusLabel(app.current_status)}
+                                        {getStatusLabel(app.current_status)}
                                     </span>
                                 </div>
                             </div>
@@ -1340,15 +1723,15 @@ function ApplicationLogTab({ applicant }: { applicant: Application }) {
                                                                     Changed to{" "}
                                                                     <span className={cn(
                                                                         "font-bold px-1.5 py-0.5 text-[9px] uppercase tracking-wider",
-                                                                        isTransFail 
-                                                                            ? "bg-rose-100 text-rose-850 rounded-sm" 
+                                                                        isTransFail
+                                                                            ? "bg-rose-100 text-rose-850 rounded-sm"
                                                                             : "bg-indigo-50 text-indigo-805 rounded-sm"
                                                                     )}>
-                                                                        {formatStatusLabel(t.to_status)}
+                                                                        {getStatusLabel(t.to_status)}
                                                                     </span>
                                                                     {t.from_status && (
                                                                         <span className="text-surface-400 text-[10px] ml-1.5 font-medium">
-                                                                            (from {formatStatusLabel(t.from_status)})
+                                                                            (from {getStatusLabel(t.from_status)})
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -1399,216 +1782,438 @@ export const FullscreenProfileView: React.FC<FullscreenProfileViewProps> = ({
     pisOnly = true,
     guestDeskMode = false,
 }) => {
-    const [topTab, setTopTab] = React.useState<'process' | 'log'>('process');
+    const { user } = useAuthStore();
+    const isOpsValidator = user?.role === 'ops_validator';
     const [activeTab, setActiveTab] = React.useState<ProfileTab>('application');
+    const [showPIS, setShowPIS] = React.useState(false);
     const [freshApplicant, setFreshApplicant] = React.useState<Application | null>(null);
     const [isFetching, setIsFetching] = React.useState(false);
 
-    // Re-fetch from server every time the modal opens to get latest interview data
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [localApplicant, setLocalApplicant] = React.useState<Application | null>(null);
+    const [tempRemarks, setTempRemarks] = React.useState<string | null>(null);
+    const [isSaving, setIsSaving] = React.useState(false);
+
+    const [showResumeManager, setShowResumeManager] = React.useState(false);
+
+    const [isExporting, setIsExporting] = React.useState(false);
+    const [exportMenuOpen, setExportMenuOpen] = React.useState(false);
+    const pisExportRef = React.useRef<HTMLDivElement>(null);
+    const candidateExportRef = React.useRef<HTMLDivElement>(null);
+    const exportDropdownRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+                setExportMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleDownloadPDF = async (type: 'pis' | 'candidate') => {
+        const targetRef = type === 'pis' ? pisExportRef : candidateExportRef;
+        if (!targetRef.current) return;
+        setExportMenuOpen(false);
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(targetRef.current, { scale: 2, useCORS: true, logging: false });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            const ratio = canvas.height / canvas.width;
+            const imgHeight = pdfWidth * ratio;
+
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+            
+            const prefix = type === 'pis' ? 'PIS' : 'CandidateData';
+            pdf.save(`${prefix}-${(applicant.applicant_name || 'applicant').replace(/\s+/g, '_')}-${new Date().getTime()}.pdf`);
+        } catch (error) {
+            console.error('[FullscreenProfileView] PDF Export failed:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     React.useEffect(() => {
         if (!open || !applicantProp?.id) {
             setFreshApplicant(null);
+            setLocalApplicant(null);
+            setIsEditing(false);
             return;
         }
         setIsFetching(true);
         import('@/services/ApplicationService')
             .then(({ ApplicationService }) => ApplicationService.getById(applicantProp.id))
-            .then(data => setFreshApplicant(data))
-            .catch(() => setFreshApplicant(null))
+            .then(data => {
+                setFreshApplicant(data);
+                setLocalApplicant(data);
+            })
+            .catch(() => {
+                setFreshApplicant(null);
+                setLocalApplicant(applicantProp);
+            })
             .finally(() => setIsFetching(false));
     }, [open, applicantProp?.id]);
 
-    const applicant = freshApplicant ?? applicantProp;
+    const applicant = localApplicant ?? freshApplicant ?? applicantProp;
+
+    const handleUpdateApplication = (id: string, patch: any) => {
+        setLocalApplicant(prev => {
+            const base = prev || freshApplicant || applicantProp;
+            if (!base) return prev;
+            const updated = { ...base };
+            if (patch.pis) {
+                updated.pis = { ...(base.pis || {}), ...patch.pis };
+            }
+            const { pis, ...restPatch } = patch;
+            return { ...updated, ...restPatch };
+        });
+    };
+
+    const handleResumeUploadAction = async (id: string, patch: any) => {
+        const { ApplicationService } = await import('@/services/ApplicationService');
+        await ApplicationService.patch(id, patch);
+        handleUpdateApplication(id, patch);
+    };
+
+    const handleSave = async () => {
+        if (!localApplicant) return;
+        setIsSaving(true);
+        try {
+            const { ApplicationService } = await import('@/services/ApplicationService');
+
+            const activeRemarks = tempRemarks !== null ? tempRemarks : (localApplicant.final_interview_notes || localApplicant.pis?.ops_validator_notes || '');
+            const currentPis = localApplicant.pis || {};
+            const updatedPis = {
+                ...currentPis,
+                ops_validator_notes: activeRemarks,
+                final_interview_notes: activeRemarks
+            };
+
+            const currentResp = (localApplicant.interview_responses as any) || {};
+            const updatedResp = { ...currentResp };
+            Object.keys(updatedResp).forEach(k => {
+                if (k.includes('remarks') || k.includes('final') || k.includes('validator')) {
+                    updatedResp[k] = activeRemarks;
+                }
+            });
+
+            const { current_status, ...safeApplicantData } = localApplicant;
+            const patchPayload: any = {
+                ...safeApplicantData,
+                final_interview_notes: activeRemarks,
+                ops_validator_notes: activeRemarks,
+                interview_responses: updatedResp,
+                pis: updatedPis
+            };
+
+            await ApplicationService.patch(localApplicant.id, patchPayload);
+            if (handleUpdateApplication) {
+                handleUpdateApplication(localApplicant.id, patchPayload);
+            }
+            setIsEditing(false);
+            setTempRemarks(null);
+
+            const updatedData = await ApplicationService.getById(localApplicant.id);
+            if (updatedData) {
+                setFreshApplicant(updatedData);
+                setLocalApplicant(updatedData);
+            }
+        } catch (error) {
+            console.error('Failed to save changes:', error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     if (!applicant) return null;
 
-    const pis = applicant.pis || {};
+    const rawPis: any = applicant.pis || {};
+    const meta: any = applicant.metadata || {};
+    const pis: any = {
+        ...meta,
+        ...rawPis,
+        civil_status: rawPis.civil_status || rawPis.pis_civil_status || meta.civil_status || meta.pis_civil_status || '',
+        birth_date: rawPis.birth_date || rawPis.pis_birth_date || meta.birth_date || meta.pis_birth_date || '',
+        religion: rawPis.religion || rawPis.pis_religion || meta.religion || meta.pis_religion || '',
+        nick_name: rawPis.nick_name || rawPis.middle_name || rawPis.pis_middle_name || meta.middle_name || meta.pis_middle_name || '',
+        preferred_nickname: rawPis.preferred_nickname || rawPis.pis_preferred_nickname || meta.preferred_nickname || meta.pis_preferred_nickname || '',
+        age: rawPis.age || rawPis.pis_age || meta.age || meta.pis_age || '',
+        nationality: rawPis.nationality || rawPis.pis_nationality || meta.nationality || meta.pis_nationality || '',
+        phone: rawPis.phone || rawPis.pis_phone || rawPis.contact_number || meta.phone || meta.pis_phone || meta.contact_number || '',
+        sex: rawPis.sex || rawPis.gender || rawPis.pis_gender || meta.sex || meta.gender || meta.pis_gender || '',
+        email: rawPis.email || rawPis.pis_email || meta.email || meta.pis_email || applicant.applicant_email || '',
+        highest_education: rawPis.highest_education || rawPis.pis_highest_education || meta.highest_education || meta.pis_highest_education || '',
+        school_name: rawPis.school_name || rawPis.pis_school_university || meta.school_name || meta.pis_school_university || '',
+        degree: rawPis.degree || rawPis.pis_course_degree || meta.degree || meta.pis_course_degree || '',
+        current_address: rawPis.current_address || rawPis.pis_current_address || meta.current_address || meta.pis_current_address || '',
+        permanent_address: rawPis.permanent_address || rawPis.pis_permanent_address || meta.permanent_address || meta.pis_permanent_address || '',
+        sss_no: rawPis.sss_no || rawPis.pis_sss_no || meta.sss_no || meta.pis_sss_no || '',
+        tin_no: rawPis.tin_no || rawPis.pis_tin_no || meta.tin_no || meta.pis_tin_no || '',
+        philhealth_no: rawPis.philhealth_no || rawPis.pis_philhealth_no || meta.philhealth_no || meta.pis_philhealth_no || '',
+        pagibig_no: rawPis.pagibig_no || rawPis.pis_pagibig_no || meta.pagibig_no || meta.pis_pagibig_no || '',
+    };
     const initials = getInitials(applicant.applicant_name);
     const avatarGradient = getAvatarGradient(applicant.applicant_name);
     const inMasterlist = !!(applicant.master_eid || applicant.master_wave || applicant.master_status);
     const statusPill = getStatusPill(applicant.current_status);
 
     const allTabs: { id: ProfileTab; label: string }[] = [
-        { id: 'application', label: 'Application' },
+        { id: 'application', label: 'Candidate Profile' },
         { id: 'initial_interview', label: 'Initial Interview' },
         { id: 'interview_results', label: 'Interview Results' },
         { id: 'interview_recording', label: 'Interview Recording' },
         { id: 'assessment', label: 'Assessment' },
         { id: 'final_interview', label: 'Final Interview' },
         { id: 'verdict', label: 'Verdict' },
+        { id: 'log', label: 'Application Log' },
+        { id: 'notes', label: 'Notes/Remarks' },
     ];
-    
-    const visibleTabs = guestDeskMode
-        ? allTabs.filter(t => t.id === 'application' || t.id === 'interview_results')
-        : pisOnly
-            ? allTabs.filter(t => t.id === 'application' || t.id === 'interview_results' || t.id === 'interview_recording')
-            : allTabs;
 
-    const handleExportPis = () => {
-        try {
-            const data = JSON.stringify({ applicant, pis }, null, 2);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${(applicant.applicant_name || 'applicant').replace(/\s+/g, '_')}_PIS.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            console.error('[FullscreenProfileView] Export failed:', e);
-        }
-    };
+    const visibleTabs = guestDeskMode
+        ? allTabs.filter(t => t.id === 'application' || t.id === 'interview_results' || t.id === 'notes')
+        : pisOnly
+            ? allTabs.filter(t => t.id === 'application' || t.id === 'interview_results' || t.id === 'interview_recording' || t.id === 'notes')
+            : allTabs;
 
     return (
         <Modal
             open={open}
             onClose={onClose}
             title=""
-            size="xl"
-            className="bg-white"
+            size="7xl"
+            className="bg-white dark:bg-slate-900 p-0 overflow-hidden rounded-md"
         >
-            <div className="flex flex-col h-full bg-white">
-                <header className="px-6 py-4 border-b border-surface-200 flex items-center gap-4 shrink-0">
-                    {pis.photo_data_url ? (
-                        <img
-                            src={pis.photo_data_url}
-                            alt={applicant.applicant_name}
-                            className="w-12 h-12 object-cover border border-surface-200 rounded-md shrink-0"
-                        />
-                    ) : (
-                        <div className="w-12 h-12 bg-black text-white flex items-center justify-center font-bold text-xl rounded-md shrink-0">
-                            {initials}
-                        </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-[18px] font-bold text-surface-900 truncate">{applicant.applicant_name || 'Unknown Applicant'}</h1>
-                            {isFetching && (
-                                <Loader2 size={13} className="animate-spin text-indigo-500 shrink-0" />
+            <div className="flex flex-col h-[85vh] bg-white dark:bg-slate-900 font-sans antialiased text-[#323130] dark:text-slate-300" style={{ fontFamily: '"Segoe UI", system-ui, sans-serif' }}>
+                <div className="px-8 pt-8 pb-6 border-b border-[#e1dfdd] bg-[#faf9f8] shrink-0">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                            {pis.photo_data_url ? (
+                                <img
+                                    src={pis.photo_data_url}
+                                    alt={applicant.applicant_name}
+                                    className="w-16 h-16 object-cover border border-[#e1dfdd] rounded-full shrink-0 shadow-sm"
+                                />
+                            ) : (
+                                <div className="w-16 h-16 rounded-full bg-[#3460aa] flex items-center justify-center text-white text-xl font-bold uppercase shrink-0 shadow-sm">
+                                    {initials}
+                                </div>
                             )}
+                            <div className="flex-1 min-w-0 mt-1">
+                                <h1 className="text-2xl font-semibold text-[#323130] dark:text-slate-300 mb-1 truncate">{applicant.applicant_name || 'Unknown Applicant'}</h1>
+                                <div className="flex items-center gap-4 text-sm text-[#605e5c] dark:text-slate-400 flex-wrap">
+                                    <div className="flex items-center gap-1.5">
+                                        <Briefcase size={14} />
+                                        <span>{applicant.department || applicant.position_title || 'General Application'}</span>
+                                    </div>
+                                    {(applicant.applicant_email || applicant.email) && (
+                                        <div className="flex items-center gap-1.5">
+                                            <Mail size={14} />
+                                            <span>{applicant.applicant_email || applicant.email}</span>
+                                        </div>
+                                    )}
+                                    {applicant.applicant_id && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span>ID: {applicant.applicant_id}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 ml-2 border-l border-[#e1dfdd] pl-4">
+                                        {(applicant.resume_name || applicant.resume_data || applicant.resume_path) ? (
+                                            <>
+                                                <a 
+                                                    href={applicant.resume_data || `/api/applications/${applicant.id}/resume`}
+                                                    download={applicant.resume_name || "Resume.pdf"}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="flex items-center gap-1.5 px-3 py-1 bg-green-600 text-white hover:bg-green-700 rounded-md text-[13px] font-medium transition-colors shadow-sm"
+                                                >
+                                                    <FileText size={14} />
+                                                    Resume
+                                                </a>
+                                                <button 
+                                                    onClick={() => setShowResumeManager(true)} 
+                                                    className="ml-1 text-[10px] text-surface-500 hover:text-[#0078d4] underline uppercase tracking-wider"
+                                                >
+                                                    Manage
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button 
+                                                onClick={() => setShowResumeManager(true)}
+                                                className="flex items-center gap-1.5 px-3 py-1 bg-[#0078d4] text-white hover:bg-[#106ebe] rounded-md text-[13px] font-medium transition-colors shadow-sm"
+                                            >
+                                                <FileText size={14} />
+                                                Resume
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <p className="text-[11px] text-surface-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                            <Briefcase size={11} className="text-surface-400 shrink-0" />
-                            <span className="truncate">{applicant.department || applicant.position_title || '---'}</span>
-                            {applicant.applicant_id && (
-                                <>
-                                    <span className="text-surface-300">·</span>
-                                    <span>ID: {applicant.applicant_id}</span>
-                                </>
-                            )}
-                        </p>
+                        {getStatusLabel(applicant.current_status)?.toUpperCase() !== 'FOR OPS VAL SCHEDULING' && (
+                            <div className="flex items-center gap-3 shrink-0 mt-1">
+                                <span className={cn(
+                                    'px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ring-1',
+                                    statusPill
+                                )}>
+                                    {getStatusLabel(applicant.current_status)}
+                                </span>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                        <span className={cn(
-                            'px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ring-1',
-                            statusPill
-                        )}>
-                            {formatStatusLabel(applicant.current_status)}
-                        </span>
-                        <button
-                            onClick={handleExportPis}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10.5px] font-semibold border border-surface-300 rounded-md hover:bg-surface-50 text-surface-700 transition-colors"
-                        >
-                            <Download size={12} /> Export PIS
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className="p-1.5 hover:bg-surface-100 text-surface-400 hover:text-surface-900 transition-all rounded-md ml-1"
-                        >
-                            <X size={16} />
-                        </button>
-                    </div>
-                </header>
-
-                {/* Top-Level Navigation Tabs */}
-                <div className="px-6 border-b border-surface-200 flex justify-center gap-6 shrink-0 bg-white overflow-x-auto">
-                    <button
-                        onClick={() => setTopTab('process')}
-                        className={cn(
-                            'relative px-5 py-3 text-[12px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap',
-                            topTab === 'process'
-                                ? 'text-indigo-600'
-                                : 'text-surface-500 hover:text-surface-950'
-                        )}
-                    >
-                        Application Process
-                        {topTab === 'process' && (
-                            <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-indigo-600 rounded-t" />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setTopTab('log')}
-                        className={cn(
-                            'relative px-5 py-3 text-[12px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap',
-                            topTab === 'log'
-                                ? 'text-indigo-600'
-                                : 'text-surface-500 hover:text-surface-950'
-                        )}
-                    >
-                        Application Log
-                        {topTab === 'log' && (
-                            <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-indigo-600 rounded-t" />
-                        )}
-                    </button>
                 </div>
 
-                {topTab === 'process' && (
-                    <nav className="px-6 border-b border-surface-200 flex justify-center gap-1 shrink-0 bg-white overflow-x-auto">
-                        {visibleTabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={cn(
-                                    'relative px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap',
-                                    activeTab === tab.id
-                                        ? 'text-indigo-600'
-                                        : 'text-surface-500 hover:text-surface-900'
-                                )}
-                            >
-                                {tab.label}
-                                {activeTab === tab.id && (
-                                    <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-indigo-600 rounded-t" />
-                                )}
-                            </button>
-                        ))}
-                    </nav>
+                {showResumeManager && (
+                    <ResumeManagerModal
+                        applicant={applicant}
+                        onClose={() => setShowResumeManager(false)}
+                        handleUpdateApplication={handleResumeUploadAction}
+                    />
                 )}
 
-                <main className="flex-1 overflow-y-auto bg-surface-50/30">
-                    {topTab === 'process' ? (
-                        <>
-                            {activeTab === 'application' && <ApplicationTab applicant={applicant} pis={pis} />}
-                            {activeTab === 'interview_results' && <InterviewResultsTab applicant={applicant} />}
-                            {activeTab === 'interview_recording' && <InterviewRecordingTab applicant={applicant} />}
-                            {activeTab === 'initial_interview' && <InitialInterviewTab applicant={applicant} />}
-                            {activeTab === 'assessment' && <AssessmentTab applicant={applicant} pis={pis} />}
-                            {activeTab === 'final_interview' && <FinalInterviewTab applicant={applicant} pis={pis} />}
-                            {activeTab === 'verdict' && <VerdictTab applicant={applicant} pis={pis} />}
-                        </>
-                    ) : (
-                        <ApplicationLogTab applicant={applicant} />
-                    )}
-                </main>
+                <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 flex flex-col p-8">
+                    <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#e1dfdd] shrink-0 overflow-x-auto">
+                        <div className="flex items-center gap-6">
+                            {visibleTabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={cn(
+                                        "text-[15px] font-semibold pb-2 border-b-2 -mb-[1px] transition-colors whitespace-nowrap",
+                                        activeTab === tab.id
+                                            ? "border-[#0078d4] text-[#323130] dark:text-slate-300"
+                                            : "border-transparent text-[#605e5c] dark:text-slate-400 hover:text-[#323130] dark:text-slate-300"
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                <footer className="px-6 py-3 border-t border-surface-200 bg-white flex items-center justify-between shrink-0">
-                    <p className="text-[9.5px] font-bold text-surface-400 tracking-widest uppercase">RECRUITMS V1.0</p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleExportPis}
-                            className="flex items-center gap-1.5 px-4 py-1.5 text-[10.5px] font-bold uppercase tracking-wider bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors"
-                        >
-                            <Download size={12} /> Export PIS
-                        </button>
+                    <main className="flex-1 min-h-0 bg-white dark:bg-slate-900 flex flex-col">
+                        <div className={cn("flex-1", activeTab === 'application' ? 'block' : 'hidden')}>
+                            <SharedApplicationTab applicant={applicant} showPIS={showPIS} setShowPIS={setShowPIS} isEditing={isEditing} handleUpdateApplication={handleUpdateApplication} autoSaveOnType={true} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'interview_results' ? 'block' : 'hidden')}>
+                            <InterviewResultsTab applicant={applicant} isEditing={isEditing} handleUpdateApplication={handleUpdateApplication} tempRemarks={tempRemarks} setTempRemarks={setTempRemarks} setLocalApplicant={setLocalApplicant} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'interview_recording' ? 'block' : 'hidden')}>
+                            <InterviewRecordingTab applicant={applicant} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'initial_interview' ? 'block' : 'hidden')}>
+                            <InitialInterviewTab applicant={applicant} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'assessment' ? 'block' : 'hidden')}>
+                            <AssessmentTab applicant={applicant} pis={pis} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'final_interview' ? 'block' : 'hidden')}>
+                            <FinalInterviewTab applicant={applicant} pis={pis} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'verdict' ? 'block' : 'hidden')}>
+                            <VerdictTab applicant={applicant} pis={pis} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'log' ? 'block' : 'hidden')}>
+                            <ApplicationLogTab applicant={applicant} />
+                        </div>
+                        <div className={cn("flex-1", activeTab === 'notes' ? 'block' : 'hidden')}>
+                            <NotesTab applicant={applicant} isEditing={isEditing} handleUpdateApplication={handleUpdateApplication} />
+                        </div>
+                    </main>
+                </div>
+
+                <div className="px-8 py-4 border-t border-[#e1dfdd] bg-[#faf9f8] flex items-center justify-between shrink-0 font-sans antialiased" style={{ fontFamily: '"Segoe UI", system-ui, sans-serif' }}>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            {isEditing ? (
+                                <>
+                                    <button
+                                        onClick={() => setIsEditing(false)}
+                                        disabled={isSaving}
+                                        className="flex items-center justify-center gap-1.5 h-8 px-4 text-sm font-semibold border border-surface-200 bg-white text-surface-600 hover:bg-surface-50 transition-all rounded-[2px]"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={isSaving}
+                                        className="flex items-center justify-center gap-1.5 h-8 px-4 text-sm font-semibold bg-[#0078d4] hover:bg-[#106ebe] text-white transition-all rounded-[2px]"
+                                    >
+                                        {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                        {isSaving ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                </>
+                            ) : (
+                                !guestDeskMode && !isOpsValidator && (
+                                    <button
+                                        onClick={() => {
+                                            if (activeTab !== 'application') setActiveTab('application');
+                                            setIsEditing(true);
+                                        }}
+                                        className="flex items-center justify-center gap-1.5 h-8 px-4 text-sm font-semibold border border-[#e1dfdd] bg-white dark:bg-slate-900 hover:bg-[#f3f2f1] text-[#323130] dark:text-slate-300 transition-all rounded-[2px]"
+                                    >
+                                        <Edit3 size={14} /> Edit Profile
+                                    </button>
+                                )
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="relative" ref={exportDropdownRef}>
+                            <button
+                                onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                                disabled={isExporting}
+                                className="flex items-center justify-center gap-1.5 h-8 px-4 text-sm font-semibold border border-[#e1dfdd] bg-white dark:bg-slate-900 hover:bg-[#f3f2f1] text-[#323130] dark:text-slate-300 transition-all rounded-[2px]"
+                            >
+                                {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                {isExporting ? 'Exporting...' : 'Export'}
+                                <ChevronDown size={14} className={`transition-transform ${exportMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            
+                            {exportMenuOpen && (
+                                <div className="absolute bottom-full right-0 mb-1 w-48 bg-white dark:bg-slate-900 border border-[#e1dfdd] shadow-lg rounded-[2px] z-50 overflow-hidden">
+                                    <button
+                                        onClick={() => handleDownloadPDF('pis')}
+                                        className="w-full text-left px-4 py-2 text-sm text-[#323130] dark:text-slate-300 hover:bg-[#f3f2f1] hover:text-[#0078d4] font-medium transition-colors"
+                                    >
+                                        PIS Form
+                                    </button>
+                                    <button
+                                        onClick={() => handleDownloadPDF('candidate')}
+                                        className="w-full text-left px-4 py-2 text-sm text-[#323130] dark:text-slate-300 hover:bg-[#f3f2f1] hover:text-[#0078d4] font-medium transition-colors border-t border-[#f3f2f1]"
+                                    >
+                                        Candidate Data
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={onClose}
-                            className="px-5 py-1.5 text-[10.5px] font-bold uppercase tracking-wider border border-surface-300 rounded-md hover:bg-surface-50 text-surface-700 transition-colors"
+                            className="flex items-center justify-center h-8 px-5 text-sm font-semibold border border-[#e1dfdd] bg-[#0078d4] hover:bg-[#106ebe] text-white transition-all rounded-[2px]"
                         >
                             Close
                         </button>
                     </div>
-                </footer>
+                </div>
+            </div>
+            <div className="fixed -left-[9999px] top-0 pointer-events-none">
+                <PISExportTemplate ref={pisExportRef} application={applicant} />
+                <CandidateDataExportTemplate ref={candidateExportRef} application={applicant} />
             </div>
         </Modal>
     );

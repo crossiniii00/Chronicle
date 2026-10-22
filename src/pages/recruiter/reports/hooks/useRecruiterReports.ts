@@ -1,591 +1,465 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useGlobalDataStore } from '@/store/globalDataStore';
 import { ApplicationService } from '@/services/ApplicationService';
 import { PositionService } from '@/services/PositionService';
 import { DepartmentService } from '@/services/DepartmentService';
 import { UserService } from '@/services/UserService';
-import { MhrtService, MHRTAccount } from '@/services/MhrtService';
+import { MhrtService } from '@/services/MhrtService';
 import { socketService } from '@/services/socketService';
 import type { Application } from '@/types/application';
 import type { Position } from '@/types/position';
 import type { User } from '@/types/user';
 
-export type DeptMetrics = {
-    name: string;
-    jobs: JobMetrics[];
-    total: {
-        Applicants: number;
-        Active: number;
-        Endorsed: number;
-        Hired: number;
-        Failed: number;
-        Withdrawn: number;
-        quota: number;
-        attainment: number;
-        conversionRate: number; // Endorsed -> Hired
-        yieldRate: number;      // Applicants -> Hired
-        endorsementRate: number; // Applicants -> Endorsed
-    };
-    efficiency: {
-        Active: number;
-        Endorsed: number;
-        Hired: number;
-        Failed: number;
-        Withdrawn: number;
-    };
-};
+import { useAuthStore } from '@/store/authStore';
+import type { DateFilterState } from '@/components/common/AdvancedDateFilter';
+import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 
-export type JobMetrics = {
-    id: string;
-    title: string;
-    department: string;
-    counts: {
-        Applicants: number;
-        Endorsed: number;
-        Hired: number;
-        Failed: number;
-        Withdrawn: number;
-        Active: number;
-    };
-    percentages: {
-        Applicants: number;
-        Endorsed: number;
-        Hired: number;
-        Failed: number;
-        Withdrawn: number;
-        Active: number;
-    };
-};
+export function getTrueAccount(app: any): string {
+    const meta = app.metadata || {};
+    const pis = app.pis || meta.pis || {};
 
-export const STATUS_COLORS = {
-    Applicants: '#0078d4',
-    Active: '#0078d4',
-    Endorsed: '#f59e0b',
-    Hired: '#107c10',
-    Failed: '#d13438',
-    Withdrawn: '#605e5c'
-};
+    let raw = (
+        app.department ||
+        app.endorsement_account ||
+        meta.final_account || pis.final_account ||
+        meta.target_account || pis.target_account ||
+        app.initial_account_assignment || meta.initial_account_assignment || pis.initial_account_assignment ||
+        ''
+    ).trim();
+
+    if (!raw) return 'Unassigned';
+
+    // If comma-separated, take the first primary account listed
+    if (raw.includes(',')) {
+        const parts = raw.split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (parts.length > 0) {
+            raw = parts[0];
+        }
+    }
+
+    const rawDept = raw.toUpperCase();
+
+    const KNOWN_ACCOUNTS = [
+        'ENERCARE', 'ONCOURSE', 'DOORDASH', 'ABBOTT', 'AUTO APPROVE', 
+        'KELLER POSTMAN', 'TELLIHEALTH', 'PAESSLER', 'PUROLATOR', 
+        'TFG', 'FINANCE', 'RIIPEN', 'REGENCY', 'NJS', 'THE SAVINGS GROUP',
+        'TEAM LEADER POSITION', 'HUMAN RESOURCES', 'GLOBAL MEET', 'GRIDMATIC',
+        'HARDROCK', 'IWIRELESS', 'MANAGERIAL POSITION', 'ADMIN OPS SHARED COST',
+        'AMBIENCE AIR', 'FACILITIES', 'IT', 'ADMIN', 'EXACT SCIENCES', 'TENNIS CHANNEL',
+        'QUALITY ASSURANCE', 'WORKFORCE', 'SAFETY OFFICER', 'TPV'
+    ];
+
+    const matched = KNOWN_ACCOUNTS.find(acc => rawDept.startsWith(acc));
+    if (matched) return matched;
+
+    if (rawDept.includes(' - ')) {
+        return rawDept.split(' - ')[0].trim();
+    }
+
+    return rawDept;
+}
+
+export function getTrueAccounts(app: any): string[] {
+    const meta = app.metadata || {};
+    const pis = app.pis || meta.pis || {};
+
+    let raw = (
+        app.department ||
+        app.endorsement_account ||
+        meta.final_account || pis.final_account ||
+        meta.target_account || pis.target_account ||
+        app.initial_account_assignment || meta.initial_account_assignment || pis.initial_account_assignment ||
+        ''
+    ).trim();
+
+    if (!raw) return ['Unassigned'];
+
+    const parts = raw.split(',').map((s: string) => s.trim()).filter(Boolean);
+    if (parts.length === 0) return ['Unassigned'];
+
+    const KNOWN_ACCOUNTS = [
+        'ENERCARE', 'ONCOURSE', 'DOORDASH', 'ABBOTT', 'AUTO APPROVE', 
+        'KELLER POSTMAN', 'TELLIHEALTH', 'PAESSLER', 'PUROLATOR', 
+        'TFG', 'FINANCE', 'RIIPEN', 'REGENCY', 'NJS', 'THE SAVINGS GROUP',
+        'TEAM LEADER POSITION', 'HUMAN RESOURCES', 'GLOBAL MEET', 'GRIDMATIC',
+        'HARDROCK', 'IWIRELESS', 'MANAGERIAL POSITION', 'ADMIN OPS SHARED COST',
+        'AMBIENCE AIR', 'FACILITIES', 'IT', 'ADMIN', 'EXACT SCIENCES', 'TENNIS CHANNEL',
+        'QUALITY ASSURANCE', 'WORKFORCE', 'SAFETY OFFICER', 'TPV'
+    ];
+
+    const results = parts.map((part: string) => {
+        const rawDept = part.toUpperCase();
+        const matched = KNOWN_ACCOUNTS.find(acc => rawDept.startsWith(acc));
+        if (matched) return matched;
+        
+        if (rawDept.includes(' - ')) {
+            return rawDept.split(' - ')[0].trim();
+        }
+        return rawDept;
+    });
+
+    return Array.from(new Set(results));
+}
+
+export function getAppStrictLob(app: any, mhrtAccounts: any[] = [], departmentsList: any[] = []): string {
+    const dept = getTrueAccount(app).toUpperCase();
+    const isOncourse = dept === 'ONCOURSE';
+
+    // 1. Get official registered LOBs directly from Account System (mhrtAccounts) for THIS account
+    const officialAccountLobs = (mhrtAccounts || [])
+        .filter((a: any) => (a.account || '').trim().toUpperCase() === dept)
+        .map((a: any) => String(a.lob || '').trim().toUpperCase())
+        .filter((l: string) => l && l !== 'UNSPECIFIED JOB POSITION' && (isOncourse || l !== 'AGENT'));
+
+    // Also load official LOBs from departmentsList
+    const deptObj = (departmentsList || []).find((d: any) => (d.name || '').trim().toUpperCase() === dept);
+    if (deptObj && (deptObj.subAccounts || deptObj.sub_accounts)) {
+        const subs = deptObj.subAccounts || deptObj.sub_accounts || [];
+        subs.forEach((s: any) => {
+            const name = String(s.name || s).trim().toUpperCase();
+            if (name && name !== 'UNSPECIFIED JOB POSITION' && !officialAccountLobs.includes(name)) {
+                officialAccountLobs.push(name);
+            }
+        });
+    }
+
+    // 2. Explicit custom_lob assigned manually by user to candidate
+    const customLob = String((app as any).pis?.custom_lob || (app as any).metadata?.custom_lob || '').trim().toUpperCase();
+    if (customLob && customLob !== 'UNSPECIFIED JOB POSITION') {
+        if (!isOncourse && customLob === 'AGENT') {
+            // Ignore generic AGENT on non-ONCOURSE accounts
+        } else {
+            if (officialAccountLobs.length === 0 || officialAccountLobs.includes(customLob)) {
+                return customLob;
+            }
+            const matchedCustom = officialAccountLobs.find(official => 
+                customLob === official || (official.length > 5 && customLob.includes(official))
+            );
+            if (matchedCustom) return matchedCustom;
+            
+            // If there are official LOBs and this custom lob doesn't match any, it should fallback to 'UNSPECIFIED JOB POSITION'
+            if (officialAccountLobs.length === 0 && customLob !== 'AGENT') {
+                return customLob;
+            }
+        }
+    }
+
+    // 3. Candidate raw LOB text from department split or position_title
+    const posTitle = String(app.position_title || '').trim().toUpperCase();
+    let extractedLob = '';
+    const rawDept = String(app.department || '').trim().toUpperCase();
+    if (rawDept.includes(' - ')) {
+        extractedLob = rawDept.split(' - ').slice(1).join(' - ').trim().toUpperCase();
+    }
+
+    const candidateLobRaw = extractedLob || (posTitle && posTitle !== dept ? posTitle : '');
+
+    // 4. Match candidate raw text against official Account System LOBs for THIS account
+    if (candidateLobRaw && candidateLobRaw !== 'UNSPECIFIED JOB POSITION' && candidateLobRaw !== 'AGENT') {
+        // Direct match with official Account System LOB
+        if (officialAccountLobs.includes(candidateLobRaw)) {
+            return candidateLobRaw;
+        }
+        // Substring / fuzzy match with official Account System LOB
+        const matched = officialAccountLobs.find(official => {
+            if (candidateLobRaw === official) return true;
+            const parts = official.split(/[,/-]/).map(p => p.trim()).filter(p => p.length > 3 && p !== 'AGENT');
+            return parts.some(p => candidateLobRaw.includes(p) || p.includes(candidateLobRaw));
+        });
+        if (matched) {
+            return matched;
+        }
+    }
+
+    // 5. Default fallback key for account
+    return isOncourse ? 'AGENT' : 'UNSPECIFIED JOB POSITION';
+}
 
 export function useRecruiterReports(user: any) {
-    const [loading, setLoading] = useState(true);
+    const { 
+        applications: apps, 
+        positions, 
+        mhrtAccounts, 
+        departments: departmentsList, 
+        users: systemUsers, 
+        isLoading: loading,
+        isInitialized,
+        updateApplicationLocally
+    } = useGlobalDataStore();
     const [isSyncing, setIsSyncing] = useState(false);
-    const [apps, setApps] = useState<Application[]>([]);
-    const [positions, setPositions] = useState<Position[]>([]);
-    const [mhrtAccounts, setMhrtAccounts] = useState<MHRTAccount[]>([]);
-    const [departmentsList, setDepartmentsList] = useState<{ id: string, name: string }[]>([]);
-    const [systemUsers, setSystemUsers] = useState<User[]>([]);
 
-    const [selectedDeptName, setSelectedDeptName] = useState<string | null>(null);
-    const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-    const [dateMode, setDateMode] = useState<'all' | 'today' | '7' | '30' | '90' | 'current_month' | 'specific' | 'range'>('all');
-    const [specificDate, setSpecificDate] = useState<string>(new Date().toISOString().split('T')[0]);
-    const [startDate, setStartDate] = useState<string>('');
-    const [endDate, setEndDate] = useState<string>('');
+    // Global Filters
+    const [selectedDeptNames, setSelectedDeptNames] = useState<string[]>([]);
+    const [isExclusiveMode, setIsExclusiveMode] = useState(false);
+    const [lobFilters, setLobFilters] = useState<string[]>([]);
+    const [hiringTypeFilters, setHiringTypeFilters] = useState<string[]>([]);
+    const [dateAppliedFilter, setDateAppliedFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [initialInterviewFilter, setInitialInterviewFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [trainingStartFilter, setTrainingStartFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [opsValFilter, setOpsValFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
     const [selectedRecruiterName, setSelectedRecruiterName] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'count' | 'percent'>('count');
-    const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
- 
-    // 1. Status Intelligence Engine (Maps multiple disparate status fields to a unified outcome)
-    const getApplicantOutcome = useCallback((app: Application) => {
+    const [expFilter, setExpFilter] = useState<string>('');
+    const [freshGradFilter, setFreshGradFilter] = useState<string>(''); // yes, no
+    const [eduFilter, setEduFilter] = useState<string>('');
+    const [genderFilter, setGenderFilter] = useState<string>('');
+
+    const { isAccountFilterEnabled } = useAuthStore();
+
+
+
+    useVisibilityPolling(() => {}, 300000);
+
+    // Helpers
+    const getNormalizedName = useCallback((raw: string | null | undefined, appMetadata?: any) => {
+        let upper = (raw || '').trim().toUpperCase();
+        if (!upper && appMetadata) {
+            const p = (appMetadata.pis || {}) as any;
+            upper = String(p.initial_account_assignment || p['INITIAL ACCOUNT ASSIGNMENT'] || p.final_account || p['Final Account'] || '').trim().toUpperCase();
+        }
+        return upper;
+    }, []);
+
+    const categorizeEducation = (raw: string): string => {
+        const r = (raw || '').toUpperCase();
+        if (r.includes('DOCTOR') || r.includes('PHD')) return 'DOCTORATE';
+        if (r.includes('MASTER') || r.includes('MA ') || r.includes('MS ')) return "MASTER'S";
+        if (r.includes('BACHELOR') || r.includes('COLLEGE GRADUATE') || r.includes('COLLEGE DEGREE') || r.includes('BS ') || r.includes('BA ')) return 'BACHELOR\'S DEGREE';
+        if (r.includes('COLLEGE UNDER') || r.includes('COLLEGE LEVEL') || r.includes('UNDERGRADUATE') || r.includes('SEMESTER')) return 'COLLEGE LEVEL';
+        if (r.includes('ASSOCIATE') || r.includes('VOCATIONAL') || r.includes('DIPLOMA')) return 'VOCATIONAL';
+        if (r.includes('HIGH SCHOOL') || r.includes('HS ') || r.includes('SECONDARY') || r.includes('SENIOR HIGH')) return 'SENIOR HIGH';
+        return 'OTHER';
+    };
+
+    const getWorkExperienceMonths = (expList: any[]): number => {
+        if (!expList || expList.length === 0) return 0;
+        let totalMonths = 0;
+        expList.forEach(exp => {
+            const from = new Date(exp.duration_from);
+            const to = exp.duration_to ? new Date(exp.duration_to) : new Date();
+            if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+                const diffMonths = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+                totalMonths += Math.max(0, diffMonths);
+            }
+        });
+        return totalMonths;
+    };
+
+    const categorizeExperience = (expList: any[]): string => {
+        const months = getWorkExperienceMonths(expList);
+        if (months === 0) return 'No Experience';
+        if (months < 6) return 'Less than 6 Months';
+        if (months <= 12) return '6 Months–1 Year';
+        if (months <= 24) return '1–2 Years';
+        if (months <= 60) return '3–5 Years';
+        return '5+ Years';
+    };
+
+    const getOutcome = useCallback((app: Application) => {
         const p = (app.pis || app.metadata || {}) as any;
         const status = (app.current_status || '').toUpperCase();
-        
-        // Fuzzy metadata retrieval
-        const finalSpec = String(p.final_specific_status || p['Final Specific Status'] || p['Specific Status'] || '').toUpperCase();
         const overall = String(p.overall_status || p['Overall Status'] || '').toUpperCase();
-        const initial = String(p.initial_interview_results || p.initial_interview_result || p['Initial Interview Result'] || '').toUpperCase();
-        const second = String(p.second_level_interview_result || p['Second Level Interview Result'] || '').toUpperCase();
-        const finalInt = String(p.final_interview_result || p['Final Interview Result'] || '').toUpperCase();
+        const finalSpec = String(p.final_specific_status || p['Final Specific Status'] || p['Specific Status'] || '').toUpperCase();
 
-        // Strict EID check: Ignore small numbers which are often just row IDs from spreadsheets
-        const hasValidEid = app.master_eid && String(app.master_eid).length >= 4;
-
-        const isHired = status === 'HIRED' || status === 'HIRED_PROCESSED' || status === 'ACCEPTED_OFFER' || status === 'ACCEPTED OFFER' || overall === 'HIRED' || hasValidEid;
-        
-        const isFailed = status === 'FAILED' || status === 'REJECTED' || overall === 'FAILED' || overall === 'REJECTED' ||
-                         finalSpec.includes('FAILED') || finalSpec.includes('REJECTED') ||
-                         initial.includes('FAILED') || second.includes('FAILED') || finalInt.includes('FAILED');
-
-        const isWithdrawn = status === 'WITHDRAWN' || status === 'FALLOUT' || overall === 'WITHDRAWN' ||
-                            initial.includes('WITHDRAWN') || finalSpec.includes('WITHDRAWN');
-
-        // ENDORSED means the candidate has been fully endorsed to the account/client.
-        // We do NOT count initial/second interview passes as "endorsed" — those are just pipeline progression.
-        // Only explicit top-level statuses or overall/final verdicts count.
-        const isEndorsed = isHired || ['PASSED', 'FOR_JO', 'FOR_JOB_OFFER', 'ENDORSED', 'SENT_JO_AND_BGC', 'ACCEPTED_OFFER', 'FOR_PAN'].includes(status) || 
-                           finalSpec.includes('PASSED') || overall === 'PASSED' ||
-                           finalInt.includes('PASSED') ||
-                           finalSpec.includes('CONDITIONAL');
+        const isHired = status === 'HIRED' || status === 'HIRED_PROCESSED' || status === 'ACCEPTED_OFFER' || status === 'ACCEPTED OFFER' || status === 'CONFIRMED_TRAINING' || status === 'CONFIRMED TRAINING' || status === 'PAN_COMPLETED' || status === 'PAN COMPLETED' || overall === 'HIRED' || overall === 'CONFIRMED TRAINING';
+        const isFailed = status === 'FAILED' || status === 'REJECTED' || status === 'NOT_ELIGIBLE_FOR_REHIRE' || status === 'NOT ELIGIBLE FOR REHIRE' || overall === 'FAILED' || overall === 'REJECTED' || finalSpec === 'FAILED' || finalSpec === 'REJECTED';
+        const isWithdrawn = status === 'WITHDRAWN' || status === 'FALLOUT' || overall === 'WITHDRAWN' || finalSpec === 'WITHDRAWN' || status.includes('NO_SHOW') || status.includes('NO SHOW');
+        const isEndorsed = isHired || ['PASSED', 'FOR_JO', 'FOR_JOB_OFFER', 'FOR JOB OFFER', 'ENDORSED', 'SENT_JO_AND_BGC', 'ACCEPTED_OFFER', 'FOR_PAN', 'PAN_COMPLETED', 'PAN COMPLETED'].includes(status) || finalSpec === 'PASSED' || overall === 'PASSED';
 
         return { isHired, isFailed, isEndorsed, isWithdrawn };
     }, []);
 
-    const { accountLookup, getNormalizedName } = useMemo(() => {
-        const lookup = new Map<string, string>();
-        const safeMhrt = mhrtAccounts || [];
-        safeMhrt.forEach(a => {
-            const accName = (a.account || '').trim().toUpperCase();
-            const lobCode = (a.lob || '').trim().toUpperCase();
-            if (accName && lobCode) lookup.set(lobCode, accName);
-            if (accName) lookup.set(accName, accName);
-        });
-
-        const recoveryMap: Record<string, string> = {
-            'DD': 'DOORDASH',
-            'DOORDASH': 'DOORDASH',
-            'ENER': 'ENERCARE',
-            'ENERCARE': 'ENERCARE',
-            'OONI': 'OONI',
-            'EXACT': 'EXACT SCIENCES',
-            'EXACT SCIENCES': 'EXACT SCIENCES',
-            'GRID': 'GRIDMATIC',
-            'IWIRE': 'IWIRELESS',
-            'NJS': 'NJS',
-            'PENDING': 'PENDING'
-        };
- 
-        return {
-            accountLookup: lookup,
-            getNormalizedName: (raw: string | null | undefined, appMetadata?: any) => {
-                let upper = (raw || '').trim().toUpperCase();
-                
-                // Fallback to metadata if raw is blank (Look specifically for Initial Account Assignment)
-                if (!upper && appMetadata) {
-                    const p = (appMetadata.pis || {}) as any;
-                    // Support both the common spreadsheet typo "INITITAL" and the correct "INITIAL"
-                    upper = String(
-                        p.initial_account_assignment || 
-                        p['INITIAL ACCOUNT ASSIGNMENT'] ||
-                        p.final_account || 
-                        p['Final Account'] || 
-                        ''
-                    ).trim().toUpperCase();
-                }
-
-                if (recoveryMap[upper]) return recoveryMap[upper];
-                return lookup.get(upper) || upper;
-            }
-        };
-    }, [mhrtAccounts]);
-
-    const availableAccounts = useMemo(() => {
-        const accountNames = (mhrtAccounts || []).map(a => (a.account || '').toUpperCase()).filter(Boolean);
-        const systemDeptNames = (departmentsList || []).map(d => d.name.toUpperCase());
-        return Array.from(new Set([...accountNames, ...systemDeptNames])).sort((a, b) => a.localeCompare(b));
-    }, [mhrtAccounts, departmentsList]);
-
-    const loadData = useCallback(async (showFullLoader = false) => {
-        if (!user) return;
-        if (showFullLoader) setLoading(true);
-        else setIsSyncing(true);
-
-        try {
-            const [fetchedApps, fetchedPositions, fetchedDepts, fetchedUsers, fetchedMhrt] = await Promise.all([
-                ApplicationService.getAll(),
-                PositionService.getAll(),
-                DepartmentService.getAll(),
-                UserService.getAll(),
-                MhrtService.getAccounts()
-            ]);
-            const uniqueApps = Array.from(new Map((fetchedApps || []).map(a => [a.id, a])).values());
-            setApps(uniqueApps);
-            setPositions(fetchedPositions);
-            setDepartmentsList(fetchedDepts || []);
-            setSystemUsers(fetchedUsers || []);
-            setMhrtAccounts(fetchedMhrt || []);
-        } catch (error) {
-            console.error("Failed to load reports data:", error);
-        } finally {
-            setLoading(false);
-            setIsSyncing(false);
-        }
-    }, [user]);
-
-    useEffect(() => {
-        loadData(true);
-        const socket = socketService.getSocket();
-        
-        socket.on('applications:updated', () => {
-            console.log('[Socket] Applications updated, refreshing dashboard...');
-            loadData(false);
-        });
-
-        const interval = setInterval(() => loadData(false), 60000); // Fallback polling
-        
-        return () => {
-            socket.off('applications:updated');
-            clearInterval(interval);
-        };
-    }, [loadData]);
- 
-    // HELPER: Resolve a consistent identity key (FIRST LAST) across different data formats
-    const resolveIdentityKey = (app: Application): string | null => {
-        let rawName = (app.applicant_name || '').trim();
-        const first = (app.master_first_name || '').trim();
-        const last = (app.master_last_name || '').trim();
-
-        let resolved = '';
-
-        if (first || last) {
-            // Masterlist format: reconstruct as FIRST LAST
-            resolved = `${first} ${last}`.trim();
-        } else if (rawName) {
-            // Interview Sheet format: handle "Last, First" or "First Last"
-            if (rawName.includes(',')) {
-                const parts = rawName.split(',').map(p => p.trim());
-                resolved = `${parts[1]} ${parts[0]}`.trim(); // Flip to First Last
-            } else {
-                resolved = rawName;
-            }
-        }
-
-        // Final normalization: Remove extra spaces, special chars, and uppercase
-        return resolved.replace(/\s+/g, ' ').toUpperCase() || null;
-    };
-
-    // 2. Unified Candidate Engine (Merges SHEET and MASTERLIST records by name)
-    const unifiedApps = useMemo(() => {
-        const nameGroups = new Map<string, Application[]>();
-        
-        apps.forEach(app => {
-            const name = resolveIdentityKey(app);
-            if (!name) return;
-            if (!nameGroups.has(name)) nameGroups.set(name, []);
-            nameGroups.get(name)!.push(app);
-        });
- 
-        return Array.from(nameGroups.values()).map(group => {
-            // STABILITY FIX: Sort group by outcome priority so the Master Record is deterministic
-            group.sort((a, b) => {
-                const outcomeA = getApplicantOutcome(a);
-                const outcomeB = getApplicantOutcome(b);
-                
-                // Priority: Hired (3) > Failed (2) > Endorsed (1) > Active (0)
-                const getScore = (o: any) => {
-                    if (o.isHired) return 3;
-                    if (o.isFailed) return 2;
-                    if (o.isEndorsed) return 1;
-                    return 0;
-                };
-                
-                return getScore(outcomeB) - getScore(outcomeA);
-            });
-
-            // STABILITY FIX: Prioritize SHEET pipeline records for reporting integrity
-            const masterRec = group.find(a => (a.master_column || '').toUpperCase() === 'SHEET') || 
-                             group.find(a => !!a.master_eid && String(a.master_eid).length >= 4) || 
-                             group[0];
-            
-            // Merge variables: If one has HIRED status, they all are HIRED in the eyes of reporting
-            const hasHired = group.some(a => (a.current_status || '').toUpperCase() === 'HIRED' || (!!a.master_eid && String(a.master_eid).length >= 4));
-            
-            return {
-                ...masterRec,
-                current_status: hasHired ? 'HIRED' : masterRec.current_status,
-                // Combine other key flags if needed
-                is_merged: group.length > 1
-            };
-        });
-    }, [apps, getApplicantOutcome]);
- 
-    const baseFilteredApps = useMemo(() => {
+    // Filter Logic
+    const filteredApps = useMemo(() => {
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
- 
-        return unifiedApps.filter(app => {
-            if (dateMode !== 'all') {
-                const appDateObj = new Date(app.applied_at);
-                const appDateStr = appDateObj.toISOString().split('T')[0];
+        const startOfWeek = new Date();
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-                if (dateMode === 'today' && appDateStr !== todayStr) return false;
-                if (dateMode === 'current_month') {
-                    if (appDateObj.getMonth() !== now.getMonth() || appDateObj.getFullYear() !== now.getFullYear()) return false;
-                }
-                if (dateMode === 'specific' && appDateStr !== specificDate) return false;
-                if (dateMode === 'range' && startDate && endDate) {
-                    if (appDateStr < startDate || appDateStr > endDate) return false;
-                }
-                if (['7', '30', '90'].includes(dateMode)) {
-                    const days = parseInt(dateMode);
-                    const cutoff = new Date();
-                    cutoff.setDate(cutoff.getDate() - days);
-                    if (appDateObj < cutoff) return false;
-                }
-            }
-            if (selectedRecruiterName) {
-                const recName = app.assigned_recruiter_name || 'Unassigned';
-                if (recName !== selectedRecruiterName) return false;
-            }
-            // STRICT PIPELINE ISOLATION: Only include candidates in the active SHEET recruitment pipeline or the new WEBAPP pipeline
-            const col = (app.master_column || '').toUpperCase();
-            if (col !== 'SHEET' && app.source !== 'WEBAPP') return false;
+        const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'superadmin' || user?.role === 'ops_val_admin';
 
-            const normDept = getNormalizedName(app.department, app);
+        return apps.filter(app => {
+            const isHiddenRecord = app.is_hidden === true || (app.is_hidden as any) === 1 || String(app.is_hidden).toLowerCase() === 'true' || String(app.is_hidden) === '1';
+            if (isExclusiveMode && !isHiddenRecord) return false;
+            if (!isExclusiveMode && isHiddenRecord) return false;
 
-            if (selectedDeptName) {
-                if (normDept !== selectedDeptName) return false;
+            // General Date Filters (Multi-Type)
+            const isWithinRange = (dateInput: string | undefined | null, filter: DateFilterState) => {
+                if (!dateInput || dateInput === 'TBD') return false;
+                try {
+                    const dStr = dateInput.includes('T') ? dateInput.split('T')[0] : new Date(dateInput).toISOString().split('T')[0];
+                    return dStr >= filter.start! && dStr <= filter.end!;
+                } catch {
+                    return false;
+                }
+            };
+
+            if (dateAppliedFilter.type !== 'ALL' && dateAppliedFilter.start && dateAppliedFilter.end) {
+                const appliedDate = app.applied_at || app.created_at || new Date().toISOString();
+                if (!isWithinRange(appliedDate, dateAppliedFilter)) return false;
             }
             
-            if (selectedJobId && app.position_id !== selectedJobId) return false;
+            if (initialInterviewFilter.type !== 'ALL' && initialInterviewFilter.start && initialInterviewFilter.end) {
+                const initialDate = (app as any).initial_interview_date || app.metadata?.initial_interview_date || (app as any).pis?.initial_interview_date;
+                if (!isWithinRange(initialDate, initialInterviewFilter)) return false;
+            }
+            
+            if (trainingStartFilter.type !== 'ALL' && trainingStartFilter.start && trainingStartFilter.end) {
+                const trainingDate = app.master_training_start_date || (app as any).pis?.master_training_start_date || (app as any).pis?.training_start_date || app.metadata?.master_training_start_date;
+                if (!isWithinRange(trainingDate, trainingStartFilter)) return false;
+            }
+            
+            if (opsValFilter.type !== 'ALL' && opsValFilter.start && opsValFilter.end) {
+                const opsValDate = (app as any).ops_val_interview_date || app.metadata?.ops_val_interview_date || (app as any).pis?.ops_val_interview_date || (app as any).ops_validator_interview_date || app.metadata?.ops_validator_interview_date;
+                if (!isWithinRange(opsValDate, opsValFilter)) return false;
+            }
+
+            // Demographics & Details
+            if (genderFilter) {
+                const sex = String(app.pis?.sex || 'UNSPECIFIED').toUpperCase();
+                if (genderFilter === 'UNSPECIFIED') {
+                    if (sex !== 'UNSPECIFIED' && sex !== 'UNKNOWN' && sex !== '') return false;
+                } else if (sex !== genderFilter.toUpperCase()) {
+                    return false;
+                }
+            }
+
+            if (eduFilter) {
+                const edu = categorizeEducation(app.pis?.highest_education || '');
+                if (edu !== eduFilter) return false;
+            }
+
+            if (expFilter) {
+                const exp = categorizeExperience(app.pis?.work_experience || []);
+                if (exp !== expFilter) return false;
+            }
+
+            if (freshGradFilter) {
+                const expList = app.pis?.work_experience || [];
+                const isFresh = expList.length === 0;
+                if (freshGradFilter === 'yes' && !isFresh) return false;
+                if (freshGradFilter === 'no' && isFresh) return false;
+            }
+
+            // Recruiter
+            if (selectedRecruiterName) {
+                const rec = app.assigned_recruiter_name || app.interviewer_name || '';
+                if (!rec.toUpperCase().includes(selectedRecruiterName.toUpperCase())) return false;
+            }
+
+            // LOB Filter (multi-select)
+            if (lobFilters.length > 0) {
+                const appLob = getAppStrictLob(app, mhrtAccounts, departmentsList).toUpperCase();
+                if (!lobFilters.some(f => f.toUpperCase() === appLob)) return false;
+            }
+
+            // Hiring Type Filter (multi-select)
+            if (hiringTypeFilters.length > 0) {
+                const type = ((app as any).hiring_type || (app as any).metadata?.hiring_type || '').toUpperCase();
+                const isInternal = type.includes('INTERNAL') || type === 'BILLED';
+                const matchesAny = hiringTypeFilters.some(f => {
+                    if (f === 'INTERNAL') return isInternal;
+                    if (f === 'EXTERNAL') return !isInternal;
+                    return false;
+                });
+                if (!matchesAny) return false;
+            }
+
+            // Central Account Filter (multi-select)
+            if (selectedDeptNames.length > 0) {
+                const accounts = getTrueAccounts(app).map(a => a.toUpperCase());
+                if (!selectedDeptNames.some(d => accounts.includes(d.toUpperCase()))) return false;
+            }
+
             return true;
         });
-    }, [unifiedApps, dateMode, specificDate, startDate, endDate, selectedRecruiterName, selectedDeptName, selectedJobId, getNormalizedName, availableAccounts]);
+    }, [apps, selectedDeptNames, lobFilters, hiringTypeFilters, dateAppliedFilter, initialInterviewFilter, trainingStartFilter, opsValFilter, selectedRecruiterName, expFilter, freshGradFilter, eduFilter, genderFilter, isAccountFilterEnabled, user, mhrtAccounts, departmentsList]);
 
-    const filteredApps = useMemo(() => {
-        // This is the SHEET/WEBAPP specific list for detail tables
-        // We explicitly look for ANY candidate who has a record in the pipeline
-        return unifiedApps.filter(app => {
-            const col = (app.master_column || '').toUpperCase();
-            return col === 'SHEET' || app.source === 'WEBAPP';
-        });
-    }, [unifiedApps]);
+    // Unique lists
+    const availableLobs = useMemo(() => {
+        const lobsSet = new Set<string>();
 
-    const processedData = useMemo(() => {
-        const deptMap = new Map<string, DeptMetrics>();
-        
-        // 1. Initialize all departments found in the registry OR positions
-        // ONLY include those that are tagged with an official MHRT Account name
-        const safeApps = unifiedApps || [];
-        const safePositions = positions || [];
-        const safeMhrtAccounts = mhrtAccounts || [];
- 
-        const accountNames = safeMhrtAccounts.map(a => (a.account || '').trim().toUpperCase()).filter(Boolean);
-        const systemDeptNames = (departmentsList || []).map(d => d.name.toUpperCase());
-        const goldStandard = Array.from(new Set([...accountNames, ...systemDeptNames]));
-        
-        // 2. GENERATE FILTER LIST (Strictly from Registry)
-        // We only show accounts that exist in our official MHRT or System Registry
-        const allDeptNames = Array.from(new Set(goldStandard))
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b));
-
-        allDeptNames.forEach(name => {
-            deptMap.set(name, {
-                name,
-                jobs: [],
-                total: { 
-                    Applicants: 0, Active: 0, Endorsed: 0, Hired: 0, Failed: 0, Withdrawn: 0, 
-                    quota: 25, attainment: 0, conversionRate: 0, yieldRate: 0, endorsementRate: 0 
-                },
-                efficiency: { Endorsed: 0, Hired: 0, Failed: 0, Withdrawn: 0, Active: 0 }
-            });
-        });
-
-        // 2. Populate Totals using a SINGLE pass over applications
-        const safeFilteredApps = baseFilteredApps || [];
-        
-        // Optimization: Use a map to store job-level metrics temporarily
-        const jobMetricsMap = new Map<string, { Applicants: number, Hired: number, Endorsed: number, Failed: number, Withdrawn: number, Active: number }>();
-
-        safeFilteredApps.forEach(app => {
-            const deptName = getNormalizedName(app.department, app) || 'UNMAPPED';
-            
-            if (!deptMap.has(deptName)) {
-                deptMap.set(deptName, {
-                    name: deptName,
-                    jobs: [],
-                    total: { 
-                        Applicants: 0, Active: 0, Endorsed: 0, Hired: 0, Failed: 0, Withdrawn: 0, 
-                        quota: 25, attainment: 0, conversionRate: 0, yieldRate: 0, endorsementRate: 0 
-                    },
-                    efficiency: { Endorsed: 0, Hired: 0, Failed: 0, Withdrawn: 0, Active: 0 }
-                });
-            }
-
-            const dept = deptMap.get(deptName)!;
-            dept.total.Applicants++;
-            const outcome = getApplicantOutcome(app);
-
-            if (outcome.isHired) {
-                dept.total.Hired++;
-                dept.total.Endorsed++; 
-            } else if (outcome.isEndorsed) {
-                dept.total.Endorsed++;
-            } else if (outcome.isFailed) {
-                dept.total.Failed++;
-            } else if (outcome.isWithdrawn) {
-                dept.total.Withdrawn++;
-            } else {
-                dept.total.Active++;
-            }
-
-            // Track job-level metrics for later
-            const jobKey = app.position_id || `${app.position_title}|${deptName}`;
-            if (!jobMetricsMap.has(jobKey)) {
-                jobMetricsMap.set(jobKey, { Applicants: 0, Hired: 0, Endorsed: 0, Failed: 0, Withdrawn: 0, Active: 0 });
-            }
-            const jm = jobMetricsMap.get(jobKey)!;
-            jm.Applicants++;
-            if (outcome.isHired) { jm.Hired++; jm.Endorsed++; }
-            else if (outcome.isEndorsed) jm.Endorsed++;
-            else if (outcome.isFailed) jm.Failed++;
-            else if (outcome.isWithdrawn) jm.Withdrawn++;
-            else jm.Active++;
-        });
-
-        // 3. Populate Job-level metrics using the pre-calculated map
-        safePositions.forEach(pos => {
-            const deptName = getNormalizedName(pos.department);
-            const dept = deptMap.get(deptName);
-            if (dept) {
-                const jobKey = pos.id || `${pos.title}|${deptName}`;
-                const jm = jobMetricsMap.get(jobKey) || { Applicants: 0, Hired: 0, Endorsed: 0, Failed: 0, Withdrawn: 0, Active: 0 };
-                
-                const divisor = Math.max(jm.Applicants, 1);
-                dept.jobs.push({
-                    id: pos.id,
-                    title: pos.title,
-                    department: pos.department,
-                    counts: { ...jm },
-                    percentages: {
-                        Applicants: 100,
-                        Hired: (jm.Hired / divisor) * 100,
-                        Endorsed: (jm.Endorsed / divisor) * 100,
-                        Failed: (jm.Failed / divisor) * 100,
-                        Withdrawn: (jm.Withdrawn / divisor) * 100,
-                        Active: (jm.Active / divisor) * 100
-                    }
-                });
-            }
-        });
-
-        // 4. Calculate Efficiency Percentages for Departments
-        deptMap.forEach(dept => {
-            const total = Math.max(dept.total.Applicants, 1);
-            const endorsed = Math.max(dept.total.Endorsed, 0);
-            const hired = dept.total.Hired;
-
-            dept.total.attainment = (hired / Math.max(dept.total.quota, 1)) * 100;
-            dept.total.yieldRate = (hired / total) * 100;
-            dept.total.endorsementRate = (endorsed / total) * 100;
-            dept.total.conversionRate = endorsed > 0 ? (hired / endorsed) * 100 : 0;
-
-            dept.efficiency = {
-                Hired: (hired / total) * 100,
-                Endorsed: (endorsed / total) * 100,
-                Failed: (dept.total.Failed / total) * 100,
-                Withdrawn: (dept.total.Withdrawn / total) * 100,
-                Active: (dept.total.Active / total) * 100
-            };
-        });
-
-        return Array.from(deptMap.values()).filter(d => d.total.Applicants > 0);
-    }, [baseFilteredApps, positions, unifiedApps, mhrtAccounts]);
-
-    const globalMetrics = useMemo(() => {
-        let total = 0, hired = 0, endorsedOnly = 0, rejected = 0, withdrawn = 0, pending = 0;
-        
-        baseFilteredApps.forEach(a => {
-            total++;
-            const outcome = getApplicantOutcome(a);
-            if (outcome.isHired) hired++;
-            else if (outcome.isEndorsed) endorsedOnly++;
-            else if (outcome.isFailed) rejected++;
-            else if (outcome.isWithdrawn) withdrawn++;
-            else pending++;
-        });
-        
-        const totalEndorsed = endorsedOnly + hired; 
-        const totalQuota = (availableAccounts.length || 1) * 25; 
-        const unifiedNames = new Set(unifiedApps.map(a => resolveIdentityKey(a)).filter(Boolean));
-  
-        return {
-            totalApps: total,
-            totalHired: hired,
-            totalEndorsed: totalEndorsed,
-            totalFailed: rejected,
-            totalPending: pending,
-            hiringRate: total > 0 ? (hired / total) * 100 : 0,
-            conversionRate: totalEndorsed > 0 ? (hired / totalEndorsed) * 100 : 0,
-            failedRate: total > 0 ? (rejected / total) * 100 : 0,
-            withdrawalRate: total > 0 ? (withdrawn / total) * 100 : 0,
-            masterlistCount: unifiedNames.size,
-            quotaAttainment: (hired / totalQuota) * 100
-        };
-    }, [unifiedApps, baseFilteredApps, availableAccounts, getApplicantOutcome]);
-
-    const funnelData = useMemo(() => {
-        const total = baseFilteredApps.length;
-        if (total === 0) return [];
-
-        const hired = baseFilteredApps.filter(a => getApplicantOutcome(a).isHired).length;
-        const endorsedOnly = baseFilteredApps.filter(a => {
-            const outcome = getApplicantOutcome(a);
-            return outcome.isEndorsed && !outcome.isHired;
-        }).length;
-        const failed = baseFilteredApps.filter(a => getApplicantOutcome(a).isFailed).length;
-        const pending = baseFilteredApps.filter(a => {
-            const outcome = getApplicantOutcome(a);
-            return !outcome.isHired && !outcome.isFailed && !outcome.isEndorsed;
-        }).length;
-
-        return [
-            { stage: 'Total Applicants', count: total, color: 'from-[#3b82f6] to-[#60a5fa]' },
-            { stage: 'Endorsed to Account', count: endorsedOnly + hired, color: 'from-[#f59e0b] to-[#fbbf24]' },
-            { stage: 'Confirmed Hires', count: hired, color: 'from-[#10b981] to-[#34d399]' },
-            { stage: 'Pending Candidates', count: pending, color: 'from-[#8b5cf6] to-[#a78bfa]' },
-            { stage: 'Failed Candidates', count: failed, color: 'from-[#ef4444] to-[#f87171]' }
-        ];
-    }, [baseFilteredApps, getApplicantOutcome]);
-
-    const monthlyTrendData = useMemo(() => {
-        // Determine the reference date for the trend graph
-        let refDate = new Date();
-        if (dateMode === 'specific' && specificDate) refDate = new Date(specificDate);
-        if (dateMode === 'range' && startDate) refDate = new Date(startDate);
-
-        const year = refDate.getFullYear();
-        const month = refDate.getMonth();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        const trend = Array.from({ length: daysInMonth }, (_, i) => ({
-            day: i + 1,
-            total: 0,
-            hired: 0,
-            failed: 0,
-            breakdown: {} as Record<string, number>
-        }));
-
-        filteredApps.forEach(app => {
-            const date = new Date(app.applied_at);
-            if (date.getFullYear() === year && date.getMonth() === month) {
-                const day = date.getDate();
-                if (day > 0 && day <= daysInMonth) {
-                    const status = (app.current_status || '').toUpperCase();
-                    const finalSpec = (app.pis?.final_specific_status || '').toUpperCase();
-                    const overall = (app.pis?.overall_status || '').toUpperCase();
-                    const dayData = trend[day - 1];
-                    dayData.total++;
-                    
-                    // Track breakdown by account for the day
-                    const account = getNormalizedName(app.department, app) || 'General';
-                    dayData.breakdown[account] = (dayData.breakdown[account] || 0) + 1;
-                    
-                    const { isHired, isFailed } = getApplicantOutcome(app);
-
-                    if (isHired) {
-                        dayData.hired++;
-                    } else if (isFailed) {
-                        dayData.failed++;
+        // 1. From mhrtAccounts (strictly filtered by selectedDeptName)
+        (mhrtAccounts || []).forEach(a => {
+            const accName = (a.account || '').trim().toUpperCase();
+            if (selectedDeptNames.length === 0 || selectedDeptNames.some(d => d.toUpperCase() === accName)) {
+                const lob = String(a.lob || '').trim().toUpperCase();
+                if (lob && lob !== 'UNSPECIFIED JOB POSITION') {
+                    if (accName === 'ONCOURSE' || lob !== 'AGENT') {
+                        lobsSet.add(lob);
                     }
                 }
             }
         });
-        return trend;
-    }, [filteredApps, dateMode, specificDate, startDate, getNormalizedName, getApplicantOutcome]);
-    
+
+        // 2. From apps using getAppStrictLob
+        (apps || []).forEach(app => {
+            const acc = getTrueAccount(app).toUpperCase();
+            if (selectedDeptNames.length === 0 || selectedDeptNames.some(d => d.toUpperCase() === acc)) {
+                const lob = getAppStrictLob(app, mhrtAccounts, departmentsList);
+                if (lob && lob !== 'UNSPECIFIED JOB POSITION') {
+                    lobsSet.add(lob);
+                }
+            }
+        });
+
+        return Array.from(lobsSet).sort();
+    }, [mhrtAccounts, apps, selectedDeptNames, departmentsList]);
+
+    const availableAccounts = useMemo(() => {
+        const appAccounts = (apps || []).map(a => getTrueAccount(a).toUpperCase()).filter(Boolean);
+        const accountNames = (mhrtAccounts || []).map(a => (a.account || '').toUpperCase()).filter(Boolean);
+        const systemDeptNames = (departmentsList || []).map(d => d.name.toUpperCase());
+        return Array.from(new Set([...appAccounts, ...accountNames, ...systemDeptNames]))
+            .filter(name => name !== 'UNASSIGNED')
+            .sort((a, b) => a.localeCompare(b));
+    }, [apps, mhrtAccounts, departmentsList]);
+
+    const availableRecruiters = useMemo(() => {
+        const names = apps.map(a => a.assigned_recruiter_name || a.interviewer_name).filter((n): n is string => typeof n === 'string' && n.toUpperCase() !== 'UNASSIGNED');
+        return Array.from(new Set(names)).sort();
+    }, [apps]);
+
+    const availableStartDates = useMemo(() => {
+        const dates = new Set<string>();
+        apps.forEach(app => {
+            const d = app.master_training_start_date;
+            if (d && d.trim() && d !== 'TBD') {
+                dates.add(d.trim());
+            }
+        });
+        return Array.from(dates).sort((a, b) => b.localeCompare(a));
+    }, [apps]);
 
     return {
-        loading, isSyncing, apps, positions, departmentsList, systemUsers,
-        selectedDeptName, setSelectedDeptName,
-        selectedJobId, setSelectedJobId,
-        dateMode, setDateMode,
-        specificDate, setSpecificDate,
-        startDate, setStartDate,
-        endDate, setEndDate,
+        loading,
+        isInitialized,
+        isSyncing,
+        apps,
+        positions,
+        departmentsList,
+        systemUsers,
+        mhrtAccounts,
+        filteredApps,
+        availableAccounts,
+        availableLobs,
+        availableRecruiters,
+        availableStartDates,
+        getOutcome,
+        categorizeEducation,
+        categorizeExperience,
+        // Filter bindings
+        selectedDeptNames, setSelectedDeptNames,
+        lobFilters, setLobFilters,
+        hiringTypeFilters, setHiringTypeFilters,
+        dateAppliedFilter, setDateAppliedFilter,
+        initialInterviewFilter, setInitialInterviewFilter,
+        trainingStartFilter, setTrainingStartFilter,
+        opsValFilter, setOpsValFilter,
         selectedRecruiterName, setSelectedRecruiterName,
-        viewMode, setViewMode,
-        isAdvancedFiltersOpen, setIsAdvancedFiltersOpen,
-        filteredApps, processedData, globalMetrics, monthlyTrendData, funnelData, availableAccounts,
-        loadData
+        expFilter, setExpFilter,
+        freshGradFilter, setFreshGradFilter,
+        eduFilter, setEduFilter,
+        genderFilter, setGenderFilter,
+        isExclusiveMode, setIsExclusiveMode
     };
 }

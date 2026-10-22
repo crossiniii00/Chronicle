@@ -5,6 +5,15 @@ const { Pool } = pg;
 
 export const pool = new Pool(config.postgres);
 
+pool.on('connect', (client) => {
+    client.on('error', (err) => {
+        console.error('[Postgres Client Error]', err);
+    });
+    client.query("SET TIME ZONE 'Asia/Manila'").catch((err) => {
+        console.error('[Postgres TZ Set Error]', err);
+    });
+});
+
 pool.on('error', (err) => {
     console.error('[Postgres Pool Error]', err);
 });

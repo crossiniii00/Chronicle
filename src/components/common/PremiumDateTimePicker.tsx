@@ -6,13 +6,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface PremiumDateTimePickerProps {
     value: string; // ISO string or datetime-local string
     onChange: (value: string) => void;
-    label: string;
+    label: React.ReactNode;
     className?: string;
     disabled?: boolean;
     minDate?: string | Date;
+    dropUp?: boolean;
 }
 
-export function PremiumDateTimePicker({ value, onChange, label, className, disabled, minDate }: PremiumDateTimePickerProps) {
+export function PremiumDateTimePicker({ value, onChange, label, className, disabled, minDate, dropUp }: PremiumDateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState<'date' | 'time'>('date');
     const containerRef = useRef<HTMLDivElement>(null);
@@ -20,6 +21,14 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
     const initialDate = value ? new Date(value) : new Date();
     const [tempDate, setTempDate] = useState(isNaN(initialDate.getTime()) ? new Date() : initialDate);
     const [viewDate, setViewDate] = useState(new Date(tempDate.getFullYear(), tempDate.getMonth(), 1));
+    const [minuteInput, setMinuteInput] = useState(tempDate.getMinutes().toString().padStart(2, '0'));
+
+    useEffect(() => {
+        if (document.activeElement?.getAttribute('data-input-type') === 'minute') {
+            return;
+        }
+        setMinuteInput(tempDate.getMinutes().toString().padStart(2, '0'));
+    }, [tempDate]);
     const getMinimumDate = () => {
         if (minDate) {
             const parsed = new Date(minDate);
@@ -28,9 +37,9 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
         const today = new Date();
         return new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
     };
-    const isBeforeMinimum = (date: Date) => date.getTime() < getMinimumDate().getTime();
+    const isBeforeMinimum = (date: Date) => false;
     const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const isBeforeMinimumDay = (date: Date) => startOfDay(date).getTime() < startOfDay(getMinimumDate()).getTime();
+    const isBeforeMinimumDay = (date: Date) => false;
     const getNextQuarterHour = (date: Date) => {
         const next = new Date(date);
         const remainder = next.getMinutes() % 15;
@@ -39,10 +48,7 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
         next.setMilliseconds(0);
         return next;
     };
-    const ensureAllowedDate = (date: Date) => {
-        const minimum = getMinimumDate();
-        return date.getTime() < minimum.getTime() ? getNextQuarterHour(minimum) : date;
-    };
+    const ensureAllowedDate = (date: Date) => date;
 
     // Update tempDate if external value changes
     useEffect(() => {
@@ -55,11 +61,7 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
     }, [value]);
 
     useEffect(() => {
-        if (isOpen && isBeforeMinimum(tempDate)) {
-            const allowedDate = ensureAllowedDate(tempDate);
-            setTempDate(allowedDate);
-            setViewDate(new Date(allowedDate.getFullYear(), allowedDate.getMonth(), 1));
-        }
+        // No restriction adjustment needed
     }, [isOpen, minDate]);
 
     const months = [
@@ -72,7 +74,6 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
 
     const handlePrevMonth = () => {
         const previousMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
-        if (startOfDay(new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0)).getTime() < startOfDay(getMinimumDate()).getTime()) return;
         setViewDate(previousMonth);
     };
 
@@ -85,9 +86,13 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
         newDate.setFullYear(viewDate.getFullYear());
         newDate.setMonth(viewDate.getMonth());
         newDate.setDate(day);
-        if (isBeforeMinimumDay(newDate)) return;
-        setTempDate(ensureAllowedDate(newDate));
+        const autoRegDate = ensureAllowedDate(newDate);
+        setTempDate(autoRegDate);
         setView('time');
+        
+        const pad = (num: number) => num.toString().padStart(2, '0');
+        const formatted = `${autoRegDate.getFullYear()}-${pad(autoRegDate.getMonth() + 1)}-${pad(autoRegDate.getDate())}T${pad(autoRegDate.getHours())}:${pad(autoRegDate.getMinutes())}`;
+        onChange(formatted);
     };
 
     const handleSelectTime = (hours: number, minutes: number) => {
@@ -96,17 +101,11 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
         newDate.setMinutes(minutes);
         newDate.setSeconds(0);
         newDate.setMilliseconds(0);
-        if (isBeforeMinimum(newDate)) return;
         setTempDate(newDate);
-    };
 
-    const handleConfirm = () => {
-        if (isBeforeMinimum(tempDate)) return;
-        // Format to local datetime string that browser inputs like
         const pad = (num: number) => num.toString().padStart(2, '0');
-        const formatted = `${tempDate.getFullYear()}-${pad(tempDate.getMonth() + 1)}-${pad(tempDate.getDate())}T${pad(tempDate.getHours())}:${pad(tempDate.getMinutes())}`;
+        const formatted = `${newDate.getFullYear()}-${pad(newDate.getMonth() + 1)}-${pad(newDate.getDate())}T${pad(newDate.getHours())}:${pad(newDate.getMinutes())}`;
         onChange(formatted);
-        setIsOpen(false);
     };
 
     const renderDays = () => {
@@ -125,26 +124,23 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
             const dayDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), d);
             const isSelected = tempDate.getDate() === d && tempDate.getMonth() === viewDate.getMonth() && tempDate.getFullYear() === viewDate.getFullYear();
             const isToday = isCurrentMonth && today.getDate() === d;
-            const isPastDay = isBeforeMinimumDay(dayDate);
+            const isPastDay = startOfDay(dayDate).getTime() < startOfDay(today).getTime();
 
             days.push(
                 <button
                     key={d}
                     type="button"
                     onClick={() => handleSelectDay(d)}
-                    disabled={isPastDay}
                     className={cn(
                         "h-9 w-9 text-[11px] font-bold rounded-md transition-all flex items-center justify-center relative group",
-                        isPastDay && "text-surface-200 cursor-not-allowed hover:bg-transparent",
-                        !isPastDay && (
                         isSelected ? "bg-primary-600 text-white shadow-lg shadow-primary-200" :
-                        isToday ? "text-primary-600 border border-primary-200 bg-primary-50/50" :
+                        isToday ? "text-primary-600 border border-primary-300 bg-primary-50/50 font-black" :
+                        isPastDay ? "text-surface-300 hover:bg-surface-100" :
                         "text-surface-700 hover:bg-surface-100"
-                        )
                     )}
                 >
                     {d}
-                    {isToday && !isSelected && !isPastDay && <div className="absolute bottom-1 w-1 h-1 bg-primary-600 rounded-full" />}
+                    {isToday && !isSelected && <div className="absolute bottom-1 w-1 h-1 bg-primary-600 rounded-full" />}
                 </button>
             );
         }
@@ -160,7 +156,7 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
             <div 
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={cn(
-                    "w-full px-4 py-3 bg-white border flex items-center justify-between cursor-pointer transition-all rounded-lg group shadow-sm hover:shadow-md",
+                    "w-full px-4 py-3 bg-white dark:bg-slate-900 border flex items-center justify-between cursor-pointer transition-all rounded-lg group shadow-sm hover:shadow-md",
                     isOpen ? "border-primary-500 ring-2 ring-primary-500/10 shadow-md" : "border-surface-200 hover:border-primary-300",
                     disabled && "bg-surface-50 border-surface-100 text-surface-300 cursor-not-allowed opacity-60"
                 )}
@@ -189,7 +185,10 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.98 }}
                             transition={{ duration: 0.2, ease: "easeOut" }}
-                            className="absolute top-full left-0 mt-3 w-[320px] bg-white border border-surface-200 shadow-2xl rounded-xl z-[200] overflow-hidden"
+                            className={cn(
+                                "absolute left-0 w-[320px] bg-white dark:bg-slate-900 border border-surface-200 shadow-2xl rounded-xl z-[200] overflow-hidden",
+                                dropUp ? "bottom-full mb-3" : "top-full mt-3"
+                            )}
                         >
                             {/* Header / Tabs */}
                             <div className="flex border-b border-surface-100">
@@ -228,8 +227,7 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
                                             <div className="flex gap-1.5">
                                                 <button
                                                     onClick={handlePrevMonth}
-                                                    disabled={startOfDay(new Date(viewDate.getFullYear(), viewDate.getMonth(), 0)).getTime() < startOfDay(getMinimumDate()).getTime()}
-                                                    className="p-2 hover:bg-surface-100 rounded-md text-surface-500 transition-colors disabled:text-surface-200 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                                    className="p-2 hover:bg-surface-100 rounded-md text-surface-500 transition-colors"
                                                 >
                                                     <ChevronLeft size={16} />
                                                 </button>
@@ -261,25 +259,18 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
                                                 <div className="h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-surface-200">
                                                     {hours.map(h => {
                                                         const isSelected = tempDate.getHours() === h;
-                                                        const candidate = new Date(tempDate);
-                                                        candidate.setHours(h, tempDate.getMinutes(), 0, 0);
-                                                        const isPastTime = isBeforeMinimum(candidate);
                                                         const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
                                                         const ampm = h >= 12 ? 'PM' : 'AM';
                                                         return (
                                                             <button
                                                                 key={h}
                                                                 onClick={() => handleSelectTime(h, tempDate.getMinutes())}
-                                                                disabled={isPastTime}
                                                                 className={cn(
                                                                     "w-full py-2.5 px-3 text-[12px] font-bold text-left rounded-md mb-1 transition-all",
-                                                                    isPastTime && "text-surface-200 cursor-not-allowed hover:bg-transparent",
-                                                                    !isPastTime && (
                                                                     isSelected ? "bg-primary-600 text-white shadow-md" : "text-surface-600 hover:bg-surface-100"
-                                                                    )
                                                                 )}
                                                             >
-                                                                {displayH}:00 {ampm}
+                                                                {displayH} {ampm}
                                                             </button>
                                                         );
                                                     })}
@@ -287,23 +278,52 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-[9px] font-black text-surface-300 uppercase tracking-widest pl-1">Minute</label>
-                                                <div className="space-y-1">
+                                                <div className="px-1 mb-2">
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        pattern="[0-59]*"
+                                                        data-input-type="minute"
+                                                        value={minuteInput}
+                                                        onChange={(e) => {
+                                                            const cleanVal = e.target.value.replace(/\D/g, '');
+                                                            if (cleanVal === '') {
+                                                                setMinuteInput('');
+                                                                return;
+                                                            }
+                                                            let num = parseInt(cleanVal, 10);
+                                                            if (num > 59) {
+                                                                num = 59;
+                                                            }
+                                                            setMinuteInput(num.toString());
+                                                            handleSelectTime(tempDate.getHours(), num);
+                                                        }}
+                                                        onBlur={() => {
+                                                            if (minuteInput === '') {
+                                                                setMinuteInput('00');
+                                                                handleSelectTime(tempDate.getHours(), 0);
+                                                            } else {
+                                                                setMinuteInput(parseInt(minuteInput, 10).toString().padStart(2, '0'));
+                                                            }
+                                                        }}
+                                                        className="w-full px-3 py-2 text-[13px] font-bold text-center border border-surface-200 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-all bg-surface-50/50"
+                                                        placeholder="MM"
+                                                    />
+                                                </div>
+                                                <div className="h-32 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-surface-200 space-y-1">
                                                     {minutes.map(m => {
                                                         const isSelected = tempDate.getMinutes() === m;
-                                                        const candidate = new Date(tempDate);
-                                                        candidate.setMinutes(m, 0, 0);
-                                                        const isPastTime = isBeforeMinimum(candidate);
                                                         return (
                                                             <button
                                                                 key={m}
-                                                                onClick={() => handleSelectTime(tempDate.getHours(), m)}
-                                                                disabled={isPastTime}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    handleSelectTime(tempDate.getHours(), m);
+                                                                    setMinuteInput(m.toString().padStart(2, '0'));
+                                                                }}
                                                                 className={cn(
-                                                                    "w-full py-2.5 px-3 text-[12px] font-bold text-left rounded-md transition-all",
-                                                                    isPastTime && "text-surface-200 cursor-not-allowed hover:bg-transparent",
-                                                                    !isPastTime && (
+                                                                    "w-full py-2 px-3 text-[12px] font-bold text-left rounded-md transition-all",
                                                                     isSelected ? "bg-primary-600 text-white shadow-md" : "text-surface-600 hover:bg-surface-100"
-                                                                    )
                                                                 )}
                                                             >
                                                                 :{m.toString().padStart(2, '0')}
@@ -317,31 +337,6 @@ export function PremiumDateTimePicker({ value, onChange, label, className, disab
                                 )}
                             </div>
 
-                            {/* Footer Actions */}
-                            <div className="p-4 bg-surface-50 border-t border-surface-100 flex items-center justify-between gap-3">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider leading-none">Selected</span>
-                                    <span className="text-[12px] font-bold text-surface-900 mt-1">
-                                        {tempDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => setIsOpen(false)}
-                                        className="p-2.5 text-surface-400 hover:text-surface-600 transition-colors"
-                                    >
-                                        <X size={18} />
-                                    </button>
-                                    <button 
-                                        onClick={handleConfirm}
-                                        disabled={isBeforeMinimum(tempDate)}
-                                        className="bg-primary-600 text-white px-5 py-2 rounded-lg font-bold text-[11px] uppercase tracking-wider flex items-center gap-2 hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
-                                    >
-                                        <Check size={14} />
-                                        Confirm
-                                    </button>
-                                </div>
-                            </div>
                         </motion.div>
                     </>
                 )}

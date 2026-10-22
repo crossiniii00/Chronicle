@@ -1,5 +1,4 @@
 export type UserRole = 
-    | 'recruiter_s' 
     | 'recruiter_a' 
     | 'recruiter_jc' 
     | 'recruiter_sy' 
@@ -7,6 +6,7 @@ export type UserRole =
     | 'ops_validator' 
     | 'admin'
     | 'super_admin'
+    | 'recruiter_supervisor'
     | (string & {});
 
 export interface User {

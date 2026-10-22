@@ -85,7 +85,14 @@ export function useTimeOff() {
         setStartWinY(window.scrollY);
     };
 
-    const handleMouseUp = () => setIsDragging(false);
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        if (scrollRef.current) {
+            setTimeout(() => {
+                if (scrollRef.current) delete scrollRef.current.dataset.dragging;
+            }, 50);
+        }
+    };
 
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!isDragging || !scrollRef.current) return;
@@ -94,6 +101,10 @@ export function useTimeOff() {
         scrollRef.current.scrollLeft = scrollLeft - walkX;
         const deltaY = (e.pageY - startY) * 1.5;
         window.scrollTo(0, startWinY - deltaY);
+        
+        if (Math.abs(walkX) > 5 || Math.abs(deltaY) > 5) {
+            scrollRef.current.dataset.dragging = "true";
+        }
     };
 
     const filteredData = useMemo(() => {

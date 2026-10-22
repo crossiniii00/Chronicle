@@ -5,6 +5,19 @@ import { ReportConfigService } from '../services/ReportConfigService.js';
 
 export const reportConfigsRouter = Router();
 
+reportConfigsRouter.get('/public/:id', async (req, res, next) => {
+    try {
+        const allowedPublicConfigs = ['typing_test_settings'];
+        if (!allowedPublicConfigs.includes(req.params.id)) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        const config = await ReportConfigService.getConfig(req.params.id);
+        res.json(config);
+    } catch (error) {
+        next(error);
+    }
+});
+
 reportConfigsRouter.get('/', requireAuth, async (_req, res, next) => {
     try {
         const configs = await ReportConfigService.getAllConfigs();

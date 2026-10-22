@@ -46,7 +46,7 @@ export function ImportPreviewModal({ open, onClose, onConfirm, data, loading }: 
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-surface-100 bg-white">
+                            <tbody className="divide-y divide-surface-100 bg-white dark:bg-slate-900">
                                 {data.slice(0, 100).map((row, idx) => (
                                     <tr key={idx} className="hover:bg-surface-50 transition-colors divide-x divide-surface-100">
                                         {Object.keys(row).map((key, kIdx) => (
@@ -54,7 +54,7 @@ export function ImportPreviewModal({ open, onClose, onConfirm, data, loading }: 
                                                 key={`${idx}-${key}`} 
                                                 className={cn(
                                                     "px-3 py-2 text-surface-700 whitespace-nowrap border-r border-surface-100",
-                                                    kIdx === 0 && "sticky left-0 bg-white group-hover:bg-surface-50 z-10 font-bold text-surface-900",
+                                                    kIdx === 0 && "sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-surface-50 z-10 font-bold text-surface-900",
                                                     key.toLowerCase().includes('email') && "lowercase tracking-normal text-surface-500 font-medium"
                                                 )}
                                                 style={{ minWidth: key.toLowerCase().includes('date') || key.toLowerCase().includes('email') ? '200px' : '120px' }}

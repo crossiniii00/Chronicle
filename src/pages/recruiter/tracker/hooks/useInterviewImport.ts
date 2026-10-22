@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import Papa from 'papaparse';
 import { ApplicationService } from '@/services/ApplicationService';
 import type { Application, ApplicationStatus } from '@/types/application';
@@ -225,9 +225,9 @@ export function useInterviewImport({
                             source: candidateSource,
                             master_wave: find(['WAVE', 'Wave', 'Batch', 'Class', 'WaveNo']) || existingApp?.master_wave,
                             master_eid: eid || existingApp?.master_eid,
-                            master_first_name: find(['First Name', 'FirstName', 'Given Name']) || parseFullName(applicantName).first || existingApp?.master_first_name,
-                            master_middle_name: find(['Middle Name', 'MiddleName', 'Middle Initial']) || parseFullName(applicantName).middle || existingApp?.master_middle_name,
-                            master_last_name: find(['Last Name', 'LastName', 'Surname', 'Family Name']) || parseFullName(applicantName).last || existingApp?.master_last_name,
+                            master_first_name: find(['First Name', 'FirstName', 'Given Name']) || existingApp?.master_first_name,
+                            master_middle_name: find(['Middle Name', 'MiddleName', 'Middle Initial']) || existingApp?.master_middle_name,
+                            master_last_name: find(['Last Name', 'LastName', 'Surname', 'Family Name']) || existingApp?.master_last_name,
                             master_hiring_request_id: hrid || existingApp?.master_hiring_request_id,
                             master_h2r_status: find(['H2R Status', 'H2R']) || existingApp?.master_h2r_status,
                             master_neo_date: find(['NEO Date', 'NEO', 'Orientation Date', 'NEO DATE', 'Orientation']) || existingApp?.master_neo_date,
@@ -248,9 +248,9 @@ export function useInterviewImport({
                             master_column: existingApp?.master_column || 'SHEET',
                             pis: {
                                 ...(existingApp?.pis || {}),
-                                first_name: find(['First Name', 'FirstName', 'Given Name']) || parseFullName(applicantName).first || existingApp?.pis?.first_name,
-                                middle_name: find(['Middle Name', 'MiddleName', 'Middle Initial']) || parseFullName(applicantName).middle || existingApp?.pis?.middle_name,
-                                last_name: find(['Last Name', 'LastName', 'Surname', 'Family Name']) || parseFullName(applicantName).last || existingApp?.pis?.last_name,
+                                first_name: find(['First Name', 'FirstName', 'Given Name']) || existingApp?.pis?.first_name,
+                                middle_name: find(['Middle Name', 'MiddleName', 'Middle Initial']) || existingApp?.pis?.middle_name,
+                                last_name: find(['Last Name', 'LastName', 'Surname', 'Family Name']) || existingApp?.pis?.last_name,
                                 birth_date: formatImportDate(find(['DATE OF BIRTH', 'Birth Date', 'Birthday', 'DOB', 'Birthdate'])) || existingApp?.pis?.birth_date,
                                 age: parseInt(find(['Age', 'Candidate Age'])) || existingApp?.pis?.age,
                                 civil_status: find(['Civil Status', 'Marital Status']) || existingApp?.pis?.civil_status,
@@ -276,7 +276,7 @@ export function useInterviewImport({
                                 ops_validator_email: find(['Ops Validator Email']) || existingApp?.pis?.ops_validator_email,
                                 ops_validator_status: find(['Ops Val Status']) || existingApp?.pis?.ops_validator_status,
                                 ops_validator_notes: find(['Ops Val Notes']) || existingApp?.pis?.ops_validator_notes,
-                                leadership_assessment_status: find(['Leadership Assessment']) || existingApp?.pis?.leadership_assessment_status,
+                                leadership_score: find(['Leadership Assessment', 'Leadership Assessment Status (if applicable)']) || existingApp?.pis?.leadership_score,
                                 wonderlic_status: find(['Wonderlic Status']) || existingApp?.pis?.wonderlic_status,
                                 client_interviewer_email: find(['Client Interviewer Email']) || existingApp?.pis?.client_interviewer_email,
                                 client_interview_status: find(['Client Interview Status']) || existingApp?.pis?.client_interview_status,
@@ -285,7 +285,7 @@ export function useInterviewImport({
                                 overall_status: finalOverall || existingApp?.pis?.overall_status,
                                 final_account: find(['Final Account', 'Client', 'Department', 'Dept']) || existingApp?.pis?.final_account,
                                 last_updated_by: find(['Last Processed/Updated By']) || existingApp?.pis?.last_updated_by,
-                                notes: find(['Column1', 'Remarks', 'Comments']) || existingApp?.pis?.notes
+                                notes: find(['Remarks', 'Comments', 'Notes']) || existingApp?.pis?.notes
                             },
                             metadata: (() => {
                                 const healedMetadata: Record<string, any> = {};

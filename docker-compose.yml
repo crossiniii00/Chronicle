@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: chronicle_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "11111"
+      POSTGRES_DB: chronicle
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: chronicle_api
+    restart: always
+    depends_on:
+      - db
+    environment:
+      PORT: 4000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "11111"
+      POSTGRES_DB: chronicle
+      SESSION_SECRET: change_me_in_production
+      APP_BASE_URL: http://10.22.15.40:5173
+      CORS_ORIGIN: http://10.22.15.40:5173
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backups:/app/backups
+      - ./uploads:/app/uploads
+      - .env:/app/.env
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chronicle_web
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:
+    name: chroniclev2_pgdata
+    external: true

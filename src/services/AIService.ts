@@ -64,7 +64,7 @@ export interface ChatPayload {
     messages: ChatMessage[];
 }
 
-export type ApplicantColumn = 'name' | 'position' | 'status' | 'school' | 'education' | 'course' | 'department' | 'gender' | 'rating' | 'score' | 'wpm' | 'accuracy' | 'applied' | 'hired';
+export type ApplicantColumn = 'name' | 'position' | 'status' | 'school' | 'education' | 'course' | 'department' | 'sex' | 'rating' | 'score' | 'wpm' | 'accuracy' | 'applied' | 'hired';
 
 export interface AnalyticsConfig {
     title: string;
@@ -88,7 +88,7 @@ export interface ApplicantRow {
     department: string | null;
     currentStatus: string | null;
     appliedAt: string | null;
-    gender: string | null;
+    sex: string | null;
     highestEducation: string | null;
     school: string | null;
     course: string | null;

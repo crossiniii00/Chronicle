@@ -2,7 +2,10 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
     ChevronLeft, 
-    ChevronRight
+    ChevronRight,
+    Search,
+    Filter,
+    X
 } from 'lucide-react';
 import { ApplicationService } from '@/services/ApplicationService';
 import { useRoomStore } from '@/store/roomStore';
@@ -10,6 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/components/common/useToast';
 import { cn } from '@/utils/formatters';
 import { useActiveAccountStore, parseAccounts } from '@/store/activeAccountStore';
+import { isMatchingAccount } from './dashboardUtils';
 import { FullscreenProfileView } from '@/components/features/ApplicantManagement/FullscreenProfileView';
 import { socketService } from '@/services/socketService';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
@@ -37,6 +41,11 @@ export function FinalInterviewSchedules() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [focusedApplicant, setFocusedApplicant] = useState<Application | null>(null);
 
+    // Filter State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedEventType, setSelectedEventType] = useState<'all' | 'endorsed' | 'interview' | 'hired'>('all');
+    const [selectedAccount, setSelectedAccount] = useState<string>('all');
+
     const { user: authUser } = useAuthStore();
     const { loadRooms } = useRoomStore();
     const { error } = useToast();
@@ -58,11 +67,18 @@ export function FinalInterviewSchedules() {
         }
     }, [error, loadRooms]);
 
-    useVisibilityPolling(() => void loadData(true), 60000, [loadData]);
+    useVisibilityPolling(() => void loadData(true), 300000, [loadData]);
 
     useEffect(() => {
         const socket = socketService.getSocket();
-        const handleUpdate = () => void loadData(true);
+        const handleUpdate = (payload?: any) => {
+            if (payload?.data && payload.applicationId) {
+                ApplicationService.injectDelta(payload.applicationId, payload.data);
+                setApplications(prev => prev.map(a => a.id === payload.applicationId ? { ...a, ...payload.data } : a));
+            } else {
+                void loadData(true);
+            }
+        };
         socket.on('applications:updated', handleUpdate);
         return () => { socket.off('applications:updated', handleUpdate); };
     }, [loadData]);
@@ -70,9 +86,7 @@ export function FinalInterviewSchedules() {
     const { activeAccount } = useActiveAccountStore();
     const accounts = parseAccounts(authUser?.department);
     const hasMultipleAccounts = accounts.length > 1;
-    const userDept = ((activeAccount && accounts.map(a => a.toUpperCase()).includes(activeAccount.toUpperCase()))
-        ? activeAccount
-        : (accounts[0] || 'DOORDASH')).toUpperCase();
+    const userDept = (activeAccount || accounts[0] || 'ABBOTT').toUpperCase();
 
     // Group history entries by application
     const historyMap = useMemo(() => {
@@ -89,41 +103,36 @@ export function FinalInterviewSchedules() {
     const calendarEvents = useMemo<EventItem[]>(() => {
         const events: EventItem[] = [];
 
-        // Filter applications that ever belonged to the logged in user's account
+        // Filter applications strictly belonging to the resolved active account (e.g. ABBOTT)
         const accountApps = applications.filter(a => {
-            if (authUser?.role === 'admin') return true;
-            const appDepts = (a.endorsement_account || a.department || '')
-                .split(',')
-                .map(s => s.trim().toUpperCase())
-                .filter(Boolean);
-            return appDepts.some(d => accounts.some(acc => acc.trim().toUpperCase() === d));
+            return isMatchingAccount(a, userDept);
         });
 
         for (const app of accountApps) {
             const appHistory = historyMap.get(app.id) || [];
             
             if (auditTab === 'hiring') {
-                // 1. ENDORSED date
-                const endorsedDateStr = app.applied_at;
-                if (endorsedDateStr) {
+                // 1. ENDORSED date to Final Interview
+                const finalEndorsementStep = appHistory.find(h => 
+                    ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(String(h.to_status || '').toUpperCase())
+                );
+                if (finalEndorsementStep?.changed_at) {
                     events.push({
                         id: `${app.id}-endorsed`,
                         applicantName: app.applicant_name,
-                        date: new Date(endorsedDateStr),
+                        date: new Date(finalEndorsementStep.changed_at),
                         label: 'ENDORSED',
                         type: 'endorsed',
                         application: app
                     });
                 }
 
-                // 2. INTERVIEW DATE
-                const interviewStep = appHistory.find(h => h.to_status === 'INTERVIEW_IN_PROGRESS');
-                const interviewDateStr = interviewStep?.changed_at || app.endorsement_meeting_date;
-                if (interviewDateStr) {
+                // 2. INTERVIEW DATE (Only if actually scheduled with an endorsement meeting date)
+                if (app.endorsement_meeting_date) {
                     events.push({
                         id: `${app.id}-interview`,
                         applicantName: app.applicant_name,
-                        date: new Date(interviewDateStr),
+                        date: new Date(app.endorsement_meeting_date),
                         label: 'INTERVIEW DATE',
                         type: 'interview',
                         application: app
@@ -207,13 +216,44 @@ export function FinalInterviewSchedules() {
         setCurrentDate(new Date(year, direction === 'prev' ? month - 1 : month + 1, 1));
     };
 
+    // Collect unique accounts for filtering
+    const uniqueAccounts = useMemo(() => {
+        const accts = new Set<string>();
+        applications.forEach(a => {
+            const depts = (a.endorsement_account || a.department || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+            depts.forEach(d => accts.add(d));
+        });
+        return Array.from(accts).sort();
+    }, [applications]);
+
+    // Filtered events based on search, type toggles, and account
+    const filteredEvents = useMemo(() => {
+        return calendarEvents.filter(event => {
+            // Event type filter
+            if (selectedEventType !== 'all' && event.type !== selectedEventType) return false;
+            // Search filter
+            if (searchQuery.trim()) {
+                const q = searchQuery.trim().toLowerCase();
+                if (!event.applicantName.toLowerCase().includes(q) && !event.label.toLowerCase().includes(q)) return false;
+            }
+            // Account filter
+            if (selectedAccount !== 'all') {
+                const appDepts = (event.application.endorsement_account || event.application.department || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+                if (!appDepts.includes(selectedAccount.toUpperCase())) return false;
+            }
+            return true;
+        });
+    }, [calendarEvents, selectedEventType, searchQuery, selectedAccount]);
+
     const getEventsForDate = (date: Date) => {
-        return calendarEvents.filter(event => 
+        return filteredEvents.filter(event => 
             event.date.getDate() === date.getDate() &&
             event.date.getMonth() === date.getMonth() &&
             event.date.getFullYear() === date.getFullYear()
         );
     };
+
+
 
     if (isLoading && applications.length === 0) {
         return (
@@ -228,7 +268,7 @@ export function FinalInterviewSchedules() {
         <div className="w-full flex flex-col h-full bg-[#f5f6f8] overflow-hidden p-4 gap-4">
             
             {/* --- HEADER (Application Management Style) --- */}
-            <div className="bg-white border border-surface-200 rounded-sm shadow-sm shrink-0">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-sm shadow-sm shrink-0">
                 <div className="relative px-8 py-8 flex flex-col items-center gap-2">
                     <h1
                         className="text-[32px] leading-none text-surface-900 tracking-[-0.02em]"
@@ -280,7 +320,7 @@ export function FinalInterviewSchedules() {
             </div>
 
             {/* --- CALENDAR NAVIGATION CONTROL --- */}
-            <div className="flex items-center justify-between bg-white p-4 border border-surface-200 rounded-sm shadow-sm shrink-0">
+            <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 border border-surface-200 rounded-sm shadow-sm shrink-0">
                 <div className="flex items-center gap-3">
                     <h2 className="text-lg font-black text-surface-900 uppercase tracking-tight">
                         {monthName} {year}
@@ -311,8 +351,73 @@ export function FinalInterviewSchedules() {
                 </div>
             </div>
 
+            {/* --- FILTERS BAR --- */}
+            <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-3 border border-surface-200 rounded-sm shadow-sm shrink-0 flex-wrap">
+                {/* Search Input */}
+                <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+                    <input
+                        type="text"
+                        placeholder="Search applicant name..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 text-xs font-medium border border-surface-200 rounded-sm bg-surface-50/50 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 placeholder:text-surface-400 text-surface-800 transition-all"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors"
+                        >
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Divider */}
+                <div className="h-6 w-px bg-surface-200" />
+
+                {/* Event Type Dropdown */}
+                <div className="flex items-center gap-1.5">
+                    <Filter size={13} className="text-surface-400" />
+                    <select
+                        value={selectedEventType}
+                        onChange={(e) => setSelectedEventType(e.target.value as 'all' | 'endorsed' | 'interview' | 'hired')}
+                        className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider border border-surface-200 rounded-sm bg-surface-50/50 text-surface-700 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                    >
+                        <option value="all">All Event Types</option>
+                        <option value="endorsed">Endorsed</option>
+                        <option value="interview">Interview</option>
+                        <option value="hired">Hired</option>
+                    </select>
+                </div>
+
+
+
+                {/* Active filter count + clear */}
+                {(searchQuery || selectedEventType !== 'all' || selectedAccount !== 'all') && (
+                    <>
+                        <div className="h-6 w-px bg-surface-200" />
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider">
+                                {filteredEvents.length} result{filteredEvents.length !== 1 ? 's' : ''}
+                            </span>
+                            <button
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSelectedEventType('all');
+                                    setSelectedAccount('all');
+                                }}
+                                className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-wider transition-colors"
+                            >
+                                Clear All
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+
             {/* --- GOOGLE CALENDAR GRID LAYOUT --- */}
-            <div className="flex-1 min-h-0 bg-white border border-[#edebe9] rounded-sm shadow-sm flex flex-col">
+            <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-sm flex flex-col">
                 {/* Day of week headers */}
                 <div className="grid grid-cols-7 border-b border-surface-100 bg-surface-50/50 shrink-0 text-center py-2">
                     {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day => (
@@ -332,7 +437,7 @@ export function FinalInterviewSchedules() {
                             <div
                                 key={idx}
                                 className={cn(
-                                    "p-1.5 flex flex-col gap-1 h-[140px] overflow-hidden relative transition-all duration-200 bg-white group hover:bg-surface-50/30 hover:scale-[1.015] hover:shadow-md hover:z-10",
+                                    "p-1.5 flex flex-col gap-1 h-[140px] overflow-hidden relative transition-all duration-200 bg-white dark:bg-slate-900 group hover:bg-surface-50/30 hover:scale-[1.015] hover:shadow-md hover:z-10",
                                     !cell.isCurrentMonth && "bg-surface-50/10 text-surface-300"
                                 )}
                             >

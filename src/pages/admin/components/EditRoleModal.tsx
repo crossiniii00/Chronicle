@@ -94,11 +94,11 @@ export function EditRoleModal({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.97, y: 4 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-                className="w-full max-w-[480px] bg-white border border-surface-200 shadow-xl rounded-sm"
+                className="w-full max-w-[480px] bg-white dark:bg-slate-900 border border-surface-200 shadow-xl rounded-none"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="px-5 py-4 border-b border-surface-200 flex items-center gap-2.5">
-                    <div className="w-7 h-7 bg-surface-900 rounded-sm flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 bg-surface-900 rounded-none flex items-center justify-center shrink-0">
                         <Pencil size={13} className="text-white" strokeWidth={2.25} />
                     </div>
                     <div className="min-w-0">
@@ -120,7 +120,7 @@ export function EditRoleModal({
                             maxLength={48}
                             placeholder="e.g. Senior Recruiter"
                             className={cn(
-                                "w-full px-3 h-8 bg-white border rounded-sm text-[12px] font-medium text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-1 transition-all",
+                                "w-full px-3 h-8 bg-white dark:bg-slate-900 border rounded-none text-[12px] font-medium text-surface-900 placeholder-surface-400 focus:outline-none focus:ring-1 transition-all",
                                 editLabelError
                                     ? "border-rose-300 focus:border-rose-500 focus:ring-rose-200"
                                     : "border-surface-200 focus:border-[#0078d4] focus:ring-[#0078d4]/20"
@@ -143,7 +143,7 @@ export function EditRoleModal({
                             maxLength={140}
                             rows={2}
                             placeholder="Short role description shown beneath the title"
-                            className="w-full px-3 py-2 bg-white border border-surface-200 rounded-sm text-[12px] font-medium text-surface-900 placeholder-surface-400 focus:outline-none focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/20 transition-all resize-none"
+                            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-[12px] font-medium text-surface-900 placeholder-surface-400 focus:outline-none focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/20 transition-all resize-none"
                         />
                         <p className="text-[9.5px] font-medium text-surface-400 tracking-[-0.005em] mt-1 tabular-nums text-right">
                             {editDescription.length}/140
@@ -164,7 +164,7 @@ export function EditRoleModal({
                                         onClick={() => setEditColor(opt.key)}
                                         title={opt.label}
                                         className={cn(
-                                            "w-7 h-7 rounded-sm flex items-center justify-center transition-all border",
+                                            "w-7 h-7 rounded-none flex items-center justify-center transition-all border",
                                             swatch.bg,
                                             isActive
                                                 ? `${swatch.border} ring-2 ring-offset-1 ring-[#0078d4]`
@@ -177,8 +177,8 @@ export function EditRoleModal({
                             })}
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-surface-50/50 border border-surface-200 rounded-sm">
-                        <div className={cn("w-8 h-8 rounded-sm flex items-center justify-center", getEffectiveAccent(editingRole, editColor).chip)}>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-surface-50/50 border border-surface-200 rounded-none">
+                        <div className={cn("w-8 h-8 rounded-none flex items-center justify-center", getEffectiveAccent(editingRole, editColor).chip)}>
                             <Icon size={14} className={getEffectiveAccent(editingRole, editColor).text} strokeWidth={2.25} />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -202,13 +202,13 @@ export function EditRoleModal({
                     <div className="flex items-center gap-2">
                         <button
                             onClick={onClose}
-                            className="px-3 h-7 text-[11px] font-semibold text-surface-600 bg-white border border-surface-200 hover:border-surface-300 hover:bg-surface-50 transition-all rounded-sm"
+                            className="px-3 h-7 text-[11px] font-semibold text-surface-600 bg-white dark:bg-slate-900 border border-surface-200 hover:border-surface-300 hover:bg-surface-50 transition-all rounded-none"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleApply}
-                            className="flex items-center gap-1.5 px-3 h-7 bg-black text-white text-[11px] font-semibold tracking-[-0.005em] hover:bg-black/85 transition-all rounded-sm"
+                            className="flex items-center gap-1.5 px-3 h-7 bg-black text-white text-[11px] font-semibold tracking-[-0.005em] hover:bg-black/85 transition-all rounded-none"
                         >
                             <Check size={11} strokeWidth={3} />
                             Apply changes

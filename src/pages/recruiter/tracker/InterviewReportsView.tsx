@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Building2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Building2, Search, X, ChevronDown, Table, LayoutList, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfirmDialog } from '@/components/common/Modal';
 import { DetailModalPortal } from '@/components/common/DetailModalPortal';
@@ -11,15 +11,23 @@ import { useInterviewReports } from './hooks/useInterviewReports';
 import { AccountGrid } from './components/AccountGrid';
 import { FilterBar } from './components/FilterBar';
 import { SubTabNavigation } from './components/SubTabNavigation';
+import { AccountLobFilter } from './components/AccountLobFilter';
 import { ImportPreviewModal } from './components/ImportPreviewModal';
+import { ChronicleView } from './components/ChronicleView';
 import { InterviewPivotAnalysis } from './components/InterviewPivotAnalysis';
 import { NotesDrawer } from './components/NotesDrawer';
 import { ReprofileHistoryModal } from './components/ReprofileHistoryModal';
 import { ReprofilePromptModal } from './components/ReprofilePromptModal';
 import { BulkActionBar } from './masterlist/components/BulkActionBar';
+import { MasterlistMonthTabs } from './masterlist/components/MasterlistMonthTabs';
 import { cleanValue } from './constants';
 import { AddApplicantRegistryModal } from '@/components/features/Registry/AddApplicantRegistryModal';
 import { BulkDeleteProgress } from '@/components/features/ApplicantManagement/BulkDeleteProgress';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { ExcelFindBar } from '@/components/common/ExcelFindBar';
+import { AdvancedDateFilter } from '@/components/common/AdvancedDateFilter';
+import InterviewReportsFilterBar from './components/InterviewReportsFilterBar';
+import { useTextHighlight } from '@/hooks/useTextHighlight';
 
 import type { Application } from '@/types/application';
 
@@ -44,10 +52,20 @@ export function InterviewReportsView() {
         previewData, showPreview, setShowPreview, confirmImport,
         notesApp, setNotesApp, handleSaveNote, anchorRect, setAnchorRect,
         focusPath, setFocusPath,
-        selectedMonth, setSelectedMonth, selectedDay, setSelectedDay,
+        dateRange, setDateRange,
+        dateAddedFilter, setDateAddedFilter,
+        interviewConcludedFilter, setInterviewConcludedFilter,
         selectedStatus, setSelectedStatus,
         selectedEducation, setSelectedEducation, educationOptions,
         selectedGender, setSelectedGender, genderOptions,
+        selectedInitialAccountFilter, setSelectedInitialAccountFilter, initialAccountOptions,
+        selectedOverallStatusFilter, setSelectedOverallStatusFilter,
+        selectedFinalAccountFilter, setSelectedFinalAccountFilter, finalAccountOptions,
+        selectedHireType, setSelectedHireType,
+        isExclusiveMode, setIsExclusiveMode,
+        isOfficialEndorsement, setIsOfficialEndorsement,
+        activePassedMonth, setActivePassedMonth, availablePassedMonths,
+        selectedYear, setSelectedYear, availableYears,
         allDepartments,
         pendingReprofile, confirmReprofile, cancelReprofile,
         activeUsers, userFocus,
@@ -57,19 +75,78 @@ export function InterviewReportsView() {
         validators,
         handleUpdateApplication,
         handleRegress,
-        handleBulkTransfer
+        handleBulkTransfer,
+        handleBulkMasterlistTransfer,
+        handleBulkTransferDate
     } = useInterviewReports();
 
+    const [mainView, setMainView] = useState<'EXCEL' | 'CHRONICLE'>('EXCEL');
+    const [showEssentialOnly, setShowEssentialOnly] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [historyApp, setHistoryApp] = useState<any>(null);
     const [profileApp, setProfileApp] = useState<any>(null);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const [procedureApp, setProcedureApp] = useState<any>(null);
     const [modalTab, setModalTab] = useState<any>('verdict');
     const [promotingId, setPromotingId] = useState<string | null>(null);
 
+    const [showFindBar, setShowFindBar] = useState(false);
+    const [findMatchIndex, setFindMatchIndex] = useState(0);
+    const [findQuery, setFindQuery] = useState('');
+
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [generatedMatches, setGeneratedMatches] = useState<{ id: string, text: string, element: HTMLElement, context?: string }[]>([]);
+
+    useTextHighlight(scrollContainerRef, findQuery, showFindBar, setGeneratedMatches);
+
+    const activeClass = 'ring-2 ring-[#0078D4] ring-offset-1 bg-yellow-400 dark:bg-yellow-500 text-yellow-950 shadow-md scale-[1.05] z-10 relative px-1 font-extrabold';
+
+    useEffect(() => {
+        if (!showFindBar || generatedMatches.length === 0) return;
+        
+        generatedMatches.forEach(match => {
+            if (match.element) {
+                activeClass.split(' ').forEach(cls => match.element.classList.remove(cls));
+            }
+        });
+        
+        const activeMatch = generatedMatches[findMatchIndex];
+        if (activeMatch && activeMatch.element) {
+            activeClass.split(' ').forEach(cls => activeMatch.element.classList.add(cls));
+            activeMatch.element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+        
+        return () => {
+             generatedMatches.forEach(match => {
+                if (match.element) {
+                    activeClass.split(' ').forEach(cls => match.element.classList.remove(cls));
+                }
+            });
+        };
+    }, [findMatchIndex, generatedMatches, showFindBar]);
+
+    const handleMatchSelect = React.useCallback((match: any) => {
+        const index = generatedMatches.findIndex(m => m.id === match.id);
+        if (index !== -1) {
+            setFindMatchIndex(index);
+        }
+    }, [generatedMatches]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                setShowFindBar(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const handlePromoteToHired = React.useCallback(async (app: Application) => {
         if (promotingId) return;
-        
+
         // Resolve non-failed accounts
         const rawVal = app.pis?.final_account || app.department || '';
         const failedAccounts = app.metadata?.failed_accounts || [];
@@ -134,7 +211,7 @@ export function InterviewReportsView() {
         return () => window.removeEventListener('ai-open-applicant', handler);
     }, [applications]);
 
-    const noop = () => {};
+    const noop = () => { };
 
     const getApplicantStatusRank = (status: string, applicant?: any) => {
         if ((status === 'OPEN' || !status) && applicant) {
@@ -175,50 +252,35 @@ export function InterviewReportsView() {
     };
 
     return (
-        <div className="animate-fade-in flex flex-col flex-1 bg-[#faf9f8] w-full max-w-full overflow-hidden relative">
-            <div className="flex flex-col border-b border-surface-200 shrink-0 bg-white">
-                <div className="relative px-6 py-4 flex items-center justify-center border-b border-surface-100">
-                    <div className="flex items-baseline gap-2.5">
-                        <Building2 size={15} className="text-surface-400 self-center" />
-                        <h1
-                            className="text-[24px] leading-none text-surface-900 tracking-[-0.015em] capitalize"
-                            style={{ fontFamily: 'var(--font-family-display)', fontWeight: 500, fontStyle: 'italic' }}
-                        >
-                            {selectedAccount || (activeTab === 'OfficeForms_Table' ? 'Sheet Registry' : `${activeTab.replace(/_/g, ' ')} Registry`)}
-                        </h1>
-                    </div>
-                    <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 px-3 h-7 bg-surface-50/70 border border-surface-200 rounded-sm">
-                            <span className="text-[9px] font-semibold text-black/45 uppercase tracking-[0.1em]">Registry</span>
-                            <span className="text-[13px] font-semibold text-black tabular-nums leading-none">
-                                {totalApplicationsCount.toLocaleString()}
-                            </span>
-                            <span className="text-[9px] font-medium text-black/45 leading-none">records</span>
-                        </div>
-                        {activeUsers.length > 0 && (
-                            <div className="flex items-center gap-1.5">
-                                <div className="flex -space-x-1.5">
-                                    {activeUsers.slice(0, 3).map((u) => (
-                                        <div
-                                            key={u.id}
-                                            className="w-5 h-5 border border-white bg-surface-900 flex items-center justify-center text-[7px] font-semibold text-white"
-                                            title={u.fullName || u.full_name || ''}
-                                        >
-                                            {(u.fullName || u.full_name || '?').charAt(0)}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                    <span className="text-[9px] font-semibold text-surface-700 tracking-[0.04em]">
-                                        Live ops · {activeUsers.length + 1}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+        <div ref={scrollContainerRef} className="animate-fade-in flex flex-col flex-1 bg-[#faf9f8] w-full max-w-full overflow-hidden relative">
+            <InterviewReportsFilterBar
+                search={search}
+                setSearch={setSearch}
+                selectedHireType={selectedHireType}
+                setSelectedHireType={setSelectedHireType}
+                selectedInitialAccountFilter={selectedInitialAccountFilter}
+                setSelectedInitialAccountFilter={setSelectedInitialAccountFilter}
+                initialAccountOptions={initialAccountOptions}
+                selectedOverallStatusFilter={selectedOverallStatusFilter}
+                setSelectedOverallStatusFilter={setSelectedOverallStatusFilter}
+                selectedFinalAccountFilter={selectedFinalAccountFilter}
+                setSelectedFinalAccountFilter={setSelectedFinalAccountFilter}
+                finalAccountOptions={finalAccountOptions}
+                dateAddedFilter={dateAddedFilter}
+                setDateAddedFilter={setDateAddedFilter}
+                interviewConcludedFilter={interviewConcludedFilter}
+                setInterviewConcludedFilter={setInterviewConcludedFilter}
+                allDepartments={allDepartments}
+                mainView={mainView}
+                setMainView={setMainView}
+                onExportExcel={handleExportExcel}
+                showEssentialOnly={showEssentialOnly}
+                setShowEssentialOnly={setShowEssentialOnly}
+                isExclusiveMode={isExclusiveMode}
+                setIsExclusiveMode={setIsExclusiveMode}
+                isOfficialEndorsement={isOfficialEndorsement}
+                setIsOfficialEndorsement={setIsOfficialEndorsement}
+            />
 
             <SubTabNavigation
                 activeTab={activeTab}
@@ -243,38 +305,55 @@ export function InterviewReportsView() {
                     </div>
                 ) : (
                     <div className="flex-1 flex flex-col min-h-0" data-ai-spotlight="interview-form-table">
-                        <InterviewTable
-                            activeTab={activeTab}
-                            filteredList={filteredList}
-                            isEditing={isEditing}
-                            setIsEditing={setIsEditing}
-                            localChanges={localChanges}
-                            handleInputChange={handleInputChange}
-                            isSelectMode={isSelectMode}
-                            selectedIds={selectedIds}
-                            toggleSelect={toggleSelect}
-                            toggleSelectAll={toggleSelectAll}
-                            setDeletingId={setDeletingId}
-                            setFocusedApplicant={setFocusedApplicant}
-                            setShowFullscreen={setShowFullscreen}
-                            activeQuestions={activeQuestions}
-                            questions={questions}
-                            onShowNotes={(app, rect) => {
-                                setNotesApp(app);
-                                setAnchorRect(rect);
-                            }}
-                            focusPath={focusPath}
-                            setFocusPath={setFocusPath}
-                            search={search}
-                            accounts={allDepartments.map((d: any) => d.name)}
-                            onShowHistory={setHistoryApp}
-                            activeUsers={activeUsers}
-                            userFocus={userFocus}
-                            onViewProfile={setProfileApp}
-                            onShowProcedure={setProcedureApp}
-                            onPromoteToHired={handlePromoteToHired}
-                            promotingId={promotingId}
-                        />
+                        {mainView === 'EXCEL' ? (
+                            <InterviewTable
+                                activeTab={activeTab}
+                                showEssentialOnly={showEssentialOnly}
+                                filteredList={filteredList}
+                                isEditing={isEditing}
+                                setIsEditing={setIsEditing}
+                                localChanges={localChanges}
+                                handleInputChange={handleInputChange}
+                                isSelectMode={isSelectMode}
+                                selectedIds={selectedIds}
+                                toggleSelect={toggleSelect}
+                                toggleSelectAll={toggleSelectAll}
+                                setDeletingId={setDeletingId}
+                                setFocusedApplicant={setFocusedApplicant}
+                                setShowFullscreen={setShowFullscreen}
+                                activeQuestions={activeQuestions}
+                                questions={questions}
+                                onShowNotes={(app, rect) => {
+                                    setNotesApp(app);
+                                    setAnchorRect(rect);
+                                }}
+                                focusPath={focusPath}
+                                setFocusPath={setFocusPath}
+                                search={search}
+                                accounts={allDepartments.map((d: any) => d.name)}
+                                onShowHistory={setHistoryApp}
+                                activeUsers={activeUsers}
+                                userFocus={userFocus}
+                                onViewProfile={setProfileApp}
+                                onShowProcedure={setProcedureApp}
+                                onPromoteToHired={handlePromoteToHired}
+                                promotingId={promotingId}
+                            />
+                        ) : (
+                            <ChronicleView
+                                applications={filteredList}
+                                questions={questions}
+                                localChanges={localChanges}
+                                isEditing={isEditing}
+                                setIsEditing={setIsEditing}
+                                handleInputChange={handleInputChange}
+                                accounts={allDepartments.map((d: any) => d.name)}
+                                activeTab={activeTab}
+                                onRefresh={loadData}
+                                onSync={handleSyncAll}
+                                isSyncing={isSaving}
+                            />
+                        )}
                     </div>
                 )}
             </div>
@@ -302,7 +381,7 @@ export function InterviewReportsView() {
                         const local = localChanges[focusedApplicant.id] || {};
                         const responses = focusedApplicant.interview_responses || {};
                         const prepared: Record<string, string> = {};
-                        
+
                         activeQuestions.forEach(q => {
                             // Priority: 
                             // 1. Local changes (unsynced edits)
@@ -313,12 +392,12 @@ export function InterviewReportsView() {
                         });
 
                         // Make sure both final_interview_notes (Remarks) and pis_ops_validator_notes are fetched and passed
-                        const remarksVal = local['final_interview_notes'] ?? 
-                                           local['pis_ops_validator_notes'] ?? 
-                                           focusedApplicant.final_interview_notes ?? 
-                                           focusedApplicant.pis?.ops_validator_notes ?? 
-                                           focusedApplicant.metadata?.ops_validator_notes ?? 
-                                           '';
+                        const remarksVal = local['final_interview_notes'] ??
+                            local['pis_ops_validator_notes'] ??
+                            focusedApplicant.final_interview_notes ??
+                            focusedApplicant.pis?.ops_validator_notes ??
+                            focusedApplicant.metadata?.ops_validator_notes ??
+                            '';
                         prepared['final_interview_notes'] = cleanValue(String(remarksVal));
                         prepared['pis_ops_validator_notes'] = cleanValue(String(remarksVal));
 
@@ -380,6 +459,8 @@ export function InterviewReportsView() {
                 activeTab={activeTab}
                 onHighlight={handleBulkHighlight}
                 onTransfer={handleBulkTransfer}
+                onMasterlistTransfer={handleBulkMasterlistTransfer}
+                onMasterlistTransferDate={handleBulkTransferDate}
             />
 
             {profileApp && (
@@ -388,7 +469,15 @@ export function InterviewReportsView() {
                     onClose={() => setProfileApp(null)}
                     applicant={profileApp}
                     localChanges={localChanges}
-                    onEdit={(appId, field, value) => handleInputChange(appId, String(field), String(value))}
+                    onEdit={(appId, field, value) => {
+                        if (typeof value === 'object' && value !== null) {
+                            // For complex objects like interview_responses, store as JSON string
+                            // The sync logic will handle this properly
+                            handleInputChange(appId, String(field), JSON.stringify(value));
+                        } else {
+                            handleInputChange(appId, String(field), String(value));
+                        }
+                    }}
                     isSyncing={isSaving}
                     onSync={handleSyncAll}
                     pisOnly={true}
@@ -397,7 +486,7 @@ export function InterviewReportsView() {
 
             <AnimatePresence>
                 {procedureApp && (
-                    <DetailModalPortal 
+                    <DetailModalPortal
                         applicant={procedureApp}
                         onClose={() => setProcedureApp(null)}
                         modalTab={modalTab}
@@ -420,66 +509,63 @@ export function InterviewReportsView() {
                         onWithdraw={noop}
                         validators={validators}
                         handleUpdateApplication={handleUpdateApplication}
-                        onRouteToSpecialized={async () => {}}
+                        onRouteToSpecialized={async () => { }}
                         onDelete={noop}
                     />
                 )}
             </AnimatePresence>
 
-            <BulkDeleteProgress 
+            <BulkDeleteProgress
                 isVisible={isBulkDeleting}
                 progress={bulkDeleteProgress}
                 totalCount={selectedIds.size}
             />
 
-            <AddApplicantRegistryModal 
-                open={showAddModal} 
-                onClose={() => setShowAddModal(false)} 
-                onSuccess={loadData} 
+            <AddApplicantRegistryModal
+                open={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                onSuccess={loadData}
                 defaultColumn={activeTab === 'SHEET1' ? 'SHEET' : activeTab}
             />
 
             {/* Floating Apple-style Filter/Action Dropup Trigger */}
-            <div className="fixed bottom-6 right-6 z-[999]">
+            <div className="fixed bottom-20 right-6 z-[999]">
                 <FilterBar
-                    search={search}
-                    setSearch={setSearch}
                     activeTab={activeTab}
                     showOnlyIncomplete={showOnlyIncomplete}
                     setShowOnlyIncomplete={setShowOnlyIncomplete}
                     handleExportExcel={handleExportExcel}
                     handleImportCSV={handleImportCSV}
-                    shFilters={shFilters}
-                    setShFilters={setShFilters}
-                    isEditing={isEditing}
-                    setIsEditing={setIsEditing}
-                    handleSyncAll={handleSyncAll}
-                    isSaving={isSaving}
-                    isSelectMode={isSelectMode}
-                    setIsSelectMode={setIsSelectMode}
-                    selectedIds={selectedIds}
-                    setDeletingId={setDeletingId}
                     selectedAccount={selectedAccount}
                     setSelectedAccount={setSelectedAccount}
                     accounts={accountMetrics.map(m => m.name)}
-                    selectedMonth={selectedMonth}
-                    setSelectedMonth={setSelectedMonth}
-                    selectedDay={selectedDay}
-                    setSelectedDay={setSelectedDay}
-                    selectedStatus={selectedStatus}
-                    setSelectedStatus={setSelectedStatus}
-                    selectedEducation={selectedEducation}
-                    setSelectedEducation={setSelectedEducation}
-                    educationOptions={educationOptions}
-                    selectedGender={selectedGender}
-                    setSelectedGender={setSelectedGender}
-                    genderOptions={genderOptions}
-                    handleClearOverallStatus={handleClearOverallStatus}
-                    handleCancelEdit={handleCancelEdit}
-                    totalApplicationsCount={totalApplicationsCount}
+                    hasLocalChanges={Object.keys(localChanges).length > 0}
+                    isSaving={isSaving}
                     onAddData={() => setShowAddModal(true)}
                 />
             </div>
+            <MasterlistMonthTabs 
+                activePassedMonth={activePassedMonth} 
+                setActivePassedMonth={setActivePassedMonth} 
+                availablePassedMonths={availablePassedMonths}
+                selectedYear={selectedYear}
+                setSelectedYear={setSelectedYear}
+                availableYears={availableYears}
+            />
+
+            <ExcelFindBar
+                isOpen={showFindBar}
+                onClose={() => setShowFindBar(false)}
+                searchQuery={findQuery}
+                onSearchChange={setFindQuery}
+                matchCount={generatedMatches.length}
+                currentMatchIndex={findMatchIndex}
+                matches={generatedMatches}
+                onMatchSelect={handleMatchSelect}
+                onNextMatch={() => setFindMatchIndex(prev => (prev + 1) % (generatedMatches.length || 1))}
+                onPrevMatch={() => setFindMatchIndex(prev => (prev - 1 + (generatedMatches.length || 1)) % (generatedMatches.length || 1))}
+                placeholder="Find in sheet (Ctrl+F)..."
+            />
         </div>
     );
 }

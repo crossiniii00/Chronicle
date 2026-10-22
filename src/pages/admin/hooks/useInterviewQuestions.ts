@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { QuestionService } from '@/services/QuestionService';
 import { useToast } from '@/components/common/useToast';
 import type { InterviewQuestion } from '@/types';
@@ -13,11 +13,18 @@ export type QuestionForm = {
     max_length: number;
     max_rating: number;
     options: string[];
+    allow_notes: boolean;
+    account: string;
+    lob: string;
 };
 
 export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial') {
     const { success, error: toastError } = useToast();
+    const reorderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [tab, setTab] = useState<'initial' | 'final'>(initialTab);
+    const [selectedAccount, setSelectedAccount] = useState<string>('ALL');
+    const [selectedLob, setSelectedLob] = useState<string>('ALL');
+    const [departments, setDepartments] = useState<Array<any>>([]);
     const [modal, setModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -33,13 +40,16 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
         is_required: true,
         max_length: 500,
         max_rating: 5,
-        options: []
+        options: [],
+        allow_notes: false,
+        account: 'ALL',
+        lob: 'ALL'
     });
 
     const loadQuestions = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await QuestionService.getAll();
+            const data = await QuestionService.getAll(true);
             setAllQuestions(data);
         } catch {
             toastError('Failed to load', 'Could not retrieve interview bank.');
@@ -50,10 +60,36 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
 
     useEffect(() => {
         void loadQuestions();
+        // Fetch accounts/departments
+        import('@/services/DepartmentService').then(({ DepartmentService }) => {
+            DepartmentService.getAll().then(setDepartments).catch(console.error);
+        });
     }, [loadQuestions]);
+
+    const accountToLobsMap = useMemo(() => {
+        const map: Record<string, string[]> = {};
+        departments.forEach((d: any) => {
+            const name = (d.name || '').toUpperCase();
+            const subs = d.subAccounts || d.sub_accounts || [];
+            const lobNames = subs.map((s: any) => typeof s === 'string' ? s : s.name).filter(Boolean);
+            map[name] = lobNames;
+        });
+        return map;
+    }, [departments]);
 
     const questions = allQuestions
         .filter(q => q.question_type === tab)
+        .filter(q => {
+            if (selectedAccount !== 'ALL') {
+                const qAcc = (q.account || 'ALL').toUpperCase();
+                if (qAcc !== 'ALL' && qAcc !== selectedAccount.toUpperCase()) return false;
+            }
+            if (selectedLob !== 'ALL') {
+                const qLob = (q.lob || 'ALL').toUpperCase();
+                if (qLob !== 'ALL' && qLob !== selectedLob.toUpperCase()) return false;
+            }
+            return true;
+        })
         .sort((a, b) => (a.question_order || 0) - (b.question_order || 0));
 
     const handleAdd = async () => {
@@ -73,9 +109,12 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
                 max_length: form.answer_type === 'text' ? form.max_length : undefined,
                 max_rating: form.answer_type === 'rating' ? form.max_rating : undefined,
                 options: (form.answer_type === 'multiple_choice' || form.answer_type === 'yes_no') ? form.options : undefined,
-                is_required: form.is_required,
+                is_required: form.answer_type === 'none' ? false : form.is_required,
                 question_order: editingId ? (existingQuestion?.question_order || 0) : (questions.length + 1),
                 is_active: true,
+                allow_notes: form.allow_notes,
+                account: form.account || 'ALL',
+                lob: form.lob || 'ALL'
             };
 
             if (editingId) {
@@ -97,7 +136,10 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
                 is_required: true, 
                 max_length: 500, 
                 max_rating: 5, 
-                options: [] 
+                options: [],
+                allow_notes: false,
+                account: 'ALL',
+                lob: 'ALL'
             });
             await loadQuestions();
         } catch {
@@ -118,7 +160,10 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
             is_required: q.is_required,
             max_length: q.max_length || 500,
             max_rating: q.max_rating || 5,
-            options: q.options || []
+            options: q.options || [],
+            allow_notes: q.allow_notes ?? false,
+            account: q.account || 'ALL',
+            lob: q.lob || 'ALL'
         });
         setModal(true);
     };
@@ -132,7 +177,7 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
         }
     };
 
-    const handleReorder = async (newOrder: InterviewQuestion[]) => {
+    const handleReorder = (newOrder: InterviewQuestion[]) => {
         setAllQuestions(prev => {
             const otherTypeQs = prev.filter(q => q.question_type !== tab);
             const updatedOrder = newOrder.map((q, idx) => ({
@@ -142,16 +187,22 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
             return [...otherTypeQs, ...updatedOrder];
         });
 
-        try {
-            await Promise.all(
-                newOrder.map((q, idx) => 
-                    QuestionService.update(q.id, { question_order: idx + 1 })
-                )
-            );
-        } catch {
-            toastError('Sync Failed', 'Could not save the new arrangement.');
-            void loadQuestions();
+        if (reorderTimeoutRef.current) {
+            clearTimeout(reorderTimeoutRef.current);
         }
+
+        reorderTimeoutRef.current = setTimeout(async () => {
+            try {
+                await Promise.all(
+                    newOrder.map((q, idx) => 
+                        QuestionService.update(q.id, { question_order: idx + 1 })
+                    )
+                );
+            } catch {
+                toastError('Sync Failed', 'Could not save the new arrangement.');
+                void loadQuestions();
+            }
+        }, 1000);
     };
 
     const handleDelete = async () => {
@@ -169,6 +220,10 @@ export function useInterviewQuestions(initialTab: 'initial' | 'final' = 'initial
 
     return {
         tab, setTab,
+        selectedAccount, setSelectedAccount,
+        selectedLob, setSelectedLob,
+        departments,
+        accountToLobsMap,
         modal, setModal,
         loading,
         submitting,

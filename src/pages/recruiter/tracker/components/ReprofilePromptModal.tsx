@@ -44,12 +44,12 @@ export function ReprofilePromptModal({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 transition={{ type: "spring", stiffness: 350, damping: 26 }}
-                className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden"
+                className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 overflow-hidden"
             >
                 {/* Header with gradient pattern */}
                 <div className="relative px-6 py-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 text-white flex items-start justify-between">
                     <div className="flex items-center gap-3.5 z-10">
-                        <div className="w-11 h-11 bg-white/10 backdrop-blur-md text-emerald-400 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
+                        <div className="w-11 h-11 bg-white/10 dark:bg-slate-900/10 backdrop-blur-md text-emerald-400 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
                             <Layers size={20} className="animate-pulse" />
                         </div>
                         <div className="text-left">
@@ -59,7 +59,7 @@ export function ReprofilePromptModal({
                     </div>
                     <button 
                         onClick={onClose} 
-                        className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all z-10"
+                        className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 dark:hover:bg-slate-900/10 rounded-lg transition-all z-10"
                     >
                         <X size={16} />
                     </button>
@@ -69,18 +69,18 @@ export function ReprofilePromptModal({
 
                 <div className="p-6 space-y-6">
                     {/* Flow Transition */}
-                    <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-5 space-y-4">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-150 rounded-xl p-5 space-y-4">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Pipeline Redirect</span>
                         
                         <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 shadow-sm text-left">
+                            <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm text-left">
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Previous Account</span>
                                 <span className="text-xs font-black text-rose-600 uppercase tracking-wide truncate block">{previousAccount || 'Unassigned'}</span>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0">
                                 <ArrowRight size={14} />
                             </div>
-                            <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 shadow-sm text-left">
+                            <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm text-left">
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Next Options</span>
                                 <span className="text-xs font-black text-emerald-600 uppercase tracking-wide truncate block">{accounts.length} Account{accounts.length === 1 ? '' : 's'}</span>
                             </div>
@@ -88,7 +88,7 @@ export function ReprofilePromptModal({
 
                         {/* Account Selector */}
                         <div className="pt-2 text-left">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2.5">
+                            <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-2.5">
                                 Select Primary Target Account (Goes First)
                             </label>
                             <div className="grid grid-cols-2 gap-2.5">
@@ -103,7 +103,7 @@ export function ReprofilePromptModal({
                                                 "px-4 py-3 rounded-xl border text-[11px] font-black uppercase transition-all flex items-center justify-between gap-2 text-left shadow-sm",
                                                 isActive 
                                                     ? 'bg-slate-900 border-slate-900 text-white shadow-md' 
-                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 hover:border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800'
                                             )}
                                         >
                                             <span className="truncate">{account}</span>
@@ -126,8 +126,8 @@ export function ReprofilePromptModal({
                                     exit={{ opacity: 0, height: 0 }}
                                     className="pt-2"
                                 >
-                                    <div className="bg-slate-100/80 rounded-lg p-3 text-[10px] text-slate-600 font-medium text-left border border-slate-200/50">
-                                        <span className="font-extrabold text-slate-700 uppercase tracking-wider block mb-0.5">Secondary Deferral Order:</span>
+                                    <div className="bg-slate-100 dark:bg-slate-800/50/80 rounded-lg p-3 text-[10px] text-slate-600 font-medium text-left border border-slate-200 dark:border-slate-800/50">
+                                        <span className="font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-0.5">Secondary Deferral Order:</span>
                                         {waitingAccounts.join(' → ')} (will remain waiting in queue)
                                     </div>
                                 </motion.div>
@@ -148,7 +148,7 @@ export function ReprofilePromptModal({
                         <button 
                             type="button"
                             onClick={onClose} 
-                            className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 text-xs font-extrabold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-all shadow-sm"
+                            className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-extrabold uppercase tracking-wider rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800 transition-all shadow-sm"
                         >
                             Cancel
                         </button>

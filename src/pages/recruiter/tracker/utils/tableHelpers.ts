@@ -1,12 +1,14 @@
 import type { Application } from '@/types/application';
 import type { InterviewQuestion } from '@/types/misc';
+import { SPECIFIC_STATUS_TO_OVERALL, normalizeOverallStatus } from './statusMappings';
 import { calculateCEFR } from '../constants';
+import { getCandidateFullName, getCandidateFirstName, getCandidateLastName, getCandidateMiddleName } from '@/utils/formatters';
 
 export const formatDate = (dateStr: any, includeTime: boolean = true) => {
     if (!dateStr) return '';
     try {
         let date: Date;
-        
+
         // Handle Excel Serial Numbers
         if (typeof dateStr === 'number' || (!isNaN(dateStr) && !isNaN(parseFloat(dateStr)) && Number(dateStr) > 40000)) {
             const excelSerial = parseFloat(dateStr);
@@ -17,10 +19,10 @@ export const formatDate = (dateStr: any, includeTime: boolean = true) => {
         }
 
         if (isNaN(date.getTime())) return String(dateStr);
-        
+
         const options: Intl.DateTimeFormatOptions = {
             year: 'numeric',
-            month: 'short',
+            month: 'long',
             day: '2-digit'
         };
 
@@ -46,9 +48,9 @@ export const calculateAge = (dobStr: any): string => {
         } else {
             birthDate = new Date(dobStr);
         }
-        
+
         if (isNaN(birthDate.getTime())) return '';
-        
+
         const today = new Date();
         let ageNum = today.getFullYear() - birthDate.getFullYear();
         const m = today.getMonth() - birthDate.getMonth();
@@ -63,13 +65,13 @@ export const calculateAge = (dobStr: any): string => {
 
 const filterPassedAccounts = (app: Application, val: string) => {
     if (!val) return '';
-    
+
     const statusUpper = app.current_status?.toUpperCase() || '';
-    const isHiredOrJO = statusUpper === 'HIRED' || 
-                        statusUpper.includes('JOB_OFFER') || 
-                        statusUpper.includes('JOB OFFER') ||
-                        statusUpper.includes('ACCEPTED') ||
-                        statusUpper === 'PASSED';
+    const isHiredOrJO = statusUpper === 'HIRED' ||
+        statusUpper.includes('JOB_OFFER') ||
+        statusUpper.includes('JOB OFFER') ||
+        statusUpper.includes('ACCEPTED') ||
+        statusUpper === 'PASSED';
 
     // Helper to extract the first account if hired/JO
     const processResult = (accountVal: string) => {
@@ -85,7 +87,7 @@ const filterPassedAccounts = (app: Application, val: string) => {
     if (app.pis?.final_account) {
         return processResult(app.pis.final_account);
     }
-    
+
     // 2. If endorsement_account exists, prefer it
     if (app.endorsement_account) {
         return processResult(app.endorsement_account);
@@ -94,7 +96,7 @@ const filterPassedAccounts = (app: Application, val: string) => {
     // 3. Fall back to filtering the comma-separated list by failed_accounts
     const failedAccounts = app.metadata?.failed_accounts || [];
     const failedSet = new Set(failedAccounts.map((f: any) => String(f).trim().toLowerCase()));
-    
+
     const remaining = val
         .split(',')
         .map(s => s.trim())
@@ -103,20 +105,43 @@ const filterPassedAccounts = (app: Application, val: string) => {
     if (isHiredOrJO && remaining.length > 1) {
         return remaining[0];
     }
-    
+
     return remaining.join(', ');
 };
 
 
-export const getSheetCellValue = (app: Application, column: string, rowIndex: number, questions: InterviewQuestion[]) => {
-    const rawVal = getRawSheetCellValue(app, column, rowIndex, questions);
+function toTitleCase(str: string): string {
+    if (!str) return '';
+    const trimmed = str.trim();
+    if (trimmed === '---' || trimmed === '-') return trimmed;
+    return trimmed
+        .replace(/,/g, '')
+        .toLowerCase()
+        .split(' ')
+        .map(word => {
+            return word
+                .split('-')
+                .map(subWord => subWord.charAt(0).toUpperCase() + subWord.slice(1))
+                .join('-');
+        })
+        .join(' ');
+}
+
+export const getSheetCellValue = (app: Application, column: string, rowIndex: number, questions: InterviewQuestion[]): string => {
+    const rawVal: string | null | undefined = getRawSheetCellValue(app, column, rowIndex, questions);
     if (rawVal === null || rawVal === undefined || rawVal === 'null' || rawVal === 'undefined') return '';
+
+    const nameColumns = ["First Name", "Middle Name", "Last Name", "Name", "Preferred Name", "Candidate's Complete Name", "Candidate's Complete Name (First, Middle and Last Name)"];
+    if (nameColumns.includes(column)) {
+        return toTitleCase(rawVal);
+    }
+
     return rawVal;
 };
 
 const fuzzyCache = new Map<string, string>();
 
-const getRawSheetCellValue = (app: Application, column: string, rowIndex: number, questions: InterviewQuestion[]) => {
+const getRawSheetCellValue = (app: Application, column: string, rowIndex: number, questions: InterviewQuestion[]): string | null | undefined => {
     const pis = (app.pis || {}) as any;
 
     // Safety: ensure we never return a raw object/array to React as a renderable child
@@ -133,13 +158,16 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
         return String(val);
     };
 
-    const fuzzyGet = (target: string) => {
+    const fuzzyGet = (target: string): string => {
         if (!pis) return '';
-        const keys = Object.keys(pis);
+        const keys = Object.keys(pis).filter(k => {
+            const val = (pis as any)[k];
+            return !val || typeof val !== 'object' || Array.isArray(val);
+        });
         const cacheKey = target + '|' + keys.join(',');
         if (fuzzyCache.has(cacheKey)) {
             const matchedKey = fuzzyCache.get(cacheKey);
-            return matchedKey ? (pis as any)[matchedKey] : '';
+            return matchedKey ? safeStr((pis as any)[matchedKey]) : '';
         }
 
         const lt = target.toLowerCase().trim();
@@ -149,7 +177,7 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
         const exactMatch = keys.find(k => k.toLowerCase().trim() === lt);
         if (exactMatch) {
             fuzzyCache.set(cacheKey, exactMatch);
-            return (pis as any)[exactMatch];
+            return safeStr((pis as any)[exactMatch]);
         }
 
         const normalizedTarget = lt.replace(/[^a-z0-9]/g, '');
@@ -159,7 +187,7 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
         const strippedMatch = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedTarget);
         if (strippedMatch) {
             fuzzyCache.set(cacheKey, strippedMatch);
-            return (pis as any)[strippedMatch];
+            return safeStr((pis as any)[strippedMatch]);
         }
 
         // 3. Keyword/Substring Scanning (with strict safeguards)
@@ -171,16 +199,16 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
             // Strict Safeguard: Prevent generic email fields and specialized ones from colliding
             const isGenericK = normalizedK === 'email' || normalizedK === 'emailaddress';
             const isGenericT = normalizedTarget === 'email' || normalizedTarget === 'emailaddress';
-            
+
             // 1. Don't let 'Email' (K) match 'Ops Validator Email' (T)
             if (isGenericK && normalizedTarget.includes(normalizedK) && normalizedTarget.length > 10) return false;
-            
+
             // 2. Don't let 'Ops Validator Email' (K) match 'Email' (T)
             if (isGenericT && normalizedK.includes(normalizedTarget) && normalizedK.length > 10) return false;
-            
+
             // Allow TARGET to include KEY only if KEY is specific enough (like 'opsval')
             if (normalizedTarget.includes(normalizedK) && (normalizedK.length >= 6 || normalizedK === normalizedTarget)) return true;
-            
+
             // Allow KEY to include TARGET (e.g., 'Candidate Email Address' matches 'Email')
             if (normalizedK.includes(normalizedTarget)) {
                 // Safeguard against short targets (like 'age' or 'id') matching randomly inside other words (like 'languages' or 'pagibig')
@@ -195,7 +223,7 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
         });
         if (scanMatch) {
             fuzzyCache.set(cacheKey, scanMatch);
-            return (pis as any)[scanMatch];
+            return safeStr((pis as any)[scanMatch]);
         }
 
         // 4. Common Abbreviations/Shorthand (Clinical/Registry Specific)
@@ -210,7 +238,7 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
         const shorthandMatch = keys.find(k => {
             const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
             if (!nk) return false;
-            
+
             let swappedK = nk;
             Object.entries(commonShorts).forEach(([full, short]) => {
                 if (nk.includes(full)) swappedK = nk.replace(full, short);
@@ -220,18 +248,23 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
             // Swapped match must be significant
             if (swappedK === normalizedTarget) return true;
             if (swappedK.includes(normalizedTarget) && normalizedTarget.length > 5) return true;
-            
+
             return false;
         });
         if (shorthandMatch) {
             fuzzyCache.set(cacheKey, shorthandMatch);
-            return (pis as any)[shorthandMatch];
+            return safeStr((pis as any)[shorthandMatch]);
         }
 
         fuzzyCache.set(cacheKey, '');
         return '';
     };
 
+    // ALWAYS prioritize explicit interview responses if it matches a question exactly
+    const q = questions.find(q => q.question_text.trim().toLowerCase() === column.trim().toLowerCase());
+    if (q && app.interview_responses && app.interview_responses[q.id] !== undefined && app.interview_responses[q.id] !== null && app.interview_responses[q.id] !== '') {
+        return safeStr(app.interview_responses[q.id]);
+    }
 
     switch (column) {
         case "Id": return (rowIndex + 1).toString();
@@ -240,13 +273,33 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
         case "Email": return app.applicant_email || fuzzyGet("Email") || '';
         case "RECRUITER / INTERVIEWER":
             return app.assigned_recruiter_name || app.interviewer_name || fuzzyGet("RECRUITER / INTERVIEWER") || '';
-        case "Name": 
-            return app.applicant_name || fuzzyGet("Name") || '';
-        case "Candidate's Complete Name (First, Middle and Last Name)":
-            return app.applicant_name || fuzzyGet("Candidate's Complete Name") || '';
+        case "Name":
+            return getCandidateFullName(app, fuzzyGet("Name") || '');
+        case "First Name": {
+            return getCandidateFirstName(app) || fuzzyGet("First Name") || '';
+        }
+        case "Preferred Name": {
+            return app.preferred_nickname || pis?.preferred_nickname || (app as any).nick_name || pis?.nick_name || '';
+        }
+        case "Middle Name": {
+            return getCandidateMiddleName(app) || fuzzyGet("Middle Name") || '';
+        }
+        case "Last Name": {
+            return getCandidateLastName(app) || fuzzyGet("Last Name") || '';
+        }
         case "Interview Date": return formatDate(app.interview_completed_at || fuzzyGet("Interview Date")) || '';
         case "Position Applying for?": return app.position_title || fuzzyGet("Position Applying for") || '';
         case "Summary of Background and Experience": return pis?.summary_of_background || fuzzyGet("Summary of Background and Experience") || '';
+        case "Previous Salary": {
+            const q = questions.find(q => {
+                const txt = q.question_text.toLowerCase();
+                return txt.includes('compensation') && (txt.includes('most recent') || txt.includes('previous company') || txt.includes('recent company'));
+            });
+            if (q && app.interview_responses && app.interview_responses[q.id] !== undefined && app.interview_responses[q.id] !== null && app.interview_responses[q.id] !== '') {
+                return safeStr(app.interview_responses[q.id]);
+            }
+            return pis?.previous_compensation || pis?.previous_salary || fuzzyGet("compensation from your most recent company") || fuzzyGet("previous compensation") || fuzzyGet("previous salary") || '';
+        }
         case "If you don't mind us asking how much is your salary expectations?": return pis?.salary_expectation || fuzzyGet("salary expectations") || '';
         case "Date of Birth":
         case "DATE OF BIRTH":
@@ -256,7 +309,7 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
             const dob = pis?.birth_date || fuzzyGet("Date of Birth");
             return calculateAge(dob) || pis?.age?.toString() || fuzzyGet("Age") || '';
         }
-        case "Gender": return pis?.gender || fuzzyGet("Gender") || '';
+        case "Sex": return pis?.sex || fuzzyGet("Sex") || '';
         case "Civil Status": return pis?.civil_status || fuzzyGet("Civil Status") || '';
         case "Contact Number":
         case "CONTACT NO.":
@@ -276,51 +329,131 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
             if (edu.includes('shs') || edu.includes('senior high')) return 'N/A';
             return pis?.course_year || pis?.degree || pis?.course_strand || fuzzyGet("Course and Year Level") || '';
         }
-        case "Do you have plans in going back to school this year?": return pis?.plans_back_to_school || fuzzyGet("plans in going back to school") || '';
-        case "Do you have the following requirements or government IDs? (ie. SSS/Philhealth/Pag-ibig/BIR Tin/NBI)": return pis?.government_ids || fuzzyGet("government IDs") || '';
-        case "Where did you hear that we are hiring?": return pis?.hiring_source_detailed || fuzzyGet("Where did you hear") || '';
-        case "I’ve asked you a lot of questions, and now I’d love to hear from you. Do you have any questions about the role, the team, or the company that I can answer": 
-            return pis?.candidate_questions || fuzzyGet("any questions about the role") || '';
+        case "What made you interested to apply in the role?": return pis?.reason_for_interest || fuzzyGet("What made you interested") || '';
+        case "In this role, what do you hope to achieve in the first 6 months?": return pis?.goals_6_months || fuzzyGet("hope to achieve") || '';
+        case "The target training start date for this account/campaign will start on ___________. Would you be available to work with us by then?": return pis?.available_training_start || fuzzyGet("target training start date") || '';
+        case "Do you have any preferred shifts or work schedule?": return pis?.preferred_shifts || fuzzyGet("preferred shifts") || '';
         case "INTERVIEWER": return app.interviewer_name || app.assigned_recruiter_name || fuzzyGet("INTERVIEWER") || '';
         case "INITIAL ACCOUNT ASSIGNMENT": {
             const rawVal = pis?.initial_account_assignment || pis?.account_assignment || app.department || pis?.['INITITAL ACCOUNT ASSIGNMENT'] || fuzzyGet("INITIAL ACCOUNT ASSIGNMENT") || fuzzyGet("INITITAL ACCOUNT ASSIGNMENT") || '';
-            const hasReprofileHistory = !!((app.pis?.reprofile_history && app.pis.reprofile_history.length > 0) || (app.metadata?.reprofile_history && app.metadata.reprofile_history.length > 0));
-            if (!hasReprofileHistory) {
-                return rawVal;
-            }
-            return filterPassedAccounts(app, rawVal);
+            return String(rawVal).split(/[|,]/)[0].trim();
         }
+        case "Is this candidate for drug testing":
+            return pis?.for_drug_testing || fuzzyGet("Is this candidate for drug testing") || fuzzyGet("drug testing") || '';
         case "INITIAL INTERVIEW RESULTS":
             // Only read from known interview result fields — do NOT fall back to current_status
             // or fuzzyGet, which can match pipeline stage names like FINAL_INTERVIEW
             return pis?.initial_interview_result || pis?.interview_result || pis?.initial_interview_results || pis?.['INITITAL INTERVIEW RESULTS'] || pis?.ii_result || '';
         case "CEFR": return pis?.cefr_level || calculateCEFR(app);
         case "Personality Test (Enercare; Leadership)": return pis?.personality_test || fuzzyGet("Personality Test") || '';
+        case "Critical Thinking Assessment": return pis?.critical_thinking_score || fuzzyGet("Critical Thinking Assessment") || '';
         case "Typing Speed (Number Only)": return app.typing_test_wpm?.toString() || fuzzyGet("Typing Speed") || '';
         case "Typing Accuracy (Percentage)": return app.typing_test_accuracy?.toString() || fuzzyGet("Typing Accuracy") || '';
-        case "Ops Validator Email": 
+        case "Ops Validator Email":
         case "Ops val email":
         case "Ops Val Email":
             return pis?.ops_validator_email || pis?.ops_val_email || fuzzyGet("Ops Validator Email") || '';
         case "Ops Val Status": return pis?.ops_validator_status || pis?.ops_val_status || fuzzyGet("Ops Val Status") || '';
-        case "Ops Val Notes if Available": return cleanColumn1Text(pis?.ops_validator_notes || pis?.ops_val_notes || fuzzyGet("Ops Val Notes") || app.final_interview_notes || '');
-        case "Leadership Assessment Status (if applicable)": return pis?.leadership_assessment_status || fuzzyGet("Leadership Assessment") || '';
+        case "Ops Val Notes if Available":
+        case "Final Interviewers Remark":
+        case "Final Interviewers Remarks":
+        case "Final Interviewer's Remark":
+        case "Final Interviewer's Remarks":
+        case "FINAL INTERVIEWER'S REMARK":
+            return cleanColumn1Text(pis?.ops_validator_notes || pis?.ops_val_notes || fuzzyGet("Ops Val Notes") || fuzzyGet("Final Interviewers Remark") || app.master_remarks || app.final_interview_notes || '');
+        case "Leadership Assessment Status (if applicable)": return pis?.leadership_score || pis?.leadership_assessment_status || fuzzyGet("Leadership Assessment") || '';
         case "Wonderlic Status (if applicable)": return pis?.wonderlic_status || fuzzyGet("Wonderlic Status") || '';
-        case "Client Interviewer Email": 
+        case "Client Interviewer Email":
         case "Client Interview Email":
             return pis?.client_interviewer_email || pis?.client_interview_email || fuzzyGet("Client Interviewer Email") || '';
         case "Client Interview Status (if applicable)": return pis?.client_interview_status || fuzzyGet("Client Interview Status") || '';
         case "Client Interview Notes if Available": return pis?.client_interview_notes || fuzzyGet("Client Interview Notes") || '';
-        case "Final Specific Status": return pis?.final_specific_status || fuzzyGet("Final Specific Status") || '';
-        case "Application Status": return app.current_status || '';
-        case "Overall Status": return pis?.overall_status || app.overall_status || 'OPEN';
-        case "Hire Date": return formatDate(app.hired_at || fuzzyGet("Hire Date"), false);
+        case "Final Specific Status": {
+            const status = String(app.current_status || app.master_status || '').toUpperCase().trim();
+            const remarks = String(pis?.training_status || app.master_remarks || pis?.master_remarks || pis?.remarks || app.metadata?.master_remarks || '').toUpperCase().trim();
+
+            const isAcceptedOffer = status.includes('ACCEPTED') || status.includes('OFFER');
+            const isConfirmedTraining = remarks.includes('CONFIRMED') || remarks.includes('TRAINING');
+
+            if (isAcceptedOffer && isConfirmedTraining) {
+                return 'JO - Hired';
+            }
+
+            let dbVal = String(pis?.final_specific_status || fuzzyGet("Final Specific Status") || '');
+            if (dbVal.toLowerCase().startsWith('recruitment interview')) {
+                dbVal = dbVal.replace(/recruitment interview/i, 'Initial Interview');
+            }
+
+            if (dbVal) return dbVal;
+
+            if (status === 'TYPING_TEST') {
+                return 'Typing Test - Pending';
+            }
+            if (status === 'ASSESSMENT') {
+                const dept = String(app.department || '').toUpperCase();
+                if (dept.includes('AUTO APPROVE') || dept.includes('KELLER')) {
+                    return 'Wonderlic - Pending';
+                }
+                return 'SpeechX - Pending';
+            }
+            if (status === 'INITIAL_INTERVIEW' || status === 'QUEUE_ASSIGNED') {
+                return 'Initial Interview - Pending';
+            }
+            if (status === 'FINAL_INTERVIEW_SCHEDULED' || status === 'FINAL_INTERVIEW' || status === 'INTERVIEW_IN_PROGRESS') {
+                if (app.typing_test_completed_at) {
+                    return 'Typing Test - Passed';
+                }
+                const dept = String(app.department || '').toUpperCase();
+                if (dept.includes('AUTO APPROVE') || dept.includes('KELLER')) {
+                    return 'Wonderlic - Passed';
+                }
+                return 'SpeechX - Passed';
+            }
+            if (status === 'FOR_JOB_OFFER') {
+                return 'OV - Passed';
+            }
+            if (status === 'HIRED') {
+                return 'JO - Hired';
+            }
+            if (status === 'ACCEPTED_OFFER') {
+                return 'JO - Pending';
+            }
+            return '';
+        }
+        case "Application Status":
+        case "Current Step": {
+            const curr = app.current_status || '';
+            const spec = String(pis?.final_specific_status || app.metadata?.final_specific_status || '').toUpperCase();
+            const initRes = String(pis?.initial_interview_results || '').toUpperCase();
+
+            if (spec.includes('INITIAL INTERVIEW - FAILED') || (spec.includes('FAILED') && !spec.includes('OV')) || initRes === 'FAILED') {
+                if (curr === 'INTERVIEW_IN_PROGRESS' || curr === 'QUEUE_ASSIGNED' || curr === 'INITIAL_INTERVIEW' || !curr) {
+                    return 'FAILED';
+                }
+            }
+            return curr;
+        }
+        case "Overall Status": {
+            const specStatus: string = String(getSheetCellValue(app, "Final Specific Status", rowIndex, questions) || '');
+
+            if (specStatus.toUpperCase().includes('JO - HIRED') || specStatus.toUpperCase().includes('JO-HIRED') || specStatus.toUpperCase() === 'HIRED') {
+                return 'HIRED';
+            }
+
+            return normalizeOverallStatus(pis?.overall_status || app.overall_status || 'OPEN', specStatus);
+        }
+        case "Hire Date": {
+            const rawHire = app.hired_at || (pis as any)?.hired_at || (pis as any)?.hire_date || fuzzyGet("Hire Date") || fuzzyGet("Hired Date") || fuzzyGet("Date Hired");
+            const rawTraining = app.master_training_start_date || (pis as any)?.master_training_start_date || (pis as any)?.training_start_date || (pis as any)?.confirmed_training_date || (pis as any)?.['Target Start Date'] || (pis as any)?.['Start Date'] || fuzzyGet("Training Start Date") || fuzzyGet("Start Date") || fuzzyGet("Confirmed Training");
+            const targetDate = rawHire || rawTraining;
+            return formatDate(targetDate, false);
+        }
         case "Final Account": {
             const rawVal = pis?.final_account || fuzzyGet("Final Account") || '';
             return filterPassedAccounts(app, rawVal);
         }
         case "Last Processed/Updated By:": return pis?.last_updated_by || app.assigned_recruiter_name || fuzzyGet("Updated By") || '';
-        case "Column1": return cleanColumn1Text(pis?.notes || fuzzyGet("Notes") || fuzzyGet("Remarks") || fuzzyGet("Comments") || fuzzyGet("Additional Info") || fuzzyGet("Column1") || '');
+        case "Source": return app.hiring_source || pis?.hiring_source || fuzzyGet("Source") || '';
         case "H2R Status":
         case "H2R STATUS":
             return app.master_h2r_status || fuzzyGet("H2R") || '';
@@ -338,11 +471,27 @@ const getRawSheetCellValue = (app: Application, column: string, rowIndex: number
             const fuzzyVal = fuzzyGet(column);
             if (fuzzyVal !== null && fuzzyVal !== undefined && fuzzyVal !== '') return safeStr(fuzzyVal);
 
-            const q = questions.find(q => q.question_text.trim().toLowerCase() === column.trim().toLowerCase());
-            if (q) return app.interview_responses?.[q.id] || '';
             return '';
         }
     }
+};
+
+const resolveFinalSpecificStatus = (app: Application): string => {
+    const rawStatus = app.pis?.final_specific_status || '';
+    if (rawStatus === 'OV - Pending') {
+        const statusUpper = (app.current_status || '').toUpperCase();
+        if (statusUpper === 'FINAL_INTERVIEW_SCHEDULED' || statusUpper === 'FINAL_INTERVIEW' || statusUpper === 'FINAL INTERVIEW SCHEDULED' || statusUpper === 'FINAL INTERVIEW') {
+            if (app.typing_test_completed_at) {
+                return 'Typing Test - Passed';
+            }
+            const dept = String(app.department || '').toUpperCase();
+            if (dept.includes('AUTO APPROVE') || dept.includes('KELLER')) {
+                return 'Wonderlic - Passed';
+            }
+            return 'SpeechX - Passed';
+        }
+    }
+    return rawStatus;
 };
 
 export const getPivotCellValue = (app: Application, column: string) => {
@@ -351,10 +500,17 @@ export const getPivotCellValue = (app: Application, column: string) => {
 
     switch (column) {
         case "Overall Status": return status;
-        case "Final Specific Status": return app.final_verdict || status;
+        case "Final Specific Status": {
+            const raw = app.final_verdict || status;
+            // Intercept if it's falling back or actually OV - Pending
+            if (raw === 'OV - Pending' || app.pis?.final_specific_status === 'OV - Pending') {
+                return resolveFinalSpecificStatus(app) || raw;
+            }
+            return raw;
+        }
         case "CEFR": return calculateCEFR(app);
-        case "Name": return app.applicant_name;
-        case "Candidate's Complete Name (First, Middle and Last Name)": return pis?.full_name || app.applicant_name;
+        case "Name": return getCandidateFullName(app, '');
+        case "Candidate's Complete Name (First, Middle and Last Name)": return pis?.full_name || getCandidateFullName(app, '');
         case "Conditional": return status === 'CONDITIONAL' ? '1' : '0';
         case "FAILED": return status === 'FAILED' ? '1' : '0';
         case "PASSED": return status === 'PASSED' ? '1' : '0';
@@ -371,7 +527,7 @@ export const getPivotCellValue = (app: Application, column: string) => {
 export const getVlistCellValue = (app: Application, column: string) => {
     const pis = app.pis;
     switch (column) {
-        case "Specific Status": return app.pis?.final_specific_status || '';
+        case "Specific Status": return resolveFinalSpecificStatus(app);
         case "Overall Status": return app.current_status;
         case "Personality Test": return "";
         case "CEFR": return calculateCEFR(app);
@@ -392,9 +548,12 @@ export const getTlCellValue = (app: Application, column: string, rowIndex: numbe
     const pis = app.pis;
     switch (column) {
         case "#": return (rowIndex + 1).toString();
-        case "Name": return app.applicant_name;
+        case "Name": return getCandidateFullName(app, '');
         case "Position": return app.position_title;
-        case "Background and Experience": return pis?.background_summary || '';
+        case "Background and Experience": {
+            const qId = "f6b85476-e85b-4244-ac36-5f66394c96bb";
+            return (app.interview_responses && app.interview_responses[qId]) || pis?.background_summary || '';
+        }
         case "Tenure as TL": return pis?.tl_tenure || '';
         case "Total BPO Exp": return pis?.bpo_experience_tenure || '';
         case "Salary Expectation": return pis?.salary_expectation || '';
@@ -409,13 +568,13 @@ export const getBilingualsCellValue = (app: Application, column: string, rowInde
     const colTrim = column.trim();
     switch (colTrim) {
         case "#": return (rowIndex + 1).toString();
-        case "Candidate's Name": return app.applicant_name;
+        case "Candidate's Name": return getCandidateFullName(app, '');
         case "Position": return app.position_title;
         case "Preferred Set-up": return pis?.preferred_setup || '';
         case "Willing to Relocate": return pis?.willing_to_relocate || '';
         case "Salary": return pis?.salary_expectation || '';
         case "Status": return app.current_status;
-        case "Notes": return app.final_interview_notes || '';
+        case "Notes": return cleanColumn1Text(app.final_interview_notes || '');
         default: return '';
     }
 };
@@ -425,9 +584,12 @@ export const getTeamLeaderCellValue = (app: Application, column: string, rowInde
     const colTrim = column.trim();
     switch (colTrim) {
         case "#": return (rowIndex + 1).toString();
-        case "Name": return app.applicant_name;
+        case "Name": return getCandidateFullName(app, '');
         case "Position": return app.position_title;
-        case "Background and Experience": return pis?.summary_of_background || '';
+        case "Background and Experience": {
+            const qId = "f6b85476-e85b-4244-ac36-5f66394c96bb";
+            return (app.interview_responses && app.interview_responses[qId]) || pis?.summary_of_background || '';
+        }
         case "Tenure as TL": return pis?.tenure_as_tl || '';
         case "Total BPO Exp": return pis?.total_bpo_experience || '';
         case "Salary Expectation": return pis?.salary_expectation || '';
@@ -441,7 +603,7 @@ export const getSupportHiringCellValue = (app: Application, column: string, rowI
     const pis = app.pis;
     switch (column) {
         case "#": return (rowIndex + 1).toString();
-        case "Candidate's Name": return app.applicant_name;
+        case "Candidate's Name": return getCandidateFullName(app, '');
         case "Position": return app.position_title;
         case "Initial Interview": return pis?.initial_interview_result || '';
         case "2nd Level Interview": return pis?.second_level_interview_result || '';
@@ -460,6 +622,10 @@ export const getSheetColumnKey = (column: string, questions: InterviewQuestion[]
     const mapping: Record<string, string> = {
         "Email": "applicant_email",
         "Name": "applicant_name",
+        "First Name": "first_name",
+        "Preferred Name": "preferred_nickname",
+        "Middle Name": "middle_name",
+        "Last Name": "last_name",
         "Interview Date": "interview_completed_at",
         "Candidate's Complete Name (First, Middle and Last Name)": "pis_full_name",
         "Position Applying for?": "position_title",
@@ -467,7 +633,7 @@ export const getSheetColumnKey = (column: string, questions: InterviewQuestion[]
         "If you don't mind us asking how much is your salary expectations?": "pis_salary_expectation",
         "Date of Birth": "pis_birth_date",
         "Age": "pis_age",
-        "Gender": "pis_gender",
+        "Sex": "pis_gender",
         ")": "pis_bracket_artifact",
         "Civil Status": "pis_civil_status",
         "Contact Number": "pis_phone",
@@ -483,27 +649,32 @@ export const getSheetColumnKey = (column: string, questions: InterviewQuestion[]
         "Where did you hear that we are hiring?": "pis_hiring_source_detailed",
         "I’ve asked you a lot of questions, and now I’d love to hear from you. Do you have any questions about the role, the team, or the company that I can answer": "pis_candidate_questions",
         "INTERVIEWER": "interviewer_name",
+        "RECRUITER / INTERVIEWER": "interviewer_name",
         "INITIAL ACCOUNT ASSIGNMENT": "pis_initial_account_assignment",
+        "Is this candidate for drug testing": "pis_for_drug_testing",
         "INITIAL INTERVIEW RESULTS": "pis_initial_interview_results",
         "CEFR": "pis_cefr_level",
         "Personality Test (Enercare; Leadership)": "pis_personality_test",
+        "Critical Thinking Assessment": "pis_critical_thinking_score",
         "Typing Speed (Number Only)": "typing_test_wpm",
         "Typing Accuracy (Percentage)": "typing_test_accuracy",
         "Ops Validator Email": "pis_ops_validator_email",
         "Ops Val Status": "pis_ops_validator_status",
         "Ops Val Notes if Available": "pis_ops_validator_notes",
-        "Leadership Assessment Status (if applicable)": "pis_leadership_assessment_status",
+        "Leadership Assessment Status (if applicable)": "pis_leadership_score",
         "Wonderlic Status (if applicable)": "pis_wonderlic_status",
         "Client Interviewer Email": "pis_client_interviewer_email",
         "Client Interview Status (if applicable)": "pis_client_interview_status",
         "Client Interview Notes if Available": "pis_client_interview_notes",
         "Final Specific Status": "pis_final_specific_status",
+        "Current Step": "current_status",
         "Application Status": "current_status",
         "Overall Status": "pis_overall_status",
         "Hire Date": "hired_at",
         "Final Account": "pis_final_account",
         "Last Processed/Updated By:": "pis_last_updated_by",
-        "Column1": "pis_notes",
+        "Previous Salary": "previous_salary",
+        "Source": "hiring_source",
         "H2R Status": "master_h2r_status",
         "H2R STATUS": "master_h2r_status",
         "SSS No.": "pis_sss_no",
@@ -512,9 +683,16 @@ export const getSheetColumnKey = (column: string, questions: InterviewQuestion[]
         "Tin No.": "pis_tin_no",
         "PHIC": "pis_philhealth_no"
     };
-    return mapping[column] || column;
-};
 
+    const normalizedColumn = column.trim().toLowerCase();
+    for (const key of Object.keys(mapping)) {
+        if (key.trim().toLowerCase() === normalizedColumn) {
+            return mapping[key];
+        }
+    }
+
+    return column;
+};
 export const getPivotColumnKey = (column: string) => {
     if (column === "Overall Status") return "current_status";
     if (column === "Final Specific Status") return "pis_final_specific_status";
@@ -526,6 +704,7 @@ export const getVlistColumnKey = (column: string) => {
     const mapping: Record<string, string> = {
         "Specific Status": "pis_final_specific_status",
         "Overall Status": "current_status",
+        "Application Status": "current_status",
         "Personality Test": "personality_test_score",
         "CEFR": "cefr_level",
         "Wonderlic": "wonderlic_score",
@@ -593,25 +772,58 @@ export const getSupportHiringColumnKey = (column: string) => {
     return mapping[column] || column;
 };
 
-export function cleanColumn1Text(val: string): string {
-    if (!val) return '';
-    if (val.includes('INTERVIEWER ASSESSMENT RUBRIC') || val.includes('RATINGS & CLASSIFICATIONS')) {
-        const lines = val.split('\n');
-        const ratingsStartIdx = lines.findIndex(line => line.includes('RATINGS & CLASSIFICATIONS'));
-        if (ratingsStartIdx !== -1) {
-            const relevantLines = lines.slice(ratingsStartIdx + 1)
-                .map(l => l.trim())
-                .filter(l => l && !l.startsWith('===') && !l.includes('CLASSIFICATIONS'));
-            
-            const cleaned = relevantLines.filter(l => 
-                l.toLowerCase() !== 'remarks:' && 
-                !l.toLowerCase().includes('personal rating:')
-            );
-            if (cleaned.length > 0) {
-                return cleaned.join(' | ');
-            }
-            return '';
-        }
+export function cleanColumn1Text(val: any): string {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object') {
+        if (val.text !== undefined) val = val.text;
+        else if (val.notes !== undefined) val = val.notes;
+        else if (val.message !== undefined) val = val.message;
+        else if (val.value !== undefined) val = val.value;
+        else val = JSON.stringify(val);
     }
-    return val;
+    const strVal = String(val);
+    if (!strVal || strVal === '{}' || strVal === '[]') return '';
+
+    const rawSegments = strVal.split(/\r?\n|\|/);
+    const RUBRIC_PREFIXES = [
+        'accent:', 'pronunciation:', 'grammar:', 'vocabulary:',
+        'rate of speech:', 'comprehension:', 'call center experience:',
+        'personal rating:', 'interviewer assessment rubric', 'ratings & classifications',
+        'accent & diction', 'category a', 'category b', 'category c',
+        'no specific observations', 'applicant background', 'bpo experience',
+        'summary of background', 'educational attainment', 'tenure', 'work experience',
+        'reason for leaving', 'rfl:', 'rfl', 'mos', 'current salary', 'expected salary',
+        'salary expectation', 'notice period', 'availability', 'interviewer\'s assessment',
+        'background & exp', 'background and exp', 'technical support', 'customer service'
+    ];
+
+    const cleanedLines = rawSegments
+        .map(l => l.trim())
+        .filter(l => {
+            if (!l) return false;
+            const lower = l.toLowerCase();
+            if (l.includes('===') || lower.includes('interviewer assessment rubric') || lower.includes('ratings & classifications')) return false;
+            if (lower === 'remarks:') return false;
+            if (RUBRIC_PREFIXES.some(prefix => lower.startsWith(prefix) || lower.includes(prefix))) return false;
+            return true;
+        })
+        .map(l => {
+            const lower = l.toLowerCase();
+            if (lower.startsWith('remarks:')) {
+                return l.substring(8).trim();
+            }
+            return l;
+        })
+        .filter(Boolean);
+
+    if (cleanedLines.length > 0) {
+        return cleanedLines.join(' | ');
+    }
+
+    const lowerStr = strVal.toLowerCase();
+    if (strVal.includes('===') || RUBRIC_PREFIXES.some(p => lowerStr.includes(p))) {
+        return '';
+    }
+
+    return strVal;
 }

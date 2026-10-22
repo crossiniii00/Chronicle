@@ -4,10 +4,15 @@ import { ApplicationService } from '@/services/ApplicationService';
 import { PositionService } from '@/services/PositionService';
 import { useToast } from '@/components/common/useToast';
 import type { Position } from '@/types';
-import { CIVIL_STATUS_OPTIONS, EDUCATION_LEVELS, GENDER_OPTIONS } from '@/utils/formatters';
+import { CIVIL_STATUS_OPTIONS, EDUCATION_LEVELS, GENDER_OPTIONS, formatCandidateName } from '@/utils/formatters';
 import { useRoomStore } from '@/store/roomStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getRandomDemoCharacter } from '@/utils/demoCharacters';
+import {
+    User, UserCheck, UserPlus, Briefcase, GraduationCap, Building2, Tag,
+    Keyboard, Sparkles, ShieldAlert, Check, ChevronDown, Search, Zap, X,
+    FileText, PhoneCall, CreditCard, Clock, DollarSign, Calendar, ArrowUp, ArrowDown
+} from 'lucide-react';
 
 interface AddCandidateModalProps {
     open: boolean;
@@ -20,6 +25,7 @@ type WorkExperience = {
     position: string;
     duration_from: string;
     duration_to: string;
+    exit_reason?: string;
     description: string;
 };
 
@@ -28,44 +34,73 @@ const EMPTY_EXPERIENCE: WorkExperience = {
     position: '',
     duration_from: '',
     duration_to: '',
+    exit_reason: '',
     description: '',
 };
 
-function Field({ label, value, onChange, type = 'text', textarea = false, placeholder = '' }: {
+function Field({ label, value, onChange, type = 'text', textarea = false, placeholder = '', required = false }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
     type?: string;
     textarea?: boolean;
     placeholder?: string;
+    required?: boolean;
 }) {
-    const className = 'w-full rounded-sm border border-surface-200 px-3 py-2 text-sm focus:border-black transition-colors outline-none';
     return (
-        <label className="block space-y-1.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-surface-500">{label}</span>
-            {textarea
-                ? <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className={`${className} min-h-[80px] resize-y`} />
-                : <input type={type} placeholder={placeholder} value={value} onChange={(event) => onChange(event.target.value)} className={className} />
-            }
+        <label className="block space-y-1 text-left">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[#605E5C] flex items-center gap-1">
+                {label}
+                {required && <span className="text-[#D13438] font-bold text-xs">*</span>}
+            </span>
+            {textarea ? (
+                <textarea
+                    value={value}
+                    placeholder={placeholder}
+                    onChange={(event) => onChange(event.target.value)}
+                    className="w-full rounded-none border border-[#D1D5DB] bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-[#242424] placeholder:text-[#a19f9d] focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4] outline-none transition-all min-h-[70px] resize-y"
+                />
+            ) : (
+                <input
+                    type={type}
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
+                    className="w-full rounded-none border border-[#D1D5DB] bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-[#242424] placeholder:text-[#a19f9d] focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4] outline-none transition-all"
+                />
+            )}
         </label>
     );
 }
 
-function SelectField({ label, value, onChange, options }: {
+function SelectField({ label, value, onChange, options, required = false }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
     options: string[];
+    required?: boolean;
 }) {
     return (
-        <label className="block space-y-1.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-surface-500">{label}</span>
-            <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-sm border border-surface-200 px-3 py-2 text-sm focus:border-black transition-colors outline-none">
-                <option value="">Select option</option>
-                {options.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                ))}
-            </select>
+        <label className="block space-y-1 text-left">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[#605E5C] flex items-center gap-1">
+                {label}
+                {required && <span className="text-[#D13438] font-bold text-xs">*</span>}
+            </span>
+            <div className="relative">
+                <select
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
+                    className="w-full rounded-none border border-[#D1D5DB] bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-[#242424] focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4] outline-none transition-all cursor-pointer appearance-none pr-8"
+                >
+                    <option value="">Select option</option>
+                    {options.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                    ))}
+                </select>
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#605E5C]">
+                    <ChevronDown size={13} />
+                </div>
+            </div>
         </label>
     );
 }
@@ -99,28 +134,38 @@ function SearchablePositionSelect({ positions, value, onChange }: { positions: P
 
     const filtered = positions.filter(p => 
         !p.title.toUpperCase().includes('[INTERNAL]') && 
-        !p.title.toUpperCase().includes('[ON-CALL]') && 
         (`${p.title} ${p.department}`).toLowerCase().includes(search.toLowerCase())
-    );
+    ).reduce((acc, current) => {
+        const isDuplicate = acc.some(item => item.title === current.title && item.department === current.department);
+        if (!isDuplicate) {
+            acc.push(current);
+        }
+        return acc;
+    }, [] as Position[]);
 
     return (
         <div ref={wrapperRef} className="relative w-full">
-            <input
-                type="text"
-                value={search}
-                onChange={e => {
-                    setSearch(e.target.value);
-                    setOpen(true);
-                    if (e.target.value === '') onChange('');
-                }}
-                onFocus={() => setOpen(true)}
-                placeholder="Search open positions..."
-                className="w-full rounded-sm border border-surface-200 px-3 py-2 text-sm focus:border-black transition-colors outline-none bg-white"
-            />
+            <div className="relative">
+                <input
+                    type="text"
+                    value={search}
+                    onChange={e => {
+                        setSearch(e.target.value);
+                        setOpen(true);
+                        if (e.target.value === '') onChange('');
+                    }}
+                    onFocus={() => setOpen(true)}
+                    placeholder="Search open positions..."
+                    className="w-full rounded-none border border-[#D1D5DB] bg-white dark:bg-slate-900 px-3 py-1.5 pr-8 text-xs text-[#242424] placeholder:text-[#a19f9d] focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4] outline-none transition-all font-medium"
+                />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#605E5C]">
+                    <Search size={13} />
+                </div>
+            </div>
             {open && (
-                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-sm border border-surface-200 bg-white shadow-lg custom-scrollbar">
+                <div className="absolute z-50 mt-0.5 max-h-60 w-full overflow-auto rounded-none border border-[#D1D5DB] bg-white dark:bg-slate-900 shadow-xl custom-scrollbar">
                     {filtered.length === 0 ? (
-                        <div className="px-4 py-3 text-[11px] font-black uppercase tracking-widest text-surface-400">No positions found</div>
+                        <div className="px-3 py-2 text-[11px] font-semibold text-[#605E5C]">No positions found</div>
                     ) : (
                         filtered.map(p => (
                             <button
@@ -131,9 +176,10 @@ function SearchablePositionSelect({ positions, value, onChange }: { positions: P
                                     setSearch(`${p.title} - ${p.department}`);
                                     setOpen(false);
                                 }}
-                                className="w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-surface-50 focus:bg-surface-50 focus:outline-none border-b border-surface-100 last:border-0"
+                                className="w-full text-left px-3 py-2 text-xs font-medium hover:bg-[#EFF6FF] focus:bg-[#EFF6FF] focus:outline-none border-b border-[#F3F2F1] last:border-0 flex items-center justify-between transition-colors"
                             >
-                                {p.title} <span className="text-surface-400 text-xs">- {p.department}</span>
+                                <span className="text-[#242424]">{p.title}</span>
+                                <span className="text-[#605E5C] text-[11px]">{p.department}</span>
                             </button>
                         ))
                     )}
@@ -145,9 +191,9 @@ function SearchablePositionSelect({ positions, value, onChange }: { positions: P
 
 const PROCESS_STEPS = [
     { id: 'TYPING_TEST', label: 'Typing Test Assessment' },
-    { id: 'INITIAL_INTERVIEW', label: 'Initial Recruitment Interview' },
+    { id: 'INITIAL_INTERVIEW', label: 'Initial Interview' },
+    { id: 'ACCOUNT_ASSIGNMENT', label: 'Operations Validation (Final Interview)' },
     { id: 'ASSESSMENT', label: 'Technical / Skills Assessment' },
-    { id: 'OPS_VALIDATION', label: 'Operations Validation (Final Interview)' },
     { id: 'CLIENT_ASSESSMENT', label: 'Client Assessment' },
     { id: 'CLIENT_INTERVIEW', label: 'Client Interview Evaluation' }
 ];
@@ -160,8 +206,8 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
     const [selectedPositionId, setSelectedPositionId] = useState<string>('');
     const [submitting, setSubmitting] = useState(false);
     
-    // Online Interview Toggle & Room selection state
-    const [isOnlineInterview, setIsOnlineInterview] = useState(false);
+    // Interview Mode & Room selection state
+    const [interviewMode, setInterviewMode] = useState<'MANUAL' | 'ONLINE' | 'ONSITE' | 'ONCALL'>('MANUAL');
     const [selectedRoomId, setSelectedRoomId] = useState<string>('');
     
     // Typing Test Variables
@@ -169,20 +215,32 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
     const [accuracy, setAccuracy] = useState<string>('');
     const [duration, setDuration] = useState<string>('');
 
-    // Recruitment process stages checklist with Pass/Fail/Skip settings
+    // Initial process stages checklist with Pass/Fail/Skip settings
     const [processSettings, setProcessSettings] = useState<Record<string, 'PENDING' | 'PASSED' | 'FAILED' | 'SKIPPED'>>({});
     const [processOrder, setProcessOrder] = useState<string[]>([]);
 
     const [form, setForm] = useState({
         full_name: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        preferred_nickname: '',
         email: '',
         phone: '',
         birth_date: '',
-        gender: '',
+        sex: '',
         civil_status: '',
         nationality: '',
+        place_of_birth: '',
+        religion: '',
         current_address: '',
         permanent_address: '',
+        sss_no: '',
+        tin_no: '',
+        pagibig_no: '',
+        philhealth_no: '',
+        bpo_experience_tenure: '',
+        salary_expectation: '',
         highest_education: '',
         school_name: '',
         degree: '',
@@ -201,11 +259,18 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                 setPositions(items);
             });
             useRoomStore.getState().loadRooms(true);
-            setIsOnlineInterview(false);
+            setInterviewMode('MANUAL');
             setSelectedRoomId('');
             // Reset form
             setForm({
-                full_name: '', email: '', phone: '', birth_date: '', gender: '', civil_status: '', nationality: '', current_address: '', permanent_address: '', highest_education: '', school_name: '', degree: '', graduation_year: '', emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '', source: 'MANUAL_ENTRY'
+                full_name: '', first_name: '', middle_name: '', last_name: '', preferred_nickname: '',
+                email: '', phone: '', birth_date: '', sex: '', civil_status: '', nationality: '',
+                place_of_birth: '', religion: '', current_address: '', permanent_address: '',
+                sss_no: '', tin_no: '', pagibig_no: '', philhealth_no: '',
+                bpo_experience_tenure: '', salary_expectation: '',
+                highest_education: '', school_name: '', degree: '', graduation_year: '',
+                emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '',
+                source: 'MANUAL_ENTRY'
             });
             setWorkExperience([{ ...EMPTY_EXPERIENCE }]);
             setSelectedPositionId('');
@@ -218,8 +283,8 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
             setProcessOrder([
                 'TYPING_TEST',
                 'INITIAL_INTERVIEW',
+                'ACCOUNT_ASSIGNMENT',
                 'ASSESSMENT',
-                'OPS_VALIDATION',
                 'CLIENT_ASSESSMENT',
                 'CLIENT_INTERVIEW'
             ]);
@@ -227,7 +292,15 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
     }, [open]);
 
     const updateForm = (key: keyof typeof form, value: string) => {
-        setForm((current) => ({ ...current, [key]: value }));
+        setForm((current) => {
+            const next = { ...current, [key]: value };
+            // Auto sync full_name if user types first, middle, or last name
+            if (key === 'first_name' || key === 'middle_name' || key === 'last_name') {
+                const combined = `${next.first_name} ${next.middle_name} ${next.last_name}`.replace(/\s+/g, ' ').trim();
+                next.full_name = combined;
+            }
+            return next;
+        });
     };
 
     const updateExperience = (index: number, key: keyof WorkExperience, value: string) => {
@@ -244,28 +317,41 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
     const submit = async () => {
         const selectedPosition = positions.find((p) => p.id === selectedPositionId);
         if (!selectedPosition) {
-            error('Position Required', 'Please choose a position for this candidate.');
+            error('Position Required', 'Please choose a target position for this candidate.');
             return;
         }
-        if (!form.full_name.trim() || !form.email.trim()) {
-            error('Missing Info', 'Full name and email are strictly required.');
+        
+        const candidateFullName = form.full_name.trim() || `${form.first_name} ${form.middle_name} ${form.last_name}`.replace(/\s+/g, ' ').trim();
+        
+        if (!candidateFullName || !form.email.trim()) {
+            error('Missing Information', 'Full candidate name and email address are strictly required.');
             return;
         }
-        if (isOnlineInterview && !selectedRoomId) {
-            error('Room Required', 'Please select an available interview room.');
+        if ((interviewMode === 'ONLINE' || interviewMode === 'ONSITE') && !selectedRoomId) {
+            error('Room Required', 'Please select an active interview room for this mode.');
             return;
         }
 
         setSubmitting(true);
         try {
-            // Compute initial status and PIS values based on settings
-            let currentStatus = isOnlineInterview ? 'INTERVIEW_IN_PROGRESS' : 'APPLIED';
-            const dept = (selectedPosition.department || '').toUpperCase();
+            let currentStatus = (interviewMode !== 'MANUAL') ? 'INTERVIEW_IN_PROGRESS' : 'APPLIED';
             
             const updatedPis: any = {
                 ...form,
-                full_name: form.full_name.trim(),
+                full_name: formatCandidateName(candidateFullName),
+                first_name: form.first_name.trim() || undefined,
+                middle_name: form.middle_name.trim() || undefined,
+                last_name: form.last_name.trim() || undefined,
+                preferred_nickname: form.preferred_nickname.trim() || undefined,
                 email: form.email.trim().toLowerCase(),
+                place_of_birth: form.place_of_birth.trim() || undefined,
+                religion: form.religion.trim() || undefined,
+                sss_no: form.sss_no.trim() || undefined,
+                tin_no: form.tin_no.trim() || undefined,
+                pagibig_no: form.pagibig_no.trim() || undefined,
+                philhealth_no: form.philhealth_no.trim() || undefined,
+                bpo_experience_tenure: form.bpo_experience_tenure.trim() || undefined,
+                salary_expectation: form.salary_expectation.trim() || undefined,
                 graduation_year: form.graduation_year ? Number(form.graduation_year) : undefined,
                 work_experience: workExperience.filter((item) => Object.values(item).some(Boolean)),
                 skills: [],
@@ -282,8 +368,8 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                 process_order: processOrder
             };
 
-            if (isOnlineInterview) {
-                updatedMetadata.interview_mode = 'ONLINE';
+            if (interviewMode !== 'MANUAL') {
+                updatedMetadata.interview_mode = interviewMode;
                 updatedMetadata.active_interview_type = 'INITIAL';
                 updatedPis.process_settings = {
                     ...processSettings,
@@ -291,17 +377,15 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                 };
             }
 
-            // Let's determine if any stage is failed
             const firstFailedId = processOrder.find(stepId => processSettings[stepId] === 'FAILED');
-            if (firstFailedId && !isOnlineInterview) {
-                // If any stage is failed, the candidate fails at that stage
+            if (firstFailedId && interviewMode === 'MANUAL') {
                 if (firstFailedId === 'TYPING_TEST') {
                     currentStatus = 'FAILED';
                     updatedPis.final_specific_status = 'Typing Test - Failed';
                     updatedPis.final_interview_result = 'FAILED';
                 } else if (firstFailedId === 'INITIAL_INTERVIEW') {
                     currentStatus = 'FAILED';
-                    updatedPis.final_specific_status = 'Recruitment Interview - Failed';
+                    updatedPis.final_specific_status = 'Initial Interview - Failed';
                     updatedPis.final_interview_result = 'FAILED';
                     updatedPis.initial_interview_result = 'Failed';
                     updatedPis.initial_interview_results = 'Failed';
@@ -309,7 +393,7 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                     currentStatus = 'FAILED';
                     updatedPis.final_specific_status = 'Personality Test - Failed';
                     updatedPis.final_interview_result = 'FAILED';
-                } else if (firstFailedId === 'OPS_VALIDATION') {
+                } else if (firstFailedId === 'ACCOUNT_ASSIGNMENT') {
                     currentStatus = 'FAILED';
                     updatedPis.final_specific_status = 'OV - Failed';
                     updatedPis.final_interview_result = 'FAILED';
@@ -325,8 +409,7 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                     updatedPis.final_interview_result = 'FAILED';
                     updatedPis.client_interview_status = 'Failed';
                 }
-            } else if (!isOnlineInterview) {
-                // Find the first pending stage in order
+            } else if (interviewMode === 'MANUAL') {
                 const firstPendingId = processOrder.find(stepId => processSettings[stepId] === 'PENDING');
                 if (firstPendingId) {
                     if (firstPendingId === 'TYPING_TEST') {
@@ -335,7 +418,7 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                         currentStatus = 'INITIAL_INTERVIEW';
                     } else if (firstPendingId === 'ASSESSMENT') {
                         currentStatus = 'ASSESSMENT';
-                    } else if (firstPendingId === 'OPS_VALIDATION') {
+                    } else if (firstPendingId === 'ACCOUNT_ASSIGNMENT') {
                         currentStatus = 'FINAL_INTERVIEW';
                     } else if (firstPendingId === 'CLIENT_ASSESSMENT') {
                         currentStatus = 'CLIENT_ASSESSMENT';
@@ -343,13 +426,11 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                         currentStatus = 'CLIENT_INTERVIEW';
                     }
                 } else {
-                    // If everything is passed or skipped, they pass!
                     currentStatus = 'PASSED';
                     updatedPis.final_specific_status = 'JO - Pending';
                     updatedPis.final_interview_result = 'PASSED';
                 }
 
-                // Fill results for PASSED stages
                 PROCESS_STEPS.forEach(step => {
                     if (processSettings[step.id] === 'PASSED') {
                         if (step.id === 'TYPING_TEST') {
@@ -361,7 +442,7 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                             updatedPis.initial_interview_results = 'Passed';
                         } else if (step.id === 'ASSESSMENT') {
                             updatedPis.assessment_score = 85;
-                        } else if (step.id === 'OPS_VALIDATION') {
+                        } else if (step.id === 'ACCOUNT_ASSIGNMENT') {
                             updatedPis.ops_validator_status = 'Passed';
                             updatedPis.final_interview_result = 'PASSED';
                         } else if (step.id === 'CLIENT_ASSESSMENT') {
@@ -382,7 +463,7 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
 
             const createdApp = await ApplicationService.submit({
                 applicant_id: applicantId(),
-                applicant_name: form.full_name.trim(),
+                applicant_name: candidateFullName,
                 applicant_email: form.email.trim().toLowerCase(),
                 position: selectedPosition,
                 resume_name: 'Manual Entry (No File)',
@@ -399,8 +480,7 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                     metadata: updatedMetadata
                 });
 
-                if (isOnlineInterview) {
-                    // 2. Assign applicant to the room
+                if ((interviewMode === 'ONLINE' || interviewMode === 'ONSITE') && selectedRoomId) {
                     await useRoomStore.getState().updateRoom(selectedRoomId, {
                         status: 'OCCUPIED',
                         current_application_id: createdApp.id,
@@ -410,11 +490,10 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                 }
             }
 
-            success('Candidate Added', `${form.full_name} has been manually added to the pipeline.`);
+            success('Candidate Created', `${candidateFullName} was successfully registered.`);
             onSuccess();
             
-            if (isOnlineInterview && createdApp && createdApp.id) {
-                 // Navigate to interview rooms with autoOpenRoomId
+            if ((interviewMode === 'ONLINE' || interviewMode === 'ONSITE') && createdApp && createdApp.id && selectedRoomId) {
                  const basePath = location.pathname.startsWith('/admin') ? '/admin' : '/recruiter';
                  navigate(`${basePath}/interview/rooms`, { 
                      state: { autoOpenRoomId: selectedRoomId } 
@@ -450,21 +529,36 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
         setWpm('72');
         setAccuracy('98');
         setDuration('60');
+        const firstName = char.full_name.split(' ')[0] || 'Johnny';
+        const lastName = char.full_name.split(' ').slice(1).join(' ') || 'Silverhand';
+        
         setForm({
             full_name: char.full_name,
-            email: `${char.nick_name.toLowerCase()}.${Date.now()}@example.com`,
+            first_name: firstName,
+            middle_name: 'V',
+            last_name: lastName,
+            preferred_nickname: char.nick_name || firstName,
+            email: `${(char.nick_name || 'johnny').toLowerCase()}.${Date.now()}@example.com`,
             phone: '+63 917 123 4567',
             birth_date: '1992-04-20',
-            gender: char.gender,
+            sex: char.sex || 'Male',
             civil_status: 'Single',
             nationality: 'Filipino',
+            place_of_birth: 'Cebu City',
+            religion: 'Catholic',
             current_address: '123 Alpha St, IT Park, Lahug, Cebu City',
             permanent_address: '123 Alpha St, IT Park, Lahug, Cebu City',
+            sss_no: '34-1234567-8',
+            tin_no: '123-456-789-000',
+            pagibig_no: '1212-3434-5656',
+            philhealth_no: '12-345678901-2',
+            bpo_experience_tenure: '2 Years',
+            salary_expectation: '25,000 PHP',
             highest_education: 'College Graduate',
             school_name: 'University of San Carlos',
             degree: 'BS Information Technology',
             graduation_year: '2014',
-            emergency_contact_name: 'Robert Doe',
+            emergency_contact_name: 'Robert Silverhand',
             emergency_contact_phone: '+63 918 765 4321',
             emergency_contact_relationship: 'Father',
             source: 'MANUAL_ENTRY'
@@ -474,24 +568,41 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
             position: char.position,
             duration_from: '2018-01',
             duration_to: '2023-12',
+            exit_reason: 'Career Advancement',
             description: char.description
         }]);
     };
 
     return (
-        <Modal open={open} onClose={onClose} title="Add Candidate (Manual Entry)" size="xl">
-            <div className="flex flex-col gap-8 max-h-[75vh] overflow-y-auto pr-4 custom-scrollbar">
-                
-
-                {/* 1. Core Assignment */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-2 border-b border-surface-200 pb-2">
-                        <span className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-sm">1</span>
-                        <h2 className="text-[11px] font-black uppercase tracking-widest text-surface-900">Role Assignment</h2>
+        <Modal 
+            open={open} 
+            onClose={onClose} 
+            title={
+                <div className="flex items-center gap-2.5">
+                    <div className="w-5 h-5 bg-[#0078D4] text-white flex items-center justify-center rounded-none font-bold text-xs shrink-0 shadow-2xs">
+                        +
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <label className="block space-y-1.5 md:col-span-2 relative">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-surface-500">Target Position *</span>
+                    <span className="text-[13px] font-semibold text-[#242424] tracking-tight">Add Candidate (Manual Entry)</span>
+                </div>
+            }
+            size="xl"
+            className="rounded-none border border-[#D1D5DB] shadow-2xl overflow-hidden font-sans"
+            headerClassName="bg-white dark:bg-slate-900 border-b border-[#E1DFDD] px-6 py-3.5"
+            closeButtonClassName="text-[#605E5C] hover:bg-[#F3F2F1] hover:text-[#242424] rounded-none transition-colors p-1"
+        >
+            <div className="flex flex-col gap-6 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar text-[#242424] p-1">
+                
+                {/* 1. Target Position */}
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">1</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Role Assignment</h2>
+                    </div>
+                    <div className="grid gap-3">
+                        <label className="block space-y-1 relative">
+                            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[#605E5C] flex items-center gap-1">
+                                Target Position <span className="text-[#D13438] font-bold">*</span>
+                            </span>
                             <SearchablePositionSelect 
                                 positions={positions} 
                                 value={selectedPositionId} 
@@ -502,104 +613,142 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                 </section>
 
                 {/* 2. Personal Information */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-2 border-b border-surface-200 pb-2">
-                        <span className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-sm">2</span>
-                        <h2 className="text-[11px] font-black uppercase tracking-widest text-surface-900">Personal Information</h2>
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">2</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Personal Information (PIS Details)</h2>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <Field label="Full Name *" value={form.full_name} onChange={(value) => updateForm('full_name', value)} />
-                        <Field label="Email Address *" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
-                        <Field label="Phone Number" value={form.phone} onChange={(value) => updateForm('phone', value)} />
-                        
-                        <Field label="Birth Date" type="date" value={form.birth_date} onChange={(value) => updateForm('birth_date', value)} />
-                        <SelectField label="Gender" value={form.gender} onChange={(value) => updateForm('gender', value)} options={GENDER_OPTIONS} />
-                        <SelectField label="Civil Status" value={form.civil_status} onChange={(value) => updateForm('civil_status', value)} options={CIVIL_STATUS_OPTIONS} />
-                        
-                        <Field label="Nationality" value={form.nationality} onChange={(value) => updateForm('nationality', value)} />
-                        <Field label="Current Address" value={form.current_address} onChange={(value) => updateForm('current_address', value)} />
-                        <Field label="Permanent Address" value={form.permanent_address} onChange={(value) => updateForm('permanent_address', value)} />
+                    
+                    <div className="grid gap-3 md:grid-cols-4">
+                        <Field label="First Name" value={form.first_name} onChange={(val) => updateForm('first_name', val)} placeholder="e.g. Johnny" />
+                        <Field label="Middle Name" value={form.middle_name} onChange={(val) => updateForm('middle_name', val)} placeholder="e.g. V." />
+                        <Field label="Last Name" value={form.last_name} onChange={(val) => updateForm('last_name', val)} placeholder="e.g. Silverhand" />
+                        <Field label="Preferred Nickname" value={form.preferred_nickname} onChange={(val) => updateForm('preferred_nickname', val)} placeholder="e.g. Johnny" />
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                        <Field label="Full Name" required value={form.full_name} onChange={(val) => updateForm('full_name', val)} placeholder="Full legal name" />
+                        <Field label="Email Address" required type="email" value={form.email} onChange={(val) => updateForm('email', val)} placeholder="name@example.com" />
+                        <Field label="Phone Number" value={form.phone} onChange={(val) => updateForm('phone', val)} placeholder="+63 9XX XXX XXXX" />
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-4">
+                        <Field label="Birth Date" type="date" value={form.birth_date} onChange={(val) => updateForm('birth_date', val)} />
+                        <SelectField label="Sex" value={form.sex} onChange={(val) => updateForm('sex', val)} options={GENDER_OPTIONS} />
+                        <SelectField label="Civil Status" value={form.civil_status} onChange={(val) => updateForm('civil_status', val)} options={CIVIL_STATUS_OPTIONS} />
+                        <Field label="Nationality" value={form.nationality} onChange={(val) => updateForm('nationality', val)} placeholder="Filipino" />
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="Place of Birth" value={form.place_of_birth} onChange={(val) => updateForm('place_of_birth', val)} placeholder="City / Province" />
+                        <Field label="Religion" value={form.religion} onChange={(val) => updateForm('religion', val)} placeholder="e.g. Roman Catholic" />
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="Current Address" value={form.current_address} onChange={(val) => updateForm('current_address', val)} placeholder="Present residential address" />
+                        <Field label="Permanent Address" value={form.permanent_address} onChange={(val) => updateForm('permanent_address', val)} placeholder="Home address" />
                     </div>
                 </section>
 
-                {/* 3. Typing Test Variables */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-2 border-b border-surface-200 pb-2">
-                        <span className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-sm">3</span>
-                        <h2 className="text-[11px] font-black uppercase tracking-widest text-surface-900">Typing Test Data (Optional)</h2>
+                {/* 3. Government IDs & Tenure */}
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">3</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Government IDs & Tenure</h2>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-4">
+                        <Field label="SSS No." value={form.sss_no} onChange={(val) => updateForm('sss_no', val)} placeholder="XX-XXXXXXX-X" />
+                        <Field label="TIN No." value={form.tin_no} onChange={(val) => updateForm('tin_no', val)} placeholder="XXX-XXX-XXX-000" />
+                        <Field label="Pag-IBIG No." value={form.pagibig_no} onChange={(val) => updateForm('pagibig_no', val)} placeholder="XXXX-XXXX-XXXX" />
+                        <Field label="PhilHealth No." value={form.philhealth_no} onChange={(val) => updateForm('philhealth_no', val)} placeholder="XX-XXXXXXXXX-X" />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="BPO Experience Tenure" value={form.bpo_experience_tenure} onChange={(val) => updateForm('bpo_experience_tenure', val)} placeholder="e.g. 2 Years 6 Months" />
+                        <Field label="Expected Salary" value={form.salary_expectation} onChange={(val) => updateForm('salary_expectation', val)} placeholder="e.g. 25,000 PHP" />
+                    </div>
+                </section>
+
+                {/* 4. Typing Test Data */}
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">4</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Typing Test Data (Optional)</h2>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-3">
                         <Field label="WPM" type="number" value={wpm} onChange={setWpm} placeholder="e.g. 65" />
                         <Field label="Accuracy (%)" type="number" value={accuracy} onChange={setAccuracy} placeholder="e.g. 98" />
                         <Field label="Duration (Seconds)" type="number" value={duration} onChange={setDuration} placeholder="e.g. 60" />
                     </div>
                 </section>
 
-                {/* 4. Education */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-2 border-b border-surface-200 pb-2">
-                        <span className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-sm">4</span>
-                        <h2 className="text-[11px] font-black uppercase tracking-widest text-surface-900">Education Details</h2>
+                {/* 5. Education Details */}
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">5</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Education Details</h2>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <SelectField label="Highest Education" value={form.highest_education} onChange={(value) => updateForm('highest_education', value)} options={EDUCATION_LEVELS} />
-                        <Field label="School / University" value={form.school_name} onChange={(value) => updateForm('school_name', value)} />
-                        <Field label="Degree / Course Strand" value={form.degree} onChange={(value) => updateForm('degree', value)} />
-                        <Field label="Graduation Year" type="number" value={form.graduation_year} onChange={(value) => updateForm('graduation_year', value)} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <SelectField label="Highest Education" value={form.highest_education} onChange={(val) => updateForm('highest_education', val)} options={EDUCATION_LEVELS} />
+                        <Field label="School / University" value={form.school_name} onChange={(val) => updateForm('school_name', val)} placeholder="Name of institution" />
+                        <Field label="Degree / Course Strand" value={form.degree} onChange={(val) => updateForm('degree', val)} placeholder="e.g. BS Computer Science" />
+                        <Field label="Graduation Year" type="number" value={form.graduation_year} onChange={(val) => updateForm('graduation_year', val)} placeholder="e.g. 2022" />
                     </div>
                 </section>
 
-                {/* 5. Work Experience */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-2 border-b border-surface-200 pb-2">
-                        <span className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-sm">5</span>
-                        <h2 className="text-[11px] font-black uppercase tracking-widest text-surface-900">Work Experience</h2>
+                {/* 6. Work Experience */}
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">6</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Work Experience</h2>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {workExperience.map((item, index) => (
-                            <div key={index} className="grid gap-3 rounded-sm border border-surface-200 bg-surface-50 p-4 relative">
+                            <div key={index} className="grid gap-3 border border-[#E1DFDD] bg-white dark:bg-slate-900 p-3.5 rounded-none relative">
                                 <div className="grid gap-3 md:grid-cols-2">
-                                    <Field label="Company" value={item.company} onChange={(value) => updateExperience(index, 'company', value)} />
-                                    <Field label="Position" value={item.position} onChange={(value) => updateExperience(index, 'position', value)} />
-                                    <Field label="Start Date" type="month" value={item.duration_from} onChange={(value) => updateExperience(index, 'duration_from', value)} />
-                                    <Field label="End Date" type="month" value={item.duration_to} onChange={(value) => updateExperience(index, 'duration_to', value)} />
+                                    <Field label="Company" value={item.company} onChange={(val) => updateExperience(index, 'company', val)} placeholder="Company Name" />
+                                    <Field label="Position" value={item.position} onChange={(val) => updateExperience(index, 'position', val)} placeholder="Role Title" />
+                                    <Field label="Start Date" type="month" value={item.duration_from} onChange={(val) => updateExperience(index, 'duration_from', val)} />
+                                    <Field label="End Date" type="month" value={item.duration_to} onChange={(val) => updateExperience(index, 'duration_to', val)} />
                                 </div>
-                                <Field label="Responsibilities / Notes" value={item.description} onChange={(value) => updateExperience(index, 'description', value)} textarea />
+                                <div className="grid gap-3 md:grid-cols-2">
+                                    <Field label="Reason for Leaving" value={item.exit_reason || ''} onChange={(val) => updateExperience(index, 'exit_reason', val)} placeholder="e.g. Career Growth" />
+                                </div>
+                                <Field label="Responsibilities / Notes" value={item.description} onChange={(val) => updateExperience(index, 'description', val)} textarea placeholder="Key duties and achievements..." />
                             </div>
                         ))}
                         <button
                             type="button"
                             onClick={() => setWorkExperience((current) => [...current, { ...EMPTY_EXPERIENCE }])}
-                            className="rounded-none border border-surface-300 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-surface-600 hover:bg-black hover:text-white hover:border-black transition-all"
+                            className="border border-[#0078D4] text-[#0078D4] bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold hover:bg-[#EFF6FF] transition-all rounded-none cursor-pointer flex items-center gap-1.5"
                         >
-                            + Add Another Experience
+                            + Add Experience Entry
                         </button>
                     </div>
                 </section>
 
-                {/* 6. Emergency Contact */}
-                <section className="space-y-4 pb-8">
-                    <div className="flex items-center gap-2 border-b border-surface-200 pb-2">
-                        <span className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-sm">6</span>
-                        <h2 className="text-[11px] font-black uppercase tracking-widest text-surface-900">Emergency Contact</h2>
+                {/* 7. Emergency Contact */}
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">7</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Emergency Contact</h2>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <Field label="Contact Name" value={form.emergency_contact_name} onChange={(value) => updateForm('emergency_contact_name', value)} />
-                        <Field label="Phone Number" value={form.emergency_contact_phone} onChange={(value) => updateForm('emergency_contact_phone', value)} />
-                        <Field label="Relationship" value={form.emergency_contact_relationship} onChange={(value) => updateForm('emergency_contact_relationship', value)} />
+                    <div className="grid gap-3 md:grid-cols-3">
+                        <Field label="Contact Person" value={form.emergency_contact_name} onChange={(val) => updateForm('emergency_contact_name', val)} placeholder="Full Name" />
+                        <Field label="Phone Number" value={form.emergency_contact_phone} onChange={(val) => updateForm('emergency_contact_phone', val)} placeholder="+63 9XX XXX XXXX" />
+                        <Field label="Relationship" value={form.emergency_contact_relationship} onChange={(val) => updateForm('emergency_contact_relationship', val)} placeholder="e.g. Parent / Spouse" />
                     </div>
                 </section>
 
-                {/* 7. Recruitment Process Checklist */}
-                <section className="space-y-4 pb-8">
-                    <div className="flex items-center gap-2 border-b border-surface-200 pb-2">
-                        <span className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-sm">7</span>
-                        <h2 className="text-[11px] font-black uppercase tracking-widest text-surface-900">Recruitment Process Checklist</h2>
+                {/* 8. Initial Process Checklist */}
+                <section className="bg-[#F9FAFB] border border-[#E1DFDD] p-4 rounded-none space-y-3">
+                    <div className="flex items-center gap-2 border-b border-[#E1DFDD] pb-2">
+                        <span className="bg-[#0078D4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-none shrink-0">8</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#242424]">Initial Process Checklist</h2>
                     </div>
-                    <p className="text-[10px] text-surface-400 font-bold uppercase tracking-wider">
-                        Configure the evaluation stages and starting status for this candidate:
+                    <p className="text-[11px] text-[#605E5C] font-normal">
+                        Configure candidate evaluation stage outcomes and starting workflow sequence:
                     </p>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         {(() => {
                             let seq = 1;
                             return processOrder.map((stepId, idx) => {
@@ -609,50 +758,50 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                                 const isActive = currentVal !== 'SKIPPED';
                                 const stepNum = isActive ? seq++ : null;
                                 return (
-                                    <div key={step.id} className="flex flex-col gap-3 p-3 rounded-sm border border-surface-200 bg-surface-50 transition-all">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div key={step.id} className="flex flex-col gap-2 p-2.5 rounded-none border border-[#E1DFDD] bg-white dark:bg-slate-900 transition-all">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
-                                                {/* Reorder Up/Down Controls */}
-                                                <div className="flex flex-col gap-0.5 select-none mr-1">
+                                                <div className="flex items-center gap-0.5 shrink-0 select-none">
                                                     <button
                                                         type="button"
                                                         onClick={() => moveStep(idx, 'up')}
                                                         disabled={idx === 0}
                                                         title="Move Up"
-                                                        className="text-[9px] hover:text-black text-surface-400 disabled:opacity-20 cursor-pointer p-0.5 leading-none transition-colors"
+                                                        className="text-[#605E5C] hover:text-[#0078D4] disabled:opacity-20 cursor-pointer p-0.5 transition-colors"
                                                     >
-                                                        ▲
+                                                        <ArrowUp size={12} />
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => moveStep(idx, 'down')}
                                                         disabled={idx === processOrder.length - 1}
                                                         title="Move Down"
-                                                        className="text-[9px] hover:text-black text-surface-400 disabled:opacity-20 cursor-pointer p-0.5 leading-none transition-colors"
+                                                        className="text-[#605E5C] hover:text-[#0078D4] disabled:opacity-20 cursor-pointer p-0.5 transition-colors"
                                                     >
-                                                        ▼
+                                                        <ArrowDown size={12} />
                                                     </button>
                                                 </div>
                                                 {stepNum ? (
-                                                    <span className="w-5 h-5 rounded-full bg-black text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                                                    <span className="w-4 h-4 bg-[#0078D4] text-white text-[10px] font-bold flex items-center justify-center shrink-0 rounded-none">
                                                         {stepNum}
                                                     </span>
                                                 ) : (
-                                                    <span className="w-5 h-5 rounded-full bg-surface-200 text-surface-400 text-[10px] font-black flex items-center justify-center shrink-0">
+                                                    <span className="w-4 h-4 bg-[#E1DFDD] text-[#605E5C] text-[10px] font-bold flex items-center justify-center shrink-0 rounded-none">
                                                         —
                                                     </span>
                                                 )}
-                                                <span className={`text-xs font-bold transition-all ${isActive ? 'text-surface-800' : 'text-surface-450 line-through'}`}>{step.label}</span>
+                                                <span className={`text-xs font-semibold transition-all ${isActive ? 'text-[#242424]' : 'text-[#a19f9d] line-through'}`}>{step.label}</span>
                                             </div>
-                                            {!(step.id === 'INITIAL_INTERVIEW' && isOnlineInterview) ? (
-                                                <div className="flex border border-surface-200 rounded-sm overflow-hidden text-[10px] font-black uppercase tracking-wider bg-white shrink-0">
+
+                                            {!(step.id === 'INITIAL_INTERVIEW' && interviewMode !== 'MANUAL') ? (
+                                                <div className="flex border border-[#D1D5DB] rounded-none overflow-hidden text-[11px] font-semibold bg-white dark:bg-slate-900 shrink-0">
                                                     <button
                                                         type="button"
                                                         onClick={() => setProcessSettings(prev => ({ ...prev, [step.id]: 'PENDING' }))}
-                                                        className={`px-3 py-1.5 cursor-pointer transition-all border-r border-surface-200 ${
+                                                        className={`px-3 py-1 cursor-pointer transition-all border-r border-[#D1D5DB] ${
                                                             currentVal === 'PENDING' 
-                                                                ? 'bg-surface-800 text-white' 
-                                                                : 'text-surface-600 hover:bg-surface-50'
+                                                                ? 'bg-[#0078D4] text-white' 
+                                                                : 'text-[#242424] hover:bg-[#F3F2F1]'
                                                         }`}
                                                     >
                                                         Pending
@@ -666,10 +815,10 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                                                                 setSelectedRoomId('');
                                                             }
                                                         }}
-                                                        className={`px-3 py-1.5 cursor-pointer transition-all border-r border-surface-200 ${
+                                                        className={`px-3 py-1 cursor-pointer transition-all border-r border-[#D1D5DB] ${
                                                             currentVal === 'PASSED' 
-                                                                ? 'bg-emerald-600 text-white' 
-                                                                : 'text-surface-600 hover:bg-surface-50'
+                                                                ? 'bg-[#107C41] text-white' 
+                                                                : 'text-[#242424] hover:bg-[#F3F2F1]'
                                                         }`}
                                                     >
                                                         Pass
@@ -683,10 +832,10 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                                                                 setSelectedRoomId('');
                                                             }
                                                         }}
-                                                        className={`px-3 py-1.5 cursor-pointer transition-all border-r border-surface-200 ${
+                                                        className={`px-3 py-1 cursor-pointer transition-all border-r border-[#D1D5DB] ${
                                                             currentVal === 'FAILED' 
-                                                                ? 'bg-rose-600 text-white' 
-                                                                : 'text-surface-600 hover:bg-surface-50'
+                                                                ? 'bg-[#D13438] text-white' 
+                                                                : 'text-[#242424] hover:bg-[#F3F2F1]'
                                                         }`}
                                                     >
                                                         Fail
@@ -700,43 +849,43 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                                                                 setSelectedRoomId('');
                                                             }
                                                         }}
-                                                        className={`px-3 py-1.5 cursor-pointer transition-all last:border-r-0 ${
+                                                        className={`px-3 py-1 cursor-pointer transition-all last:border-r-0 ${
                                                             currentVal === 'SKIPPED' 
-                                                                ? 'bg-amber-600 text-white' 
-                                                                : 'text-surface-600 hover:bg-surface-50'
+                                                                ? 'bg-[#F2C811] text-[#242424] font-bold' 
+                                                                : 'text-[#242424] hover:bg-[#F3F2F1]'
                                                         }`}
                                                     >
                                                         Skip
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-purple-700 bg-purple-50 px-2.5 py-1.5 rounded-sm border border-purple-200 select-none shrink-0">
-                                                    Online Interview Mode
+                                                <span className="text-[10px] font-semibold text-[#0078D4] bg-[#EFF6FF] px-2.5 py-1 rounded-none border border-[#0078D4] shrink-0">
+                                                    Direct Interview Mode Active
                                                 </span>
                                             )}
                                         </div>
                                         {step.id === 'INITIAL_INTERVIEW' && currentVal === 'PENDING' && (
-                                            <div className="mt-1 pt-3 border-t border-dashed border-surface-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300">
+                                            <div className="mt-1 pt-2.5 border-t border-dashed border-[#E1DFDD] flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
                                                 <div className="space-y-0.5 text-left">
-                                                    <h4 className="text-[10px] font-black text-purple-950 uppercase tracking-widest flex items-center gap-1.5">
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                                        Conduct Online Interview Directly
+                                                    <h4 className="text-[11px] font-semibold text-[#0078D4] flex items-center gap-1.5">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-[#0078D4] animate-pulse" />
+                                                        Interview Mode
                                                     </h4>
-                                                    <p className="text-[9px] font-bold text-purple-700/80 uppercase tracking-wider leading-relaxed">
-                                                        Manually register and immediately launch an active online interview session in a selected room
+                                                    <p className="text-[10.5px] font-normal text-[#605E5C]">
+                                                        Start an active interview session or just create the candidate
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-3 shrink-0">
-                                                    {isOnlineInterview && (
-                                                        <div className="relative w-60 text-left">
+                                                    {(interviewMode === 'ONLINE' || interviewMode === 'ONSITE') && (
+                                                        <div className="relative w-56 text-left">
                                                             <select
                                                                 value={selectedRoomId}
                                                                 onChange={(e) => setSelectedRoomId(e.target.value)}
-                                                                className="w-full bg-white border border-purple-200 text-[10px] px-2.5 py-1.5 rounded-md font-bold text-slate-700 outline-none focus:border-purple-500 transition-colors cursor-pointer appearance-none pr-7"
+                                                                className="w-full bg-white dark:bg-slate-900 border border-[#D1D5DB] text-xs px-2.5 py-1 rounded-none font-medium text-[#242424] outline-none focus:border-[#0078D4] transition-colors cursor-pointer appearance-none pr-7"
                                                             >
                                                                 <option value="">Select Interview Room...</option>
                                                                 {useRoomStore.getState().rooms
-                                                                    .filter(r => r.is_active && r.room_type === 'online')
+                                                                    .filter(r => r.is_active && (interviewMode === 'ONSITE' ? r.room_type === 'onsite' : r.room_type === 'online'))
                                                                     .map(r => (
                                                                         <option key={r.id} value={r.id}>
                                                                             {r.room_name} {r.status === 'OCCUPIED' ? `(Occupied - ${r.current_applicant_name || 'Active'})` : '(Available)'}
@@ -744,28 +893,37 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                                                                     ))
                                                                 }
                                                             </select>
-                                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-purple-400 text-[8px]">
-                                                                ▼
+                                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#605E5C]">
+                                                                <ChevronDown size={12} />
                                                             </div>
                                                         </div>
                                                     )}
-                                                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isOnlineInterview}
+                                                    <div className="relative w-40 text-left">
+                                                        <select
+                                                            value={interviewMode}
                                                             onChange={(e) => {
-                                                                setIsOnlineInterview(e.target.checked);
-                                                                if (e.target.checked) {
-                                                                    const avail = useRoomStore.getState().rooms.find(r => r.status === 'AVAILABLE' && r.is_active && r.room_type === 'online');
+                                                                const mode = e.target.value as any;
+                                                                setInterviewMode(mode);
+                                                                if (mode === 'ONLINE' || mode === 'ONSITE') {
+                                                                    const targetType = mode === 'ONSITE' ? 'onsite' : 'online';
+                                                                    const avail = useRoomStore.getState().rooms.find(r => r.status === 'AVAILABLE' && r.is_active && r.room_type === targetType);
                                                                     if (avail) setSelectedRoomId(avail.id);
+                                                                    else setSelectedRoomId('');
                                                                 } else {
                                                                     setSelectedRoomId('');
                                                                 }
                                                             }}
-                                                            className="sr-only peer"
-                                                        />
-                                                        <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-                                                    </label>
+                                                            className="w-full bg-[#0078D4] text-white border border-[#0078D4] text-xs px-2.5 py-1.5 rounded-none font-medium outline-none hover:bg-[#106EBE] transition-colors cursor-pointer appearance-none pr-7"
+                                                        >
+                                                            <option value="MANUAL">Manual Entry</option>
+                                                            <option value="ONLINE">Online Interview</option>
+                                                            <option value="ONSITE">Onsite Interview</option>
+                                                            <option value="ONCALL">On-call Interview</option>
+                                                        </select>
+                                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-white">
+                                                            <ChevronDown size={12} />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -777,18 +935,12 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                 </section>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-surface-100">
-                <button
-                    type="button"
-                    onClick={handleDemoFill}
-                    className="px-6 py-2.5 text-[11px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-all mr-auto cursor-pointer"
-                >
-                    ⚡ Demo Fill
-                </button>
+            {/* Modal Actions Footer */}
+            <div className="mt-4 flex items-center justify-end gap-2 pt-3 border-t border-[#E1DFDD]">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-6 py-2.5 text-[11px] font-black text-surface-500 uppercase tracking-widest hover:text-black transition-all cursor-pointer"
+                    className="px-5 py-2 border border-[#D1D5DB] text-[#242424] hover:bg-[#F3F2F1] text-xs font-semibold rounded-none transition-all cursor-pointer"
                 >
                     Cancel
                 </button>
@@ -796,9 +948,9 @@ export function AddCandidateModal({ open, onClose, onSuccess }: AddCandidateModa
                     type="button"
                     onClick={submit}
                     disabled={submitting}
-                    className="px-8 py-2.5 bg-black text-white text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50 hover:bg-surface-800 cursor-pointer"
+                    className="px-6 py-2 bg-[#0078D4] hover:bg-[#106EBE] text-white text-xs font-semibold rounded-none shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
                 >
-                    {submitting ? 'Creating...' : 'Create Candidate'}
+                    {submitting ? 'Creating Candidate...' : 'Create Candidate'}
                 </button>
             </div>
         </Modal>

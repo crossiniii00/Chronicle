@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 
-const VITE_API_URL = import.meta.env.VITE_API_URL;
-const SOCKET_URL = VITE_API_URL ? new URL(VITE_API_URL).origin : window.location.origin;
+const SOCKET_URL = import.meta.env.DEV 
+    ? window.location.origin 
+    : (import.meta.env.VITE_API_URL || window.location.origin);
 
 class SocketService {
     private socket: Socket | null = null;
@@ -11,7 +12,7 @@ class SocketService {
 
         this.socket = io(SOCKET_URL, {
             withCredentials: true,
-            transports: ['websocket', 'polling']
+            transports: ['websocket']
         });
 
         this.socket.on('connect', () => {

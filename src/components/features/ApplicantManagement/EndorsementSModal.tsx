@@ -27,10 +27,10 @@ export function EndorsementSModal({ applicant, onClose, onSend }: EndorsementSMo
                 initial={{ opacity: 0, scale: 0.98, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 10 }}
-                className="relative w-full max-w-2xl bg-white rounded-lg shadow-premium border border-surface-200 overflow-hidden"
+                className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-lg shadow-premium border border-surface-200 overflow-hidden"
             >
                 {/* Microsoft Inspired Header */}
-                <div className="bg-white px-10 py-10 border-b border-surface-100 relative overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 px-10 py-10 border-b border-surface-100 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary-50 rounded-full -mr-32 -mt-32 blur-3xl opacity-60" />
                     
                     <div className="absolute top-6 right-6">
@@ -83,7 +83,7 @@ export function EndorsementSModal({ applicant, onClose, onSend }: EndorsementSMo
                         
                         <div className="p-6 border border-surface-200 rounded-md flex items-center justify-between hover:border-primary-300 transition-all bg-surface-50/30 group">
                             <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 bg-white border border-surface-200 rounded-md flex items-center justify-center font-bold text-primary-600 text-lg shadow-sm">
+                                <div className="w-14 h-14 bg-white dark:bg-slate-900 border border-surface-200 rounded-md flex items-center justify-center font-bold text-primary-600 text-lg shadow-sm">
                                     RS!
                                 </div>
                                 <div>

@@ -1,0 +1,51 @@
+﻿ Care Jhon Hije         | 2026-09-09 03:49:16.897657+00 | Namier Vedra Navales         | ASSESSMENT                | FINAL_INTERVIEW_SCHEDULED | Manual Update
+ Care Jhon Hije         | 2026-09-09 03:48:54.203741+00 | Namier Vedra Navales         | FINAL_INTERVIEW           | ASSESSMENT                | Manual Update
+ Care Jhon Hije         | 2026-09-09 03:48:43.985582+00 | Namier Vedra Navales         | FAILED                    | FINAL_INTERVIEW           | Status regressed by recruiter
+ Care Jhon Hije         | 2026-08-27 15:06:54.382638+00 | Sean Jessfredd Claros Vestil | REPROFILE                 | FAILED                    | Final Interview Failed (Force Fail)
+ Care Jhon Hije         | 2026-08-27 15:00:40.99946+00  | Claer Agan Rubio             | INTERVIEW_IN_PROGRESS     | FINAL_INTERVIEW           | Protocol completed successfully
+ Care Jhon Hije         | 2026-08-27 14:20:44.051082+00 | Claer Agan Rubio             | QUEUE_ASSIGNED            | INTERVIEW_IN_PROGRESS     | Interview initiated by validator in Room FUENTE
+ Care Jhon Hije         | 2026-08-27 14:20:41.048593+00 | Claer Agan Rubio             | FINAL_INTERVIEW_SCHEDULED | QUEUE_ASSIGNED            | Candidate queued for FINAL interview
+ Care Jhon Hije         | 2026-08-27 06:00:08.928764+00 | Namier Vedra Navales         | ASSESSMENT                | FINAL_INTERVIEW_SCHEDULED | Manual Update
+ Care Jhon Hije         | 2026-08-27 05:58:44.192319+00 | Namier Vedra Navales         | ACCOUNT_ASSIGNMENT        | ASSESSMENT                | Manual Update
+ Care Jhon Hije         | 2026-08-27 05:58:40.458787+00 | Namier Vedra Navales         | FINAL_INTERVIEW_SCHEDULED | ACCOUNT_ASSIGNMENT        | Manual Update
+ Care Jhon Hije         | 2026-08-20 09:20:55.855694+00 | Sean Jessfredd Claros Vestil | ASSESSMENT                | FINAL_INTERVIEW_SCHEDULED | Manual Update
+ Care Jhon Hije         | 2026-08-20 09:20:19.34384+00  | Sean Jessfredd Claros Vestil | ACCOUNT_ASSIGNMENT        | ASSESSMENT                | Manual Update
+ Care Jhon Hije         | 2026-08-20 09:19:49.045493+00 | Sean Jessfredd Claros Vestil | ASSESSMENT                | ACCOUNT_ASSIGNMENT        | Manual Update
+ Care Jhon Hije         | 2026-08-13 11:40:12.495684+00 | Sherie Mae Esmeralda         | ACCOUNT_ASSIGNMENT        | ASSESSMENT                | Manual Update
+ Care Jhon Hije         | 2026-08-13 11:39:56.088244+00 | Sherie Mae Esmeralda         | FINAL_INTERVIEW           | ACCOUNT_ASSIGNMENT        | Manual Update
+ Care Jhon Hije         | 2026-08-13 08:59:19.457263+00 | Lyle Philip Unabia           | ASSESSMENT                | FINAL_INTERVIEW           | 
+ Care Jhon Hije         | 2026-08-13 06:30:34.237264+00 | Sherie Mae Esmeralda         | INTERVIEW_IN_PROGRESS     | ASSESSMENT                | Protocol completed successfully
+ Care Jhon Hije         | 2026-08-13 06:15:38.318524+00 | Sherie Mae Esmeralda         | INITIAL_INTERVIEW         | INTERVIEW_IN_PROGRESS     | Interview session started
+ Care Jhon Hije         | 2026-08-13 06:11:40.626005+00 | Sherie Mae Esmeralda         | QUEUE_ASSIGNED            | INITIAL_INTERVIEW         | Called to FUENTE @ Immediate
+ Care Jhon Hije         | 2026-08-13 04:29:53.775459+00 | Namier Vedra Navales         | INITIAL_INTERVIEW         | QUEUE_ASSIGNED            | Candidate queued for INITIAL interview
+ Care Jhon Hije         | 2026-08-13 04:28:53.511335+00 | Namier Vedra Navales         | APPLIED                   | INITIAL_INTERVIEW         | Accepted for initial interview
+ Care Jhon Hije         | 2026-08-13 04:17:51.077488+00 | Care Jhon Hije               |                           | APPLIED                   | Initial application submission
+ Mark Frederick Montes  | 2026-09-09 13:53:42.714022+00 | Claer Agan Rubio             | FINAL_INTERVIEW           | INTERVIEW_IN_PROGRESS     | Interview session started
+ Mark Frederick Montes  | 2026-09-09 13:53:42.109173+00 | Sherie Mae Esmeralda         | INTERVIEW_IN_PROGRESS     | FINAL_INTERVIEW           | Manual Update
+ Mark Frederick Montes  | 2026-09-09 13:48:38.872284+00 | Steven Oblena                | QUEUE_ASSIGNED            | INTERVIEW_IN_PROGRESS     | Interview initiated by validator in Room COLON
+ Mark Frederick Montes  | 2026-09-09 13:48:33.189571+00 | Steven Oblena                | FINAL_INTERVIEW_SCHEDULED | QUEUE_ASSIGNED            | Candidate queued for FINAL interview
+ Mark Frederick Montes  | 2026-09-09 13:45:27.376102+00 | Namier Vedra Navales         | FINAL_INTERVIEW           | FINAL_INTERVIEW_SCHEDULED | Manual Update
+ Mark Frederick Montes  | 2026-09-09 13:44:11.080039+00 | Namier Vedra Navales         | ASSESSMENT                | FINAL_INTERVIEW           | 
+ Mark Frederick Montes  | 2026-09-09 13:44:04.077582+00 | Namier Vedra Navales         | ACCOUNT_ASSIGNMENT        | ASSESSMENT                | Manual Update
+ Mark Frederick Montes  | 2026-09-09 13:43:56.891998+00 | Namier Vedra Navales         | QUEUE_ASSIGNED            | ACCOUNT_ASSIGNMENT        | 
+ Mark Frederick Montes  | 2026-09-09 13:20:14.36144+00  | Namier Vedra Navales         | INITIAL_INTERVIEW         | QUEUE_ASSIGNED            | Candidate queued for INITIAL interview
+ Mark Frederick Montes  | 2026-09-09 06:32:39.626737+00 | Namier Vedra Navales         | APPLIED                   | INITIAL_INTERVIEW         | Accepted for initial interview
+ Mark Frederick Montes  | 2026-09-09 06:31:30.043272+00 | Mark Frederick Montes        |                           | APPLIED                   | Initial application submission
+ Mark John Paul Narvasa | 2026-08-05 15:22:34.019772+00 | Miguel Zebediah Alferez      | INTERVIEW_IN_PROGRESS     | FINAL_INTERVIEW           | Protocol completed successfully
+ Mark John Paul Narvasa | 2026-08-05 15:21:52.359396+00 | Miguel Zebediah Alferez      | QUEUE_ASSIGNED            | INTERVIEW_IN_PROGRESS     | Interview initiated by validator in Room Escario Street
+ Mark John Paul Narvasa | 2026-08-05 15:21:49.249631+00 | Miguel Zebediah Alferez      | FINAL_INTERVIEW_SCHEDULED | QUEUE_ASSIGNED            | Candidate queued for FINAL interview
+ Mark John Paul Narvasa | 2026-08-04 09:45:43.921025+00 | Ana Marie Latorena Bacang    | FINAL_INTERVIEW           | FINAL_INTERVIEW_SCHEDULED | Manual Update
+ Mark John Paul Narvasa | 2026-08-03 08:43:38.800962+00 | Sandy Jane Tomnob Rama       | ASSESSMENT                | FINAL_INTERVIEW           | 
+ Mark John Paul Narvasa | 2026-08-03 07:38:19.936783+00 | Namier Vedra Navales         | ASSESSMENT                | ASSESSMENT                | Protocol completed successfully
+ Mark John Paul Narvasa | 2026-08-03 07:36:58.333339+00 | Namier Vedra Navales         | INTERVIEW_IN_PROGRESS     | ASSESSMENT                | Manual Update
+ Mark John Paul Narvasa | 2026-08-03 07:04:16.3138+00   | Namier Vedra Navales         | INITIAL_INTERVIEW         | INTERVIEW_IN_PROGRESS     | Interview session started
+ Mark John Paul Narvasa | 2026-08-03 07:03:27.466405+00 | Namier Vedra Navales         | QUEUE_ASSIGNED            | INITIAL_INTERVIEW         | Called to COLON @ Immediate
+ Mark John Paul Narvasa | 2026-08-03 05:46:38.987795+00 | Sandy Jane Tomnob Rama       | INITIAL_INTERVIEW         | QUEUE_ASSIGNED            | Candidate queued for INITIAL interview
+ Mark John Paul Narvasa | 2026-08-03 05:46:32.210724+00 | Sandy Jane Tomnob Rama       | ACCOUNT_ASSIGNMENT        | INITIAL_INTERVIEW         | Status regressed by recruiter
+ Mark John Paul Narvasa | 2026-08-03 05:46:25.603636+00 | Sandy Jane Tomnob Rama       | ASSESSMENT                | ACCOUNT_ASSIGNMENT        | Status regressed by recruiter
+ Mark John Paul Narvasa | 2026-08-03 05:46:20.92314+00  | Sandy Jane Tomnob Rama       | FINAL_INTERVIEW           | ASSESSMENT                | Status regressed by recruiter
+ Mark John Paul Narvasa | 2026-08-03 05:45:59.770715+00 | Sandy Jane Tomnob Rama       | FAILED                    | FINAL_INTERVIEW           | Status regressed by recruiter
+ Mark John Paul Narvasa | 2026-08-03 05:42:10.398507+00 | Sandy Jane Tomnob Rama       | INITIAL_INTERVIEW         | FAILED                    | Declined during specialized review
+ Mark John Paul Narvasa | 2026-08-03 05:41:04.965078+00 | Sandy Jane Tomnob Rama       | APPLIED                   | INITIAL_INTERVIEW         | Accepted for initial interview
+ Mark John Paul Narvasa | 2026-08-03 05:38:38.080807+00 | Mark John Paul Narvasa       |                           | APPLIED                   | Initial application submission
+

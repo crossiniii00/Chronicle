@@ -21,6 +21,16 @@ queueRouter.get('/active', requireAuth, async (req, res, next) => {
         next(error);
     }
 });
+queueRouter.post('/reset', requireAuth, async (req, res, next) => {
+    try {
+        await QueueRepository.reset();
+        req.app.locals.io?.emit('queue:updated');
+        req.app.locals.io?.emit('applications:updated');
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
 
 queueRouter.delete('/:id', requireAuth, async (req, res, next) => {
     try {
@@ -34,6 +44,11 @@ queueRouter.delete('/:id', requireAuth, async (req, res, next) => {
 
 queueRouter.patch('/:id', requireAuth, async (req, res, next) => {
     try {
+        const currentEntry = await QueueRepository.findById(req.params.id);
+        if (currentEntry && req.body.status && currentEntry.status === req.body.status) {
+            return res.json({ success: true, noop: true });
+        }
+
         const entry = await QueueRepository.update(req.params.id, req.body);
         
         // Emit socket event when a candidate is called
@@ -55,3 +70,5 @@ queueRouter.patch('/:id', requireAuth, async (req, res, next) => {
         next(error);
     }
 });
+
+// force nodemon restart

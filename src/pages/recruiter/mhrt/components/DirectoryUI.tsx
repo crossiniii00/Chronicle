@@ -14,7 +14,7 @@ interface DirectoryHeaderProps {
 export function DirectoryHeader({ searchTerm, setSearchTerm, onAdd, count }: DirectoryHeaderProps) {
     return (
         <>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-surface-200 bg-white px-2 mb-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-surface-200 bg-white dark:bg-slate-900 px-2 mb-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-[#002060]/5 rounded-sm text-[#002060] border border-[#002060]/10">
                         <BookOpen size={24} />
@@ -25,7 +25,7 @@ export function DirectoryHeader({ searchTerm, setSearchTerm, onAdd, count }: Dir
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-surface-200 text-surface-700 text-[10px] font-bold uppercase rounded-sm shadow-sm hover:bg-surface-50 transition-colors">
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 border border-surface-200 text-surface-700 text-[10px] font-bold uppercase rounded-sm shadow-sm hover:bg-surface-50 transition-colors">
                         <Download size={14} /> Export Directory
                     </button>
                     <button
@@ -37,7 +37,7 @@ export function DirectoryHeader({ searchTerm, setSearchTerm, onAdd, count }: Dir
                 </div>
             </div>
 
-            <div className="bg-white border border-surface-200 p-4 rounded-sm shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 p-4 rounded-sm shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" size={16} />
                     <input
@@ -79,7 +79,7 @@ export function DirectoryTable({
     onCopy, onEdit, onDelete
 }: DirectoryTableProps) {
     return (
-        <div className={`bg-white border border-surface-200 rounded-sm shadow-sm transition-all ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}>
+        <div className={`bg-white dark:bg-slate-900 border border-surface-200 rounded-sm shadow-sm transition-all ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}>
             <div
                 ref={scrollRef}
                 onMouseDown={onMouseDown} onMouseUp={onMouseUp} onMouseLeave={onMouseLeave} onMouseMove={onMouseMove}
@@ -150,13 +150,13 @@ export function DirectoryTable({
                                     <div className="flex items-center justify-center gap-1">
                                         <button
                                             onClick={() => onEdit(item)}
-                                            className="p-2 text-surface-400 hover:text-[#002060] transition-colors rounded-sm hover:bg-white border border-transparent hover:border-surface-200"
+                                            className="p-2 text-surface-400 hover:text-[#002060] transition-colors rounded-sm hover:bg-white dark:bg-slate-900 border border-transparent hover:border-surface-200"
                                         >
                                             <Edit3 size={14} />
                                         </button>
                                         <button
                                             onClick={() => onDelete(item.id)}
-                                            className="p-2 text-surface-400 hover:text-red-500 transition-colors rounded-sm hover:bg-white border border-transparent hover:border-surface-200"
+                                            className="p-2 text-surface-400 hover:text-red-500 transition-colors rounded-sm hover:bg-white dark:bg-slate-900 border border-transparent hover:border-surface-200"
                                         >
                                             <Trash2 size={14} />
                                         </button>
@@ -213,7 +213,7 @@ export function DirectoryFormModal({ isOpen, onClose, editingItem, formData, set
                 </div>
 
                 <div className="flex justify-end gap-3 pt-6 border-t border-surface-200">
-                    <button onClick={onClose} className="px-6 py-2 bg-white border border-surface-300 text-surface-500 text-[10px] font-bold uppercase rounded-sm hover:text-surface-900 transition-colors">Cancel</button>
+                    <button onClick={onClose} className="px-6 py-2 bg-white dark:bg-slate-900 border border-surface-300 text-surface-500 text-[10px] font-bold uppercase rounded-sm hover:text-surface-900 transition-colors">Cancel</button>
                     <button onClick={onSave} className="px-8 py-2 bg-[#002060] text-white text-[10px] font-bold uppercase rounded-sm hover:bg-[#002060]/90 transition-all shadow-md">
                         {editingItem ? 'Update Entry' : 'Save Entry'}
                     </button>

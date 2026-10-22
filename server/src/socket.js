@@ -1,6 +1,12 @@
 import { Server } from 'socket.io';
 import { config } from './config.js';
 
+let ioInstance = null;
+
+export function getIO() {
+    return ioInstance;
+}
+
 export function createSocketServer(httpServer) {
     const io = new Server(httpServer, {
         cors: {
@@ -9,9 +15,11 @@ export function createSocketServer(httpServer) {
             },
             credentials: true,
         },
+        transports: ['websocket'],
         pingTimeout: 60000,
         pingInterval: 25000,
     });
+    ioInstance = io;
 
     const activeUsers = new Map();
 

@@ -113,28 +113,28 @@ function EditProfileModal({ user, onClose, onSaved }: EditProfileModalProps) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.97, y: 12 }}
                 transition={SPRING}
-                className="relative w-full max-w-xl bg-white border border-slate-150 rounded-2xl shadow-2xl overflow-hidden"
+                className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-150 rounded-2xl shadow-2xl overflow-hidden"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 bg-slate-50 dark:bg-slate-800/50">
                     <div className="flex items-center gap-2.5">
                         <Edit2 size={16} className="text-slate-400" />
-                        <h2 className="text-[16px] font-bold text-slate-800 tracking-tight">Edit Profile</h2>
+                        <h2 className="text-[16px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">Edit Profile</h2>
                     </div>
-                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:bg-slate-800/50 text-slate-400 transition-colors">
                         <X size={16} />
                     </button>
                 </div>
 
                 {/* Tab bar */}
-                <div className="flex border-b border-slate-100 bg-white">
+                <div className="flex border-b border-slate-100 bg-white dark:bg-slate-900">
                     {(['profile', 'password'] as const).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
                             className={cn(
                                 'flex-1 py-3.5 text-[12px] font-bold uppercase tracking-[0.1em] transition-colors relative',
-                                tab === t ? 'text-[#0f6cbd]' : 'text-slate-450 hover:text-slate-700'
+                                tab === t ? 'text-[#0f6cbd]' : 'text-slate-450 hover:text-slate-700 dark:text-slate-300'
                             )}
                         >
                             {t === 'profile' ? 'My Details' : 'Change Password'}
@@ -149,7 +149,7 @@ function EditProfileModal({ user, onClose, onSaved }: EditProfileModalProps) {
                     ))}
                 </div>
 
-                <div className="px-7 py-6 bg-white">
+                <div className="px-7 py-6 bg-white dark:bg-slate-900">
                     <AnimatePresence mode="wait">
                         {tab === 'profile' ? (
                             <motion.div
@@ -166,7 +166,7 @@ function EditProfileModal({ user, onClose, onSaved }: EditProfileModalProps) {
                                         <input
                                             value={name}
                                             onChange={e => setName(e.target.value)}
-                                            className="w-full h-10 px-3.5 border border-slate-200 rounded-lg text-[13.5px] font-medium text-slate-800 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50/50"
+                                            className="w-full h-10 px-3.5 border border-slate-200 dark:border-slate-800 rounded-lg text-[13.5px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50 dark:bg-slate-800/50"
                                             placeholder="Your name"
                                         />
                                     </div>
@@ -175,14 +175,14 @@ function EditProfileModal({ user, onClose, onSaved }: EditProfileModalProps) {
                                         <input
                                             value={phone}
                                             onChange={e => setPhone(e.target.value)}
-                                            className="w-full h-10 px-3.5 border border-slate-200 rounded-lg text-[13.5px] font-medium text-slate-800 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50/50"
+                                            className="w-full h-10 px-3.5 border border-slate-200 dark:border-slate-800 rounded-lg text-[13.5px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50 dark:bg-slate-800/50"
                                             placeholder="e.g. +63 912 345 6789"
                                         />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em]">Email</label>
-                                    <div className="w-full h-10 px-3.5 bg-slate-50 border border-slate-100 rounded-lg flex items-center text-[13.5px] text-slate-400 font-medium">
+                                    <div className="w-full h-10 px-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 rounded-lg flex items-center text-[13.5px] text-slate-400 font-medium">
                                         {user.email}
                                     </div>
                                     <p className="text-[10px] text-slate-450">Email cannot be changed. Contact your admin.</p>
@@ -213,7 +213,7 @@ function EditProfileModal({ user, onClose, onSaved }: EditProfileModalProps) {
                                             type={showCurrent ? 'text' : 'password'}
                                             value={currentPw}
                                             onChange={e => setCurrentPw(e.target.value)}
-                                            className="w-full h-10 px-3.5 pr-11 border border-slate-200 rounded-lg text-[13.5px] font-medium text-slate-800 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50/50"
+                                            className="w-full h-10 px-3.5 pr-11 border border-slate-200 dark:border-slate-800 rounded-lg text-[13.5px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50 dark:bg-slate-800/50"
                                             placeholder="Enter your current password"
                                         />
                                         <button
@@ -234,7 +234,7 @@ function EditProfileModal({ user, onClose, onSaved }: EditProfileModalProps) {
                                             type={showNew ? 'text' : 'password'}
                                             value={newPw}
                                             onChange={e => setNewPw(e.target.value)}
-                                            className="w-full h-10 px-3.5 pr-11 border border-slate-200 rounded-lg text-[13.5px] font-medium text-slate-800 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50/50"
+                                            className="w-full h-10 px-3.5 pr-11 border border-slate-200 dark:border-slate-800 rounded-lg text-[13.5px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50 dark:bg-slate-800/50"
                                             placeholder="At least 6 characters"
                                         />
                                         <button
@@ -254,7 +254,7 @@ function EditProfileModal({ user, onClose, onSaved }: EditProfileModalProps) {
                                         type="password"
                                         value={confirmPw}
                                         onChange={e => setConfirmPw(e.target.value)}
-                                        className="w-full h-10 px-3.5 border border-slate-200 rounded-lg text-[13.5px] font-medium text-slate-800 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50/50"
+                                        className="w-full h-10 px-3.5 border border-slate-200 dark:border-slate-800 rounded-lg text-[13.5px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#0f6cbd] transition-colors bg-slate-50 dark:bg-slate-800/50"
                                         placeholder="Type your new password again"
                                     />
                                 </div>
@@ -409,7 +409,7 @@ export function GuestProfile() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="bg-white border border-[#edebe9] rounded-sm shadow-sm overflow-hidden relative"
+                    className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-sm overflow-hidden relative"
                 >
                     {/* Cover Photo Area - Fluent Slate/Blue Corporate Style */}
                     <div className="h-44 md:h-56 w-full relative overflow-hidden group/cover bg-gradient-to-r from-[#005a9e] via-[#0078d4] to-[#106ebe] select-none">
@@ -433,12 +433,12 @@ export function GuestProfile() {
                         <div className="flex flex-col md:flex-row items-center md:items-end gap-5 -mt-14 md:-mt-16">
                             {/* Square Avatar container with inline uploader (Microsoft Teams / M365 style) */}
                             <div className="relative group/avatar">
-                                <div className="w-28 h-28 md:w-32 md:h-32 rounded-lg border-[3px] border-white bg-slate-50 shadow-md overflow-hidden flex items-center justify-center relative z-10">
+                                <div className="w-28 h-28 md:w-32 md:h-32 rounded-lg border-[3px] border-white bg-slate-50 dark:bg-slate-800 shadow-md overflow-hidden flex items-center justify-center relative z-10">
                                     {user.avatar_data ? (
                                         <img src={user.avatar_data} alt={user.full_name} className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full bg-[#f3f2f1] flex items-center justify-center">
-                                            <span className="text-3xl font-bold text-[#605e5c]">{userInitials}</span>
+                                            <span className="text-3xl font-bold text-[#605e5c] dark:text-slate-400">{userInitials}</span>
                                         </div>
                                     )}
                                 </div>
@@ -454,7 +454,7 @@ export function GuestProfile() {
 
                             <div className="text-center md:text-left mb-1">
                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1">
-                                    <span className="text-[9px] font-bold uppercase tracking-wider text-[#0078d4] bg-[#eff6fc] border border-[#eff6fc] px-2 py-0.5 rounded-sm select-none">
+                                    <span className="text-[9px] font-bold uppercase tracking-wider text-[#0078d4] bg-[#eff6fc] dark:bg-slate-800 border border-[#eff6fc] px-2 py-0.5 rounded-sm select-none">
                                         {roleLabel(user.role)}
                                     </span>
                                     <span className="text-[9px] font-bold uppercase tracking-wider text-[#107c10] bg-[#dff6dd] border border-[#dff6dd] px-2 py-0.5 rounded-sm flex items-center gap-1 select-none">
@@ -463,12 +463,12 @@ export function GuestProfile() {
                                     </span>
                                 </div>
                                 <h1
-                                    className="text-2xl text-[#323130] tracking-tight font-bold"
+                                    className="text-2xl text-[#323130] dark:text-slate-300 tracking-tight font-bold"
                                     style={{ fontFamily: 'Segoe UI, -apple-system, sans-serif' }}
                                 >
                                     {user.full_name}
                                 </h1>
-                                <p className="text-xs text-[#605e5c] font-semibold tracking-wide mt-0.5">{deptName}</p>
+                                <p className="text-xs text-[#605e5c] dark:text-slate-400 font-semibold tracking-wide mt-0.5">{deptName}</p>
                             </div>
                         </div>
 
@@ -476,18 +476,18 @@ export function GuestProfile() {
                         <div className="flex items-center gap-3 shrink-0 select-none mb-1">
                             <button
                                 onClick={() => setEditOpen(true)}
-                                className="px-4 py-2 border border-[#a19f9d] hover:border-[#323130] bg-white text-[#323130] text-[11px] font-semibold rounded-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:bg-[#f3f2f1]"
+                                className="px-4 py-2 border border-[#a19f9d] hover:border-[#323130] bg-white dark:bg-slate-900 text-[#323130] dark:text-slate-300 text-[11px] font-semibold rounded-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:bg-[#f3f2f1]"
                             >
-                                <Edit2 size={12} className="text-[#605e5c]" />
+                                <Edit2 size={12} className="text-[#605e5c] dark:text-slate-400" />
                                 <span>Edit Profile</span>
                             </button>
                         </div>
                     </div>
 
                     {/* Stat row - Flat, Proportional grid */}
-                    <div className="border-t border-[#edebe9] bg-[#faf9f8] grid grid-cols-4 divide-x divide-[#edebe9] select-none text-center">
+                    <div className="border-t border-[#edebe9] dark:border-slate-800 bg-[#faf9f8] grid grid-cols-4 divide-x divide-[#edebe9] select-none text-center">
                         {[
-                            { label: 'Applicants', value: stats.total, color: 'text-[#323130]' },
+                            { label: 'Applicants', value: stats.total, color: 'text-[#323130] dark:text-slate-300' },
                             { label: 'Hired', value: stats.hired, color: 'text-[#107c10]' },
                             { label: 'Interviewing', value: stats.inProgress, color: 'text-[#0078d4]' },
                             { label: 'Waiting', value: stats.pending, color: 'text-[#b15c00]' },
@@ -496,7 +496,7 @@ export function GuestProfile() {
                                 <span className={cn('text-xl font-bold tabular-nums leading-none tracking-tight', color)}>
                                     {loading ? '—' : value}
                                 </span>
-                                <span className="text-[9px] font-semibold text-[#605e5c] uppercase tracking-wider">{label}</span>
+                                <span className="text-[9px] font-semibold text-[#605e5c] dark:text-slate-400 uppercase tracking-wider">{label}</span>
                             </div>
                         ))}
                     </div>
@@ -512,16 +512,16 @@ export function GuestProfile() {
                             initial={{ opacity: 0, x: -4 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.2, delay: 0.05 }}
-                            className="bg-white border border-[#edebe9] rounded-sm shadow-xs overflow-hidden"
+                            className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-xs overflow-hidden"
                         >
-                            <div className="px-4 py-2.5 border-b border-[#edebe9] bg-[#faf9f8] flex items-center gap-2">
+                            <div className="px-4 py-2.5 border-b border-[#edebe9] dark:border-slate-800 bg-[#faf9f8] flex items-center gap-2">
                                 <Building2 size={13} className="text-[#0078d4]" />
-                                <h3 className="text-[10px] font-bold text-[#605e5c] uppercase tracking-wider">
+                                <h3 className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-wider">
                                     Department
                                 </h3>
                             </div>
                             <div className="p-4 flex flex-col items-center gap-3">
-                                <div className="shrink-0 w-14 h-14 rounded-sm border border-[#edebe9] bg-white flex items-center justify-center overflow-hidden p-1.5">
+                                <div className="shrink-0 w-14 h-14 rounded-sm border border-[#edebe9] dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden p-1.5">
                                     {(department?.accountImageData || department?.accountImageUrl) ? (
                                         <img
                                             src={department.accountImageData || department.accountImageUrl || ''}
@@ -533,20 +533,20 @@ export function GuestProfile() {
                                     )}
                                 </div>
                                 <div className="text-center">
-                                    <h4 className="text-xs font-bold text-[#323130]">{deptName}</h4>
+                                    <h4 className="text-xs font-bold text-[#323130] dark:text-slate-300">{deptName}</h4>
                                     <p className="text-[9px] text-[#8a8886] font-semibold uppercase tracking-wider mt-0.5">Internal Registry</p>
                                 </div>
 
-                                <div className="w-full border-t border-[#edebe9] pt-2 space-y-1">
+                                <div className="w-full border-t border-[#edebe9] dark:border-slate-800 pt-2 space-y-1">
                                     {[
                                         { label: 'Lead/Head', value: department?.head || 'Unassigned', icon: <Star size={11} className="text-[#b15c00]" /> },
                                         { label: 'Budget Code', value: department?.budgetCode || 'n/a', icon: <Award size={11} className="text-[#0078d4]" />, mono: true },
                                     ].map(({ label, value, icon, mono }) => (
                                         <div key={label} className="flex items-center justify-between py-1 border-b border-[#f3f2f1] last:border-0">
-                                            <span className="text-[10px] text-[#605e5c] flex items-center gap-1.5 font-semibold">
+                                            <span className="text-[10px] text-[#605e5c] dark:text-slate-400 flex items-center gap-1.5 font-semibold">
                                                 {icon} {label}
                                             </span>
-                                            <span className={cn("text-[10px] font-semibold text-[#323130]", mono && "font-mono font-bold")}>{value}</span>
+                                            <span className={cn("text-[10px] font-semibold text-[#323130] dark:text-slate-300", mono && "font-mono font-bold")}>{value}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -559,24 +559,24 @@ export function GuestProfile() {
                                 initial={{ opacity: 0, x: -4 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ duration: 0.2, delay: 0.08 }}
-                                className="bg-white border border-[#edebe9] rounded-sm shadow-xs overflow-hidden"
+                                className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-xs overflow-hidden"
                             >
-                                <div className="px-4 py-2.5 border-b border-[#edebe9] bg-[#faf9f8] flex items-center gap-2">
+                                <div className="px-4 py-2.5 border-b border-[#edebe9] dark:border-slate-800 bg-[#faf9f8] flex items-center gap-2">
                                     <Target size={13} className="text-[#0078d4]" />
-                                    <h3 className="text-[10px] font-bold text-[#605e5c] uppercase tracking-wider">
+                                    <h3 className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-wider">
                                         Hiring Target
                                     </h3>
                                 </div>
                                 <div className="p-4 space-y-2.5">
                                     <div className="flex items-end justify-between">
-                                        <span className="text-2xl font-bold leading-none text-[#323130] tabular-nums tracking-tight">
+                                        <span className="text-2xl font-bold leading-none text-[#323130] dark:text-slate-300 tabular-nums tracking-tight">
                                             {attainmentPct}<span className="text-sm text-[#8a8886] font-semibold">%</span>
                                         </span>
-                                        <span className="text-[9px] font-semibold text-[#605e5c] mb-0.5">
+                                        <span className="text-[9px] font-semibold text-[#605e5c] dark:text-slate-400 mb-0.5">
                                             {stats.hired} / {quota} Hires
                                         </span>
                                     </div>
-                                    <div className="w-full h-2 bg-[#f3f2f1] rounded-none overflow-hidden p-[1px] border border-[#edebe9]">
+                                    <div className="w-full h-2 bg-[#f3f2f1] rounded-none overflow-hidden p-[1px] border border-[#edebe9] dark:border-slate-800">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${attainmentPct}%` }}
@@ -588,7 +588,7 @@ export function GuestProfile() {
                                             )}
                                         />
                                     </div>
-                                    <p className="text-[9px] text-[#605e5c] font-semibold uppercase tracking-wider">
+                                    <p className="text-[9px] text-[#605e5c] dark:text-slate-400 font-semibold uppercase tracking-wider">
                                         {quota - stats.hired > 0
                                             ? `${quota - stats.hired} slots remaining`
                                             : 'Quota Target Attained'}
@@ -606,10 +606,10 @@ export function GuestProfile() {
                             initial={{ opacity: 0, x: 4 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.2, delay: 0.05 }}
-                            className="bg-white border border-[#edebe9] rounded-sm shadow-xs overflow-hidden"
+                            className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-xs overflow-hidden"
                         >
-                            <div className="px-4 py-2.5 border-b border-[#edebe9] bg-[#faf9f8] flex items-center justify-between">
-                                <h3 className="text-[10px] font-bold text-[#605e5c] uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="px-4 py-2.5 border-b border-[#edebe9] dark:border-slate-800 bg-[#faf9f8] flex items-center justify-between">
+                                <h3 className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                     <Shield size={13} className="text-[#0078d4]" />
                                     Account Details
                                 </h3>
@@ -622,18 +622,18 @@ export function GuestProfile() {
                             </div>
                             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                 {[
-                                    { label: 'Full Name', value: user.full_name, icon: <Shield size={12} className="text-[#605e5c]" /> },
+                                    { label: 'Full Name', value: user.full_name, icon: <Shield size={12} className="text-[#605e5c] dark:text-slate-400" /> },
                                     { label: 'Role Designation', value: roleLabel(user.role), icon: <Award size={12} className="text-[#0078d4]" /> },
-                                    { label: 'Email Address', value: user.email, icon: <Mail size={12} className="text-[#605e5c]" /> },
-                                    { label: 'Contact Phone', value: user.phone || '—', icon: <Phone size={12} className="text-[#605e5c]" /> },
-                                    { label: 'Manager / Supervisor', value: department?.head || 'Unassigned', icon: <Users size={12} className="text-[#605e5c]" /> },
-                                    { label: 'Date Joined', value: formatDate(user.created_at || new Date().toISOString()), icon: <Calendar size={12} className="text-[#605e5c]" /> },
+                                    { label: 'Email Address', value: user.email, icon: <Mail size={12} className="text-[#605e5c] dark:text-slate-400" /> },
+                                    { label: 'Contact Phone', value: user.phone || '—', icon: <Phone size={12} className="text-[#605e5c] dark:text-slate-400" /> },
+                                    { label: 'Manager / Supervisor', value: department?.head || 'Unassigned', icon: <Users size={12} className="text-[#605e5c] dark:text-slate-400" /> },
+                                    { label: 'Date Joined', value: formatDate(user.created_at || new Date().toISOString()), icon: <Calendar size={12} className="text-[#605e5c] dark:text-slate-400" /> },
                                 ].map(({ label, value, icon }) => (
                                     <div key={label} className="space-y-1">
                                         <label className="text-[9px] font-bold text-[#8a8886] uppercase tracking-wider">{label}</label>
-                                        <div className="flex items-center gap-2 h-9 px-3 bg-white border border-[#d2d0ce] rounded-sm focus-within:border-[#0078d4] transition-colors">
+                                        <div className="flex items-center gap-2 h-9 px-3 bg-white dark:bg-slate-900 border border-[#d2d0ce] rounded-sm focus-within:border-[#0078d4] transition-colors">
                                             {icon}
-                                            <span className="text-xs font-semibold text-[#323130] truncate">{value}</span>
+                                            <span className="text-xs font-semibold text-[#323130] dark:text-slate-300 truncate">{value}</span>
                                         </div>
                                     </div>
                                 ))}
@@ -645,25 +645,25 @@ export function GuestProfile() {
                             initial={{ opacity: 0, x: 4 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.2, delay: 0.08 }}
-                            className="bg-white border border-[#edebe9] rounded-sm shadow-xs overflow-hidden"
+                            className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-xs overflow-hidden"
                         >
-                            <div className="px-4 py-2.5 border-b border-[#edebe9] bg-[#faf9f8] flex items-center justify-between">
-                                <h3 className="text-[10px] font-bold text-[#605e5c] uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="px-4 py-2.5 border-b border-[#edebe9] dark:border-slate-800 bg-[#faf9f8] flex items-center justify-between">
+                                <h3 className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                     <Users size={13} className="text-[#0078d4]" />
                                     Team Members
                                 </h3>
-                                <span className="text-[10px] font-semibold text-[#605e5c] bg-[#f3f2f1] border border-[#edebe9] px-2 py-0.5 rounded-sm select-none tabular-nums">
+                                <span className="text-[10px] font-semibold text-[#605e5c] dark:text-slate-400 bg-[#f3f2f1] border border-[#edebe9] dark:border-slate-800 px-2 py-0.5 rounded-sm select-none tabular-nums">
                                     {teamMembers.length} Active
                                 </span>
                             </div>
 
                             {loading ? (
                                 <div className="flex items-center justify-center py-6">
-                                    <div className="w-4 h-4 border-2 border-[#edebe9] border-t-[#0078d4] rounded-full animate-spin" />
+                                    <div className="w-4 h-4 border-2 border-[#edebe9] dark:border-slate-800 border-t-[#0078d4] rounded-full animate-spin" />
                                 </div>
                             ) : teamMembers.length === 0 ? (
                                 <div className="flex flex-col items-center gap-2 py-8 text-center">
-                                    <div className="w-8 h-8 rounded-sm bg-[#faf9f8] border border-[#edebe9] flex items-center justify-center text-[#a19f9d]">
+                                    <div className="w-8 h-8 rounded-sm bg-[#faf9f8] border border-[#edebe9] dark:border-slate-800 flex items-center justify-center text-[#a19f9d]">
                                         <Users size={16} />
                                     </div>
                                     <p className="text-[10px] font-semibold text-[#8a8886] uppercase tracking-wider">No other team members found</p>
@@ -683,10 +683,10 @@ export function GuestProfile() {
                                             >
                                                 <div className="relative shrink-0 select-none">
                                                     {member.avatar_data ? (
-                                                        <img src={member.avatar_data} alt={member.full_name} className="w-8 h-8 rounded-sm object-cover border border-[#edebe9]" />
+                                                        <img src={member.avatar_data} alt={member.full_name} className="w-8 h-8 rounded-sm object-cover border border-[#edebe9] dark:border-slate-800" />
                                                     ) : (
-                                                        <div className="w-8 h-8 rounded-sm bg-[#f3f2f1] border border-[#edebe9] flex items-center justify-center">
-                                                            <span className="text-[10px] font-bold text-[#605e5c]">{initials}</span>
+                                                        <div className="w-8 h-8 rounded-sm bg-[#f3f2f1] border border-[#edebe9] dark:border-slate-800 flex items-center justify-center">
+                                                            <span className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400">{initials}</span>
                                                         </div>
                                                     )}
                                                     {member.is_active && (
@@ -694,12 +694,12 @@ export function GuestProfile() {
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[12px] font-bold text-[#323130] leading-tight truncate">{member.full_name}</p>
+                                                    <p className="text-[12px] font-bold text-[#323130] dark:text-slate-300 leading-tight truncate">{member.full_name}</p>
                                                     <p className="text-[10px] font-medium text-[#8a8886] truncate mt-0.5">{member.email}</p>
                                                 </div>
                                                 <span className={cn(
                                                     'shrink-0 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border select-none',
-                                                    roleAccent(member.role).replace('bg-blue-50 text-blue-700 border-blue-100', 'bg-[#eff6fc] text-[#0078d4] border-[#eff6fc]')
+                                                    roleAccent(member.role).replace('bg-blue-50 text-blue-700 border-blue-100', 'bg-[#eff6fc] dark:bg-slate-800 text-[#0078d4] border-[#eff6fc]')
                                                                            .replace('bg-violet-50 text-violet-700 border-violet-100', 'bg-[#f3f2f1] text-[#5c2d91] border-[#f3f2f1]')
                                                                            .replace('bg-rose-50 text-rose-700 border-rose-100', 'bg-[#fde7e9] text-[#a80000] border-[#fde7e9]')
                                                 )}>

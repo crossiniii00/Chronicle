@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Save, Type, Target, Settings2, Keyboard } from 'lucide-react';
+import { Activity, Save, Type, Target, Settings2, Keyboard, CloudDownload, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/common/useToast';
 import { apiClient } from '@/utils/apiClient';
+import { CPTypeSettingsModal } from './CPTypeSettingsModal';
+import axios from 'axios';
 
 const SPRING = { type: 'spring' as const, stiffness: 500, damping: 18, mass: 0.6 };
 
@@ -15,6 +17,10 @@ interface TypingTestSettings {
     showLiveStats: boolean;
     prompts: string[];
     maxAttempts: number;
+    demoMode: boolean;
+    preset?: string;
+    strictCapitals?: boolean;
+    strictSpaces?: boolean;
 }
 
 export function TypingTestTab() {
@@ -32,10 +38,16 @@ export function TypingTestTab() {
             "Technology continues to evolve rapidly, bringing new innovations that transform how we work and communicate. Staying updated with these changes is crucial for success.",
             "Effective communication is the cornerstone of successful business relationships. Clear and concise messaging helps prevent misunderstandings and promotes collaboration."
         ],
-        maxAttempts: 3
+        maxAttempts: 3,
+        demoMode: false,
+        preset: '10FASTFINGERS PRESET (GROSS WPM)',
+        strictCapitals: true,
+        strictSpaces: true
     });
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isCpTypeModalOpen, setIsCpTypeModalOpen] = useState(false);
+    const [isSyncingCloud, setIsSyncingCloud] = useState(false);
 
     const loadSettings = async () => {
         setLoading(true);
@@ -73,6 +85,57 @@ export function TypingTestTab() {
         }
     };
 
+    const handleSyncFromCloud = async () => {
+        setIsSyncingCloud(true);
+        try {
+            // 1. Fetch Global Config
+            const configUrl = 'https://firestore.googleapis.com/v1/projects/cptypefinal/databases/(default)/documents/infrastructure/global_config';
+            const configRes = await axios.get(configUrl);
+            const fields = configRes.data.fields;
+            
+            const fetchedWpm = fields?.wpmGoal ? parseInt(fields.wpmGoal.integerValue || '40') : 40;
+            const fetchedAccuracy = fields?.accuracyGoal ? parseInt(fields.accuracyGoal.integerValue || '90') : 90;
+            const fetchedDuration = fields?.timerDuration ? parseInt(fields.timerDuration.integerValue || '60') : 60;
+            const fetchedAttempts = fields?.attemptLimit ? parseInt(fields.attemptLimit.integerValue || '3') : 3;
+            
+            const fetchedPreset = fields?.wpmCalculationMethod?.stringValue || '10FASTFINGERS PRESET (GROSS WPM)';
+            const fetchedStrictCapitals = fields?.strictCapitals?.booleanValue ?? true;
+            const fetchedStrictSpaces = fields?.strictSpaces?.booleanValue ?? true;
+
+            // 2. Fetch Prompts
+            const promptsUrl = 'https://firestore.googleapis.com/v1/projects/cptypefinal/databases/(default)/documents/prompts';
+            const promptsRes = await axios.get(promptsUrl);
+            const docs = promptsRes.data.documents || [];
+            
+            const activePrompts = docs
+                .filter((d: any) => d.fields?.isActive?.booleanValue === true)
+                .map((d: any) => d.fields?.content?.stringValue)
+                .filter(Boolean);
+
+            const newSettings: TypingTestSettings = {
+                ...settings,
+                minWpm: fetchedWpm,
+                minAccuracy: fetchedAccuracy,
+                duration: fetchedDuration,
+                maxAttempts: fetchedAttempts,
+                preset: fetchedPreset,
+                strictCapitals: fetchedStrictCapitals,
+                strictSpaces: fetchedStrictSpaces,
+                prompts: activePrompts.length > 0 ? activePrompts : settings.prompts
+            };
+
+            // 3. Save to Local Backend
+            await apiClient.post('/report-configs/typing_test_settings', newSettings);
+            setSettings(newSettings);
+            success('Cloud Sync Complete', 'Successfully applied CPType external settings and prompts.');
+        } catch (err) {
+            console.error('Failed to sync from cloud', err);
+            toastError('Sync Error', 'Could not sync settings from CPType cloud.');
+        } finally {
+            setIsSyncingCloud(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-32 gap-4">
@@ -85,10 +148,10 @@ export function TypingTestTab() {
     return (
         <div className="w-full pb-12">
             {/* Header */}
-            <div className="bg-white border-b border-surface-200">
+            <div className="bg-white dark:bg-slate-900 border-b border-surface-200">
                 <div className="relative px-6 pt-5 pb-2 flex flex-col items-center justify-center">
                     <div className="flex items-center gap-2.5">
-                        <Keyboard size={17} className="text-[#605e5c] self-center" />
+                        <Keyboard size={17} className="text-[#605e5c] dark:text-slate-400 self-center" />
                         <h1
                             className="text-[30px] leading-none text-surface-900 tracking-[-0.02em]"
                             style={{ fontFamily: 'var(--font-family-display)', fontWeight: 500, fontStyle: 'italic' }}
@@ -103,17 +166,17 @@ export function TypingTestTab() {
 
                 {/* Stat Pills */}
                 <div className="flex items-center justify-center gap-2 px-6 pb-4">
-                    <div className="flex items-center gap-1.5 px-3 h-7 bg-surface-50/70 border border-surface-200 rounded-sm">
+                    <div className="flex items-center gap-1.5 px-3 h-7 bg-surface-50/70 border border-surface-200 rounded-none">
                         <span className="text-[9px] font-semibold text-black/45 uppercase tracking-[0.1em]">Min speed</span>
                         <span className="text-[13px] font-semibold text-black tabular-nums leading-none">{settings.minWpm}</span>
                         <span className="text-[9px] font-medium text-black/45 leading-none">WPM</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 h-7 bg-surface-50/70 border border-surface-200 rounded-sm">
+                    <div className="flex items-center gap-1.5 px-3 h-7 bg-surface-50/70 border border-surface-200 rounded-none">
                         <span className="text-[9px] font-semibold text-black/45 uppercase tracking-[0.1em]">Min accuracy</span>
                         <span className="text-[13px] font-semibold text-black tabular-nums leading-none">{settings.minAccuracy}</span>
                         <span className="text-[9px] font-medium text-black/45 leading-none">%</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 h-7 bg-emerald-50 border border-emerald-200 rounded-sm">
+                    <div className="flex items-center gap-1.5 px-3 h-7 bg-emerald-50 border border-emerald-200 rounded-none">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="text-[10.5px] font-semibold text-emerald-700 tracking-[-0.005em]">Firestore connected</span>
                     </div>
@@ -123,10 +186,10 @@ export function TypingTestTab() {
             {/* Configuration Row */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 px-6 pt-6 items-stretch">
                 {/* Target Scores */}
-                <div className="bg-white border border-surface-200 shadow-sm flex flex-col rounded-sm overflow-hidden h-full">
+                <div className="bg-white dark:bg-slate-900 border border-surface-200 shadow-sm flex flex-col rounded-none overflow-hidden h-full">
                     <div className="px-5 py-4 flex items-center justify-between border-b border-surface-100 bg-surface-50/50">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center bg-[#0078d4] text-white shadow-sm rounded-sm">
+                            <div className="flex h-9 w-9 items-center justify-center bg-[#0078d4] text-white shadow-sm rounded-none">
                                 <Target size={16} />
                             </div>
                             <div>
@@ -134,20 +197,32 @@ export function TypingTestTab() {
                                 <p className="text-[11.5px] font-normal text-surface-500 tracking-[-0.005em]">Minimum requirements to pass the typing assessment.</p>
                             </div>
                         </div>
-                        <motion.button
-                            whileHover={{ y: -1 }}
-                            whileTap={{ scale: 0.97 }}
-                            transition={SPRING}
-                            onClick={() => handleSave(settings)}
-                            disabled={isSaving}
-                            className="flex items-center gap-1.5 px-3.5 h-7 bg-black text-white text-[11.5px] font-medium tracking-[-0.005em] hover:bg-black/85 transition-all rounded-sm disabled:opacity-50 disabled:hover:bg-black"
-                        >
-                            <Save size={12} strokeWidth={2.25} />
-                            {isSaving ? 'Saving...' : 'Save changes'}
-                        </motion.button>
+                        <div className="flex items-center gap-2">
+                            <motion.button
+                                whileHover={{ y: -1 }}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={handleSyncFromCloud}
+                                disabled={isSyncingCloud || isSaving}
+                                className="flex items-center gap-1.5 px-3.5 h-7 bg-surface-100 text-surface-700 text-[11.5px] font-medium tracking-[-0.005em] hover:bg-surface-200 transition-all rounded-none disabled:opacity-50"
+                            >
+                                {isSyncingCloud ? <Loader2 size={12} className="animate-spin" /> : <CloudDownload size={12} />}
+                                {isSyncingCloud ? 'Syncing...' : 'Sync from Cloud'}
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ y: -1 }}
+                                whileTap={{ scale: 0.97 }}
+                                transition={SPRING}
+                                onClick={() => handleSave(settings)}
+                                disabled={isSaving || isSyncingCloud}
+                                className="flex items-center gap-1.5 px-3.5 h-7 bg-black text-white text-[11.5px] font-medium tracking-[-0.005em] hover:bg-black/85 transition-all rounded-none disabled:opacity-50 disabled:hover:bg-black"
+                            >
+                                <Save size={12} strokeWidth={2.25} />
+                                {isSaving ? 'Saving...' : 'Save changes'}
+                            </motion.button>
+                        </div>
                     </div>
 
-                    <div className="p-5 space-y-5 flex-1 bg-white">
+                    <div className="p-5 space-y-5 flex-1 bg-white dark:bg-slate-900">
                         <div className="space-y-2">
                             <label className="flex items-center gap-1.5 text-[11px] font-semibold text-surface-600 tracking-[-0.005em]">
                                 <Activity size={12} className="text-[#0078d4]" /> Min. WPM (words per minute)
@@ -156,7 +231,7 @@ export function TypingTestTab() {
                                 type="number"
                                 value={settings.minWpm}
                                 onChange={e => setSettings(s => ({ ...s, minWpm: parseInt(e.target.value) || 0 }))}
-                                className="w-full bg-surface-50 border border-surface-200 px-4 py-3 rounded-sm text-[22px] font-semibold text-surface-900 focus:bg-white focus:border-[#0078d4] outline-none transition-all tracking-[-0.02em] tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-full bg-surface-50 border border-surface-200 px-4 py-3 rounded-none text-[22px] font-semibold text-surface-900 focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] outline-none transition-all tracking-[-0.02em] tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                             <p className="text-[11px] font-normal text-surface-400 tracking-[-0.005em]">Recommended speed is 40 WPM or higher.</p>
                         </div>
@@ -170,36 +245,55 @@ export function TypingTestTab() {
                                     type="number"
                                     value={settings.minAccuracy}
                                     onChange={e => setSettings(s => ({ ...s, minAccuracy: parseInt(e.target.value) || 0 }))}
-                                    className="w-full bg-surface-50 border border-surface-200 px-4 py-3 rounded-sm text-[22px] font-semibold text-surface-900 focus:bg-white focus:border-[#0078d4] outline-none transition-all tracking-[-0.02em] tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    className="w-full bg-surface-50 border border-surface-200 px-4 py-3 rounded-none text-[22px] font-semibold text-surface-900 focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] outline-none transition-all tracking-[-0.02em] tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-surface-400">%</span>
                             </div>
                             <p className="text-[11px] font-normal text-surface-400 tracking-[-0.005em]">Recommended accuracy is 90% or higher.</p>
                         </div>
+
+                        <div className="space-y-2 pt-4 border-t border-surface-100 mt-2">
+                            <label className="flex items-center gap-2 cursor-pointer w-fit">
+                                <div className={`w-9 h-5 flex items-center rounded-full p-1 transition-colors ${settings.demoMode ? 'bg-[#0078d4]' : 'bg-surface-300'}`}>
+                                    <div className={`bg-white dark:bg-slate-900 w-3.5 h-3.5 rounded-full shadow-md transform transition-transform ${settings.demoMode ? 'translate-x-3.5' : ''}`} />
+                                </div>
+                                <input type="checkbox" className="hidden" checked={settings.demoMode} onChange={e => setSettings(s => ({ ...s, demoMode: e.target.checked }))} />
+                                <span className="text-[11px] font-semibold text-surface-600 tracking-[-0.005em]">Demo mode</span>
+                            </label>
+                            <p className="text-[11px] font-normal text-surface-400 tracking-[-0.005em]">Enable demo fill and demo skip buttons on the application forms.</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* CPType Integration */}
-                <div className="bg-slate-900 p-5 flex flex-col relative overflow-hidden text-white rounded-sm shadow-lg">
+                <div className="bg-slate-900 p-5 flex flex-col relative overflow-hidden text-white rounded-none shadow-lg">
                     <div className="absolute inset-0 pointer-events-none opacity-30">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 rounded-full blur-[80px]" />
                         <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#ef3e36]/30 rounded-full blur-[80px]" />
                     </div>
 
                     <div className="flex items-center gap-3 relative z-10 border-b border-white/10 pb-4">
-                        <div className="flex h-9 w-9 items-center justify-center bg-white/10 text-blue-400 rounded-sm">
+                        <div className="flex h-9 w-9 items-center justify-center bg-white/10 dark:bg-slate-900/10 text-blue-400 rounded-none">
                             <Settings2 size={16} />
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <h2 className="text-[14px] font-semibold text-white tracking-[-0.005em]">CPType integration</h2>
                             <p className="text-[11.5px] font-normal text-slate-400 tracking-[-0.005em]">External webapp configuration</p>
                         </div>
+                        <motion.button
+                            whileHover={{ y: -1 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => setIsCpTypeModalOpen(true)}
+                            className="flex items-center gap-1.5 px-3 h-7 bg-white/10 dark:bg-slate-900/10 text-white text-[11px] font-medium tracking-[-0.005em] hover:bg-white/20 dark:hover:bg-slate-900/20 transition-all rounded-none border border-white/5"
+                        >
+                            Global Settings
+                        </motion.button>
                     </div>
 
                     <div className="mt-5 space-y-4 flex-1 relative z-10 text-[12px]">
                         <div className="space-y-1.5">
                             <label className="text-[10.5px] font-semibold text-slate-400 tracking-[-0.005em] block">Target webapp URL</label>
-                            <code className="block bg-black/45 border border-white/10 p-2.5 rounded-sm font-mono text-[11px] text-blue-300 break-all select-all tracking-[-0.005em]">
+                            <code className="block bg-black/45 border border-white/10 p-2.5 rounded-none font-mono text-[11px] text-blue-300 break-all select-all tracking-[-0.005em]">
                                 https://cptypefinal.web.app/
                             </code>
                         </div>
@@ -208,14 +302,14 @@ export function TypingTestTab() {
                             <p className="text-[10.5px] font-semibold text-white tracking-[-0.005em]">Real-time data flow</p>
                             <ul className="space-y-2 list-disc list-inside text-slate-300 pl-1 text-[12px]">
                                 <li>
-                                    <strong className="text-white font-semibold">Firestore polling:</strong> The applicant portal listens directly to the <code className="bg-white/5 px-1 py-0.5 rounded-sm font-mono text-white text-[10.5px]">applicant_results</code> collection in real-time.
+                                    <strong className="text-white font-semibold">Firestore polling:</strong> The applicant portal listens directly to the <code className="bg-white/5 dark:bg-slate-900/5 px-1 py-0.5 rounded-none font-mono text-white text-[10.5px]">applicant_results</code> collection in real-time.
                                 </li>
                                 <li>
                                     <strong className="text-white font-semibold">Email identification:</strong> Candidates are uniquely identified using their exact email address passed in the URL.
                                 </li>
                                 <li>
                                     <strong className="text-white font-semibold">URL sync parameters:</strong>
-                                    <pre className="mt-1 bg-black/35 p-2 rounded-sm text-[10.5px] font-mono text-slate-300 whitespace-pre-wrap break-all border border-white/5 tracking-[-0.005em]">
+                                    <pre className="mt-1 bg-black/35 p-2 rounded-none text-[10.5px] font-mono text-slate-300 whitespace-pre-wrap break-all border border-white/5 tracking-[-0.005em]">
                                         ?name=[Full+Name]&amp;email=[Email]
                                     </pre>
                                 </li>
@@ -231,15 +325,15 @@ export function TypingTestTab() {
                             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                             Firestore connected
                         </div>
-                        <span className="text-slate-500 font-medium">v2.1.0-secure</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">v2.1.0-secure</span>
                     </div>
                 </div>
             </div>
 
             {/* Integration Guide Section */}
-            <div className="bg-white border border-surface-200 shadow-sm mx-6 mt-6 rounded-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 shadow-sm mx-6 mt-6 rounded-none overflow-hidden">
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100 bg-surface-50/50">
-                    <div className="flex h-9 w-9 items-center justify-center bg-slate-900 text-white rounded-sm">
+                    <div className="flex h-9 w-9 items-center justify-center bg-slate-900 text-white rounded-none">
                         <Type size={16} className="text-blue-400" />
                     </div>
                     <div>
@@ -266,7 +360,7 @@ export function TypingTestTab() {
                             body: 'The applicant portal receives the score immediately via the active listener and updates the recruitment status card automatically, allowing instant validation.',
                         },
                     ].map(card => (
-                        <div key={card.step} className="space-y-2 border border-surface-200 p-4 rounded-sm bg-surface-50/40">
+                        <div key={card.step} className="space-y-2 border border-surface-200 p-4 rounded-none bg-surface-50/40">
                             <div className="flex items-center gap-2">
                                 <span className="w-5 h-5 bg-blue-50 text-[#0078d4] flex items-center justify-center rounded-full text-[10.5px] font-semibold tabular-nums">{card.step}</span>
                                 <span className="text-[12.5px] font-semibold text-surface-900 tracking-[-0.005em]">{card.title}</span>
@@ -278,6 +372,47 @@ export function TypingTestTab() {
                     ))}
                 </div>
             </div>
+
+            {/* Active Typing Test Content Section */}
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 shadow-sm mx-6 mt-6 rounded-none overflow-hidden mb-12">
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-100 bg-surface-50/50">
+                    <div className="flex h-9 w-9 items-center justify-center bg-[#8b5cf6] text-white rounded-none">
+                        <Type size={16} />
+                    </div>
+                    <div>
+                        <h2 className="text-[15px] font-semibold text-surface-900 tracking-[-0.005em]">Active Typing Test Content</h2>
+                        <p className="text-[11.5px] font-normal text-surface-500 tracking-[-0.005em]">
+                            These are the currently synced test prompts that candidates may randomly receive.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-5 bg-surface-50">
+                    {settings.prompts.map((prompt, idx) => (
+                        <div key={idx} className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none p-5 shadow-sm flex flex-col h-40">
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-[12px] font-bold text-surface-800">Prompt {idx + 1}</span>
+                                <span className="text-[9px] font-semibold uppercase tracking-widest bg-[#8b5cf6]/10 text-[#8b5cf6] px-2 py-1 rounded-none">
+                                    Active Pool
+                                </span>
+                            </div>
+                            <p className="text-[11.5px] text-surface-600 leading-relaxed line-clamp-4">
+                                {prompt}
+                            </p>
+                        </div>
+                    ))}
+                    {settings.prompts.length === 0 && (
+                        <div className="col-span-full py-10 flex items-center justify-center text-surface-500 text-sm">
+                            No active prompts found. Sync from cloud to retrieve prompts.
+                        </div>
+                    )}
+                </div>
+            </div>
+            
+            <CPTypeSettingsModal 
+                open={isCpTypeModalOpen} 
+                onClose={() => setIsCpTypeModalOpen(false)} 
+            />
         </div>
     );
 }

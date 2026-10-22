@@ -9,14 +9,15 @@ export const DEFAULT_LABELS: Record<UserRole, string> = {
     admin: 'Administrator',
     super_admin: 'Super Admin',
     recruiter_s: 'Recruiter S!',
-    recruiter_a: 'Recruiter A!',
-    recruiter_jc: 'Recruiter J&C!',
-    recruiter_sy: 'Recruiter SY!',
+    recruiter_a: 'Recruiter Backoffice',
+    recruiter_jc: 'Recruiter Desk',
+    recruiter_sy: 'Recruiter Government ID\'s',
     recruiter_interviewer: 'Recruiter Interviewer',
+    recruiter_supervisor: 'Recruiter Supervisor',
     ops_validator: 'OPS Validator',
 };
 
-export const DEFAULT_DESCRIPTIONS: Record<UserRole, string> = {
+export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
     admin: 'Full system access including all modules and user provisioning',
     super_admin: 'Root-level system access with absolute authority',
     recruiter_s: 'Senior recruiter — can endorse and reroute across all accounts',
@@ -24,10 +25,9 @@ export const DEFAULT_DESCRIPTIONS: Record<UserRole, string> = {
     recruiter_jc: 'J&C account recruiter — specialized account pipeline',
     recruiter_sy: 'SY account recruiter — specialized account pipeline',
     recruiter_interviewer: 'Initial interview stage — screening and form submission',
+    recruiter_supervisor: 'Supervisor for recruitment team',
     ops_validator: 'Final interview and operations validation',
 };
-
-export const ROLE_DESCRIPTIONS = DEFAULT_DESCRIPTIONS;
 
 export const ROLE_ACCENTS: Record<UserRole, { bg: string; text: string; dot: string; border: string; chip: string; table: string; ring: string }> = {
     admin: {
@@ -67,10 +67,16 @@ export const ROLE_ACCENTS: Record<UserRole, { bg: string; text: string; dot: str
         ring: 'ring-indigo-200'
     },
     recruiter_interviewer: {
-        bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500',
-        border: 'border-emerald-200', chip: 'bg-emerald-100 text-emerald-700',
-        table: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-        ring: 'ring-emerald-200'
+        bg: 'bg-teal-50', text: 'text-teal-700', dot: 'bg-teal-500',
+        border: 'border-teal-200', chip: 'bg-teal-100 text-teal-700',
+        table: 'text-teal-700 bg-teal-50 border-teal-200',
+        ring: 'ring-teal-200'
+    },
+    recruiter_supervisor: {
+        bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500',
+        border: 'border-orange-200', chip: 'bg-orange-100 text-orange-700',
+        table: 'text-orange-700 bg-orange-50 border-orange-200',
+        ring: 'ring-orange-200'
     },
     ops_validator: {
         bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500',
@@ -88,6 +94,7 @@ export const DEFAULT_COLORS: Record<UserRole, ColorKey> = {
     recruiter_jc: 'recruiter_jc',
     recruiter_sy: 'recruiter_sy',
     recruiter_interviewer: 'recruiter_interviewer',
+    recruiter_supervisor: 'recruiter_supervisor',
     ops_validator: 'ops_validator',
 };
 
@@ -106,17 +113,17 @@ export const RECRUITER_ROLES: UserRole[] = [
     'recruiter_s', 'recruiter_a', 'recruiter_jc', 'recruiter_sy', 'recruiter_interviewer',
 ];
 
-export const STORAGE_KEY = 'cp360:account-type-settings';
+export const STORAGE_KEY = 'chronicle:account-type-settings';
 
 export type PermissionsMap = Record<UserRole, Record<string, any>>;
 
 const PERMISSIONABLE_MODULES = [
     { id: 'dashboard' },
-    { id: 'forums' },
     { id: 'calendar' },
     { id: 'application_management' },
     { id: 'interview_form' },
     { id: 'masterlist' },
+    { id: 'hiring_reports' },
     { id: 'typing_test_tracker' },
     { id: 'chr' },
     { id: 'job_postings' },
@@ -131,13 +138,16 @@ const PERMISSIONABLE_MODULES = [
     { id: 'question_bank' },
     { id: 'typing_test' },
     { id: 'email_templates' },
+    { id: 'ai' },
     { id: 'active_tasks' },
     { id: 'backups' },
     { id: 'users' },
     { id: 'employee_tracker' },
+    { id: 'analysis' },
     { id: 'reports' },
     { id: 'audit_logs' },
     { id: 'profile' },
+    { id: 'quick_settings' },
 ];
 
 const allTrue = (): Record<string, boolean> =>
@@ -149,7 +159,7 @@ const allTrue = (): Record<string, boolean> =>
 const recruiterBase = (): Record<string, boolean> => {
     const m: Record<string, boolean> = {};
     PERMISSIONABLE_MODULES.forEach(mod => {
-        m[mod.id] = ['dashboard', 'forums', 'calendar', 'application_management', 'interview_form', 'masterlist', 'typing_test_tracker', 'chr', 'job_postings', 'account_system', 'interview_rooms', 'queue_console', 'scheduling', 'question_bank', 'typing_test', 'email_templates', 'reports', 'profile'].includes(mod.id);
+        m[mod.id] = ['dashboard', 'calendar', 'application_management', 'interview_form', 'masterlist', 'promotion', 'typing_test_tracker', 'chr', 'job_postings', 'account_system', 'interview_rooms', 'queue_console', 'scheduling', 'question_bank', 'typing_test', 'email_templates', 'ai', 'reports', 'analysis', 'profile', 'quick_settings'].includes(mod.id);
     });
     return m;
 };
@@ -157,7 +167,7 @@ const recruiterBase = (): Record<string, boolean> => {
 const interviewerBase = (): Record<string, boolean> => {
     const m: Record<string, boolean> = {};
     PERMISSIONABLE_MODULES.forEach(mod => {
-        m[mod.id] = ['dashboard', 'forums', 'application_management', 'interview_form', 'masterlist', 'interview_rooms', 'scheduling', 'profile'].includes(mod.id);
+        m[mod.id] = ['dashboard', 'application_management', 'interview_form', 'masterlist', 'interview_rooms', 'scheduling', 'profile'].includes(mod.id);
     });
     return m;
 };
@@ -165,7 +175,7 @@ const interviewerBase = (): Record<string, boolean> => {
 const validatorBase = (): Record<string, boolean> => {
     const m: Record<string, boolean> = {};
     PERMISSIONABLE_MODULES.forEach(mod => {
-        m[mod.id] = ['dashboard', 'forums', 'interview_form', 'masterlist', 'interview_rooms', 'queue_console', 'scheduling', 'reports', 'profile'].includes(mod.id);
+        m[mod.id] = ['dashboard', 'interview_form', 'masterlist', 'promotion', 'interview_rooms', 'queue_console', 'scheduling', 'reports', 'analysis', 'profile'].includes(mod.id);
     });
     return m;
 };
@@ -178,6 +188,7 @@ export const DEFAULT_PERMISSIONS: PermissionsMap = {
     recruiter_jc: recruiterBase(),
     recruiter_sy: recruiterBase(),
     recruiter_interviewer: interviewerBase(),
+    recruiter_supervisor: recruiterBase(),
     ops_validator: validatorBase(),
 };
 
@@ -199,6 +210,7 @@ export const DEFAULT_ROLE_TYPES: Record<UserRole, string> = {
     recruiter_jc: 'recruiter',
     recruiter_sy: 'recruiter',
     recruiter_interviewer: 'recruiter',
+    recruiter_supervisor: 'recruiter',
     ops_validator: 'ops_validator',
 };
 
@@ -210,7 +222,7 @@ export function loadSettings(): PersistedSettings {
             return {
                 permissions: DEFAULT_PERMISSIONS,
                 labels: { ...DEFAULT_LABELS },
-                descriptions: { ...DEFAULT_DESCRIPTIONS },
+                descriptions: { ...ROLE_DESCRIPTIONS },
                 colors: { ...DEFAULT_COLORS },
                 archived: [],
                 customRoles: [],
@@ -220,7 +232,7 @@ export function loadSettings(): PersistedSettings {
         const customRoles = Array.isArray(parsed.customRoles) ? parsed.customRoles : [];
         const roleTypes = parsed.roleTypes || {};
         const merged: PermissionsMap = { ...DEFAULT_PERMISSIONS };
-        
+
         // Merge standard roles
         (Object.keys(DEFAULT_PERMISSIONS) as UserRole[]).forEach(role => {
             merged[role] = { ...DEFAULT_PERMISSIONS[role], ...(parsed.permissions?.[role] || {}) };
@@ -234,7 +246,7 @@ export function loadSettings(): PersistedSettings {
         return {
             permissions: merged,
             labels: { ...DEFAULT_LABELS, ...(parsed.labels || {}) },
-            descriptions: { ...DEFAULT_DESCRIPTIONS, ...(parsed.descriptions || {}) },
+            descriptions: { ...ROLE_DESCRIPTIONS, ...(parsed.descriptions || {}) },
             colors: { ...DEFAULT_COLORS, ...(parsed.colors || {}) },
             archived: Array.isArray(parsed.archived) ? parsed.archived.filter(r => r !== 'admin') : [],
             customRoles,
@@ -244,7 +256,7 @@ export function loadSettings(): PersistedSettings {
         return {
             permissions: DEFAULT_PERMISSIONS,
             labels: { ...DEFAULT_LABELS },
-            descriptions: { ...DEFAULT_DESCRIPTIONS },
+            descriptions: { ...ROLE_DESCRIPTIONS },
             colors: { ...DEFAULT_COLORS },
             archived: [],
             customRoles: [],
@@ -274,19 +286,14 @@ function readSettings(): {
     };
 }
 
-export const DEFAULT_REROUTED_ACCOUNTS = ['keller postman', 'auto approve'];
+export const DEFAULT_REROUTED_ACCOUNTS = ['keller postman', 'auto approve', 'paesler'];
 
-/**
- * Standalone helper to read the rerouted accounts list from persisted settings.
- * Safe to call outside React components (e.g. inside useCallback, useMemo).
- */
 export function loadReroutedAccounts(): string[] {
-    const s = loadSettings();
-    const rsPerms = s.permissions?.recruiter_s;
-    if (!rsPerms?.allow_rerouting) return [...DEFAULT_REROUTED_ACCOUNTS];
-    const list = rsPerms.rerouted_accounts;
-    if (Array.isArray(list) && list.length > 0) return list.map((a: string) => a.toLowerCase());
-    return [...DEFAULT_REROUTED_ACCOUNTS];
+    try {
+        const raw = localStorage.getItem('chronicle:rerouted-accounts') || localStorage.getItem('cp360:rerouted-accounts');
+        if (raw) return JSON.parse(raw);
+    } catch { }
+    return DEFAULT_REROUTED_ACCOUNTS;
 }
 
 export interface AccountTypeSettings {
@@ -328,6 +335,7 @@ export function useAccountTypeSettings(): AccountTypeSettings {
             refresh();
         }
         window.addEventListener('storage', onStorage);
+        window.addEventListener('chronicle:account-type-settings-updated', onCustom);
         window.addEventListener('cp360:account-type-settings-updated', onCustom);
 
         if (!hasFetched) {
@@ -347,6 +355,7 @@ export function useAccountTypeSettings(): AccountTypeSettings {
 
         return () => {
             window.removeEventListener('storage', onStorage);
+            window.removeEventListener('chronicle:account-type-settings-updated', onCustom);
             window.removeEventListener('cp360:account-type-settings-updated', onCustom);
         };
     }, [refresh]);
@@ -356,7 +365,7 @@ export function useAccountTypeSettings(): AccountTypeSettings {
         [state.labels]
     );
     const getDescription = useCallback(
-        (role: UserRole) => state.descriptions[role] || DEFAULT_DESCRIPTIONS[role as UserRole] || '',
+        (role: UserRole) => state.descriptions[role] || ROLE_DESCRIPTIONS[role as UserRole] || '',
         [state.descriptions]
     );
     const getColorKey = useCallback(
@@ -379,8 +388,8 @@ export function useAccountTypeSettings(): AccountTypeSettings {
     const hasPermission = useCallback(
         (role: UserRole, moduleId: string) => {
             const rolePerms = state.permissions[role];
-            if (!rolePerms) return true;
-            return rolePerms[moduleId] !== false;
+            if (!rolePerms) return false;
+            return rolePerms[moduleId] === true;
         },
         [state.permissions]
     );
@@ -388,96 +397,104 @@ export function useAccountTypeSettings(): AccountTypeSettings {
     const hasPermissionForPath = useCallback(
         (role: UserRole, path: string) => {
             const cleanPath = path.toLowerCase().trim();
-            
+
             // Always allow auth and base routes
             if (cleanPath === '' || cleanPath === '/' || cleanPath === '/login' || cleanPath.startsWith('/profile') || cleanPath.endsWith('/profile')) {
                 return true;
             }
-            
+
             const rolePerms = state.permissions[role];
-            if (!rolePerms) return true;
-            
-            if (cleanPath.includes('/forums')) {
-                if (role === 'ops_validator' || role === 'guest_interviewer') return true;
-                return rolePerms['forums'] !== false;
-            }
+            if (!rolePerms) return false;
+
+
 
             if (cleanPath.includes('/calendar')) {
-                return rolePerms['calendar'] !== false;
+                return rolePerms['calendar'] === true;
             }
-            
+
             // Mapping paths to module permission IDs
             if (cleanPath.endsWith('/dashboard')) {
-                return rolePerms['dashboard'] !== false;
+                return rolePerms['dashboard'] === true;
             }
-            if (cleanPath.includes('/tracker/management') || cleanPath.includes('/applicants')) {
-                return rolePerms['application_management'] !== false;
+
+            if (cleanPath.includes('/tracker/management') || cleanPath.includes('/applicants') || cleanPath.includes('/tracker/promotion') || cleanPath.includes('/tracker/inactive')) {
+                return rolePerms['application_management'] === true;
             }
             if (cleanPath.includes('/tracker/interview-form')) {
-                return rolePerms['interview_form'] !== false;
+                return rolePerms['interview_form'] === true;
             }
             if (cleanPath.includes('/tracker/masterlist')) {
-                return rolePerms['masterlist'] !== false;
+                return rolePerms['masterlist'] === true;
             }
             if (cleanPath.includes('/tracker/typing-test-tracker')) {
-                return rolePerms['typing_test_tracker'] !== false;
+                return rolePerms['typing_test_tracker'] === true;
+            }
+            if (cleanPath.includes('/tracker/reports')) {
+                return rolePerms['hiring_reports'] === true;
             }
             if (cleanPath.includes('/hiring/chr')) {
-                return rolePerms['chr'] !== false;
+                return rolePerms['chr'] === true;
             }
-            if (cleanPath.includes('/settings/job-postings') || cleanPath.includes('/positions')) {
-                return rolePerms['job_postings'] !== false;
+            if (cleanPath.includes('/hiring/job-postings') || cleanPath.includes('/settings/job-postings') || cleanPath.includes('/positions')) {
+                return rolePerms['job_postings'] === true;
             }
-            if (cleanPath.includes('/settings/accounts') || cleanPath.includes('/departments')) {
-                return rolePerms['account_system'] !== false;
+            if (cleanPath.includes('/hiring/accounts') || cleanPath.includes('/settings/accounts') || cleanPath.includes('/departments')) {
+                return rolePerms['account_system'] === true;
             }
             if (cleanPath.includes('/queue-settings')) {
-                return rolePerms['active_tasks'] !== false;
+                return rolePerms['active_tasks'] === true;
             }
             if (cleanPath.includes('/interview/rooms') || cleanPath.includes('/rooms')) {
-                return rolePerms['interview_rooms'] !== false;
+                return rolePerms['interview_rooms'] === true;
             }
             if (cleanPath.includes('/interview/queue') || cleanPath.includes('/queue')) {
-                return rolePerms['queue_console'] !== false;
+                return rolePerms['queue_console'] === true;
             }
             if (cleanPath.includes('/interview/scheduling') || cleanPath.includes('/tracker/scheduling')) {
-                return rolePerms['scheduling'] !== false;
+                return rolePerms['scheduling'] === true;
             }
-            if (cleanPath.includes('/mhrt/salary')) {
-                return rolePerms['mhrp_salary'] !== false;
-            }
+
             if (cleanPath.includes('/mhrt/accounts')) {
-                return rolePerms['mhrp_accounts'] !== false;
+                return rolePerms['mhrp_accounts'] === true;
             }
             if (cleanPath.includes('/mhrt/h2r-creation')) {
-                return rolePerms['mhrp_h2r_creation'] !== false;
+                return rolePerms['mhrp_h2r_creation'] === true;
             }
             if (cleanPath.includes('/mhrt/directory')) {
-                return rolePerms['mhrp_directory'] !== false;
+                return rolePerms['mhrp_directory'] === true;
             }
             if (cleanPath.includes('/settings/questions')) {
-                return rolePerms['question_bank'] !== false;
+                return rolePerms['question_bank'] === true;
             }
             if (cleanPath.includes('/settings/typing-test')) {
-                return rolePerms['typing_test'] !== false;
+                return rolePerms['typing_test'] === true;
             }
             if (cleanPath.includes('/settings/email-templates')) {
-                return rolePerms['email_templates'] !== false;
+                return rolePerms['email_templates'] === true;
+            }
+            if (cleanPath.includes('/settings/ai')) {
+                return rolePerms['ai'] === true;
+            }
+            if (cleanPath.includes('/quick-settings')) {
+                return rolePerms['quick_settings'] === true;
             }
             if (cleanPath.includes('/backup')) {
-                return rolePerms['backups'] !== false;
+                return rolePerms['backups'] === true;
             }
             if (cleanPath.includes('/users')) {
-                return rolePerms['users'] !== false;
+                return rolePerms['users'] === true;
             }
             if (cleanPath.includes('/employee-tracker')) {
-                return rolePerms['employee_tracker'] !== false;
+                return rolePerms['employee_tracker'] === true;
+            }
+            if (cleanPath.endsWith('/analysis')) {
+                return rolePerms['analysis'] === true;
             }
             if (cleanPath.endsWith('/reports')) {
-                return rolePerms['reports'] !== false;
+                return rolePerms['reports'] === true;
             }
             if (cleanPath.endsWith('/audit')) {
-                return rolePerms['audit_logs'] !== false;
+                return rolePerms['audit_logs'] === true;
             }
 
             return true;
@@ -490,12 +507,8 @@ export function useAccountTypeSettings(): AccountTypeSettings {
     const archivedList = combinedRoles.filter(r => state.archived.has(r));
 
     const getReroutedAccounts = useCallback((): string[] => {
-        const rsPerms = state.permissions?.recruiter_s;
-        if (!rsPerms?.allow_rerouting) return [...DEFAULT_REROUTED_ACCOUNTS];
-        const list = rsPerms.rerouted_accounts;
-        if (Array.isArray(list) && list.length > 0) return list.map((a: string) => a.toLowerCase());
-        return [...DEFAULT_REROUTED_ACCOUNTS];
-    }, [state.permissions]);
+        return loadReroutedAccounts();
+    }, []);
 
     return {
         permissions: state.permissions,
@@ -521,5 +534,6 @@ export function useAccountTypeSettings(): AccountTypeSettings {
 }
 
 export function notifyAccountTypeSettingsChanged(): void {
+    window.dispatchEvent(new CustomEvent('chronicle:account-type-settings-updated'));
     window.dispatchEvent(new CustomEvent('cp360:account-type-settings-updated'));
 }

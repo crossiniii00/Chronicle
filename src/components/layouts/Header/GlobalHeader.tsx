@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, X, Clock, Trash2, Users, LogOut, User, ChevronDown, Mail, Shield, Menu, Activity, CheckCircle2, ArrowUpRight } from 'lucide-react';
+import { Bell, X, Trash2, User, Clock, ArrowUpRight, Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { timeAgo, formatDateTime, cn } from '@/utils/formatters';
@@ -23,10 +23,10 @@ const STATUS_MAPPINGS: { [key: string]: { label: string; colorClassDark: string;
     'CLIENT_INTERVIEW': { label: 'Client Interview', colorClassDark: 'text-sky-300 font-extrabold', colorClassLight: 'text-sky-600 font-extrabold' },
     'CLIENT INTERVIEW': { label: 'Client Interview', colorClassDark: 'text-sky-300 font-extrabold', colorClassLight: 'text-sky-600 font-extrabold' },
     'ENDORSED': { label: 'Endorsed', colorClassDark: 'text-cyan-400 font-extrabold', colorClassLight: 'text-cyan-600 font-extrabold' },
-    'PASSED': { label: 'Passed', colorClassDark: 'text-emerald-400 font-extrabold', colorClassLight: 'text-emerald-600 font-extrabold' },
+    'PASSED': { label: 'For Job Offer', colorClassDark: 'text-emerald-400 font-extrabold', colorClassLight: 'text-emerald-600 font-extrabold' },
     'FAILED': { label: 'Failed', colorClassDark: 'text-rose-400 font-extrabold', colorClassLight: 'text-rose-600 font-extrabold' },
     'REJECTED': { label: 'Rejected', colorClassDark: 'text-rose-400 font-extrabold', colorClassLight: 'text-rose-600 font-extrabold' },
-    'HIRED': { label: 'Hired', colorClassDark: 'text-emerald-400 font-extrabold', colorClassLight: 'text-emerald-600 font-extrabold' },
+    'HIRED': { label: 'Accepted Offer', colorClassDark: 'text-emerald-400 font-extrabold', colorClassLight: 'text-emerald-600 font-extrabold' },
     'ACCEPTED_OFFER': { label: 'Accepted Offer', colorClassDark: 'text-emerald-400 font-extrabold', colorClassLight: 'text-emerald-600 font-extrabold' },
     'ACCEPTED OFFER': { label: 'Accepted Offer', colorClassDark: 'text-emerald-400 font-extrabold', colorClassLight: 'text-emerald-600 font-extrabold' },
     'FOR_JOB_OFFER': { label: 'For Job Offer', colorClassDark: 'text-teal-400 font-extrabold', colorClassLight: 'text-teal-600 font-extrabold' },
@@ -64,7 +64,7 @@ const renderFormattedMessage = (message: string, isToast: boolean = false) => {
         return isToast ? 'text-sky-300 font-extrabold' : 'text-sky-600 font-extrabold';
     };
 
-    const nameColor = isToast ? 'text-white font-extrabold' : 'text-slate-900 font-extrabold';
+    const nameColor = isToast ? 'text-white font-extrabold' : 'text-slate-900 dark:text-white font-extrabold';
     const authorColor = isToast ? 'text-sky-300 font-extrabold' : 'text-[#04154D] font-extrabold';
     const textColor = isToast ? 'text-white/95' : 'text-slate-600';
 
@@ -105,9 +105,18 @@ const renderFormattedMessage = (message: string, isToast: boolean = false) => {
 };
 
 const getTriggerUser = (message: string, usersList: SystemUser[], currentUser?: SystemUser | null) => {
-    const match = message.match(/by\s+([A-Za-z0-9\s•·_-]+)$/i);
-    if (!match) return null;
-    const userName = match[1].replace(/·.*$/, '').replace(/•.*$/, '').trim();
+    let userName = '';
+    const endMatch = message.match(/by\s+([A-Za-z0-9\s•·_-]+)$/i);
+    if (endMatch) {
+        userName = endMatch[1].replace(/·.*$/, '').replace(/•.*$/, '').trim();
+    } else {
+        const startMatch = message.match(/^([A-Za-z0-9\s•·_-]+?)\s+(advanced|moved|updated|accepted|assigned|rejected|failed|endorsed|transferred|deleted|imported)/i);
+        if (startMatch) {
+            userName = startMatch[1].trim();
+        } else {
+            return null;
+        }
+    }
     
     // Check current logged in user first (always has latest avatar_data)
     if (currentUser && currentUser.full_name.toLowerCase().trim() === userName.toLowerCase()) {
@@ -132,6 +141,14 @@ const getTriggerUser = (message: string, usersList: SystemUser[], currentUser?: 
 };
 
 const getCandidateNameFromMessage = (message: string) => {
+    const regexUpdates = /(?:updated|marked|passed|failed)\s+(?:multiple fields on\s+)?([A-Za-z0-9\s-]+)'s/i;
+    const matchUpdates = message.match(regexUpdates);
+    if (matchUpdates) return matchUpdates[1].trim();
+
+    const regexVerdicts = /(?:(?:Passed|Failed|Endorsed)\s+)?([A-Za-z0-9\s-]+)(?:'s evaluation| moved from)/i;
+    const matchVerdicts = message.match(regexVerdicts);
+    if (matchVerdicts) return matchVerdicts[1].trim();
+
     const regexMoved = /(.*?)\s+moved\s+from\s+/i;
     const matchMoved = message.match(regexMoved);
     if (matchMoved) return matchMoved[1].trim();
@@ -202,10 +219,10 @@ function NotificationModal({ notification, onClose, users }: { notification: Not
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.95, y: 15 }} 
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                className="relative w-full max-w-md bg-white rounded-xl shadow-[0_24px_48px_rgba(4,21,77,0.18)] border border-slate-200/80 overflow-hidden flex flex-col text-left"
+                className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-[0_24px_48px_rgba(4,21,77,0.18)] border border-slate-200 dark:border-slate-800/80 overflow-hidden flex flex-col text-left"
             >
                 {/* Header */}
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
                     <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-lg bg-[#04154D]/10 flex items-center justify-center text-[#04154D] overflow-hidden">
                             {itemUser?.avatar_data ? (
@@ -214,11 +231,11 @@ function NotificationModal({ notification, onClose, users }: { notification: Not
                                 <Bell size={14} />
                             )}
                         </div>
-                        <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Notification Details</h3>
+                        <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider">Notification Details</h3>
                     </div>
                     <button 
                         onClick={onClose} 
-                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800/50 rounded-lg transition-colors"
                     >
                         <X size={18} />
                     </button>
@@ -227,7 +244,7 @@ function NotificationModal({ notification, onClose, users }: { notification: Not
                 {/* Content */}
                 <div className="p-6 flex-1 flex flex-col">
                     <div className="flex items-center gap-2 mb-4">
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-wider rounded border border-slate-200">
+                        <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider rounded border border-slate-200 dark:border-slate-800">
                             {notification.notification_type.replace(/_/g, ' ')}
                         </span>
                         <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
@@ -235,11 +252,11 @@ function NotificationModal({ notification, onClose, users }: { notification: Not
                         </span>
                     </div>
 
-                    <h2 className="text-lg font-extrabold text-slate-900 leading-snug mb-3">
+                    <h2 className="text-lg font-extrabold text-slate-900 dark:text-white leading-snug mb-3">
                         {notification.title}
                     </h2>
 
-                    <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-lg mb-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/60 rounded-lg mb-4">
                         <p className="text-xs text-slate-600 leading-relaxed font-medium">
                             {renderFormattedMessage(notification.message, false)}
                         </p>
@@ -254,10 +271,10 @@ function NotificationModal({ notification, onClose, users }: { notification: Not
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3.5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-2">
+                <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 flex items-center justify-end gap-2">
                     <button 
                         onClick={onClose} 
-                        className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold transition-all"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50 rounded-lg text-xs font-bold transition-all"
                     >
                         Close Details
                     </button>
@@ -277,15 +294,254 @@ function NotificationModal({ notification, onClose, users }: { notification: Not
     );
 }
 
+function ArchiveCenterModal({ 
+    isOpen, 
+    onClose, 
+    notifications, 
+    deleteBulkNotifications, 
+    users,
+    currentUser,
+    setSelectedNotif
+}: { 
+    isOpen: boolean; 
+    onClose: () => void; 
+    notifications: Notification[]; 
+    deleteBulkNotifications: (ids: string[]) => Promise<void>;
+    users: SystemUser[];
+    currentUser?: SystemUser | null;
+    setSelectedNotif: (n: Notification) => void;
+}) {
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    if (!isOpen) return null;
+
+    const filteredNotifs = notifications
+        .filter(n => {
+            if (filter === 'unread') return !n.is_read;
+            if (filter === 'read') return n.is_read;
+            return true;
+        })
+        .filter(n => {
+            if (!searchQuery) return true;
+            return n.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                   n.message.toLowerCase().includes(searchQuery.toLowerCase());
+        })
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 100);
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredNotifs.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredNotifs.map(n => n.id)));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.size === 0) return;
+        if (window.confirm(`Are you sure you want to delete ${selectedIds.size} selected notification(s)?`)) {
+            await deleteBulkNotifications(Array.from(selectedIds));
+            setSelectedIds(new Set());
+        }
+    };
+
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                onClick={onClose} 
+                className="absolute inset-0 bg-[#04154D]/40 backdrop-blur-md" 
+            />
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.95, y: 15 }} 
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="relative w-full max-w-4xl h-[85vh] bg-white dark:bg-slate-900 rounded-xl shadow-[0_24px_48px_rgba(4,21,77,0.18)] border border-slate-200 dark:border-slate-800/80 overflow-hidden flex flex-col text-left font-sans"
+            >
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-[#04154D] to-[#0a2999] text-white">
+                    <div>
+                        <h2 className="text-lg font-extrabold tracking-tight">Notification Archive Center</h2>
+                        <p className="text-[11px] text-sky-200/85 font-medium mt-0.5">Manage and bulk-delete your notifications history</p>
+                    </div>
+                    <button 
+                        onClick={onClose} 
+                        className="p-2 text-white/70 hover:text-white hover:bg-white/10 dark:hover:bg-slate-900/10 rounded-lg transition-colors cursor-pointer"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Filters and Search toolbar */}
+                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 dark:bg-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                        {(['all', 'unread', 'read'] as const).map(f => {
+                            const count = f === 'all' 
+                                ? notifications.length 
+                                : f === 'unread' 
+                                    ? notifications.filter(n => !n.is_read).length 
+                                    : notifications.filter(n => n.is_read).length;
+                            return (
+                                <button
+                                    key={f}
+                                    onClick={() => { setFilter(f); setSelectedIds(new Set()); }}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider cursor-pointer border",
+                                        filter === f 
+                                            ? "bg-[#04154D] border-[#04154D] text-white shadow-sm" 
+                                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
+                                    )}
+                                >
+                                    {f} <span className={cn("ml-1 px-1.5 py-0.5 rounded-full text-[10px]", filter === f ? "bg-white/20 dark:bg-slate-900/20 text-white" : "bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400")}>{count}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="text"
+                            placeholder="Search archive..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="px-3.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none w-56 font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900"
+                        />
+                        {selectedIds.size > 0 && (
+                            <button
+                                onClick={handleBulkDelete}
+                                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border border-rose-600"
+                            >
+                                <Trash2 size={13} />
+                                Delete Selected ({selectedIds.size})
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Notifications List */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                    {filteredNotifs.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 border border-slate-100 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                                <Bell size={24} className="text-slate-400" />
+                            </div>
+                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">No matching notifications</h3>
+                            <p className="text-xs text-slate-400 font-medium mt-1">Try adjusting your filters or search query.</p>
+                        </div>
+                    ) : (
+                        <div className="min-w-full">
+                            {/* Table header row */}
+                            <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 px-6 py-2.5 grid grid-cols-[50px_1fr_120px_140px] items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider z-10">
+                                <div className="flex items-center justify-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.size > 0 && selectedIds.size === filteredNotifs.length}
+                                        onChange={toggleSelectAll}
+                                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-650 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                </div>
+                                <div className="pl-4">Notification Detail</div>
+                                <div className="text-center">Type</div>
+                                <div className="text-center">Date Received</div>
+                            </div>
+
+                            {/* Table body rows */}
+                            {filteredNotifs.map((n) => {
+                                const itemUser = getTriggerUser(n.message, users, currentUser);
+                                const isSelected = selectedIds.has(n.id);
+                                return (
+                                    <div
+                                        key={n.id}
+                                        onClick={() => { setSelectedNotif(n); }}
+                                        className={cn(
+                                            "px-6 py-4.5 grid grid-cols-[50px_1fr_120px_140px] items-center hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800/50 cursor-pointer transition-all border-b border-slate-100",
+                                            !n.is_read ? "bg-blue-50/5 font-semibold text-slate-950" : "text-slate-600 font-medium"
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() => toggleSelect(n.id)}
+                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-650 focus:ring-blue-500 cursor-pointer"
+                                            />
+                                        </div>
+                                        <div className="pl-4 min-w-0 pr-6 flex items-start gap-4">
+                                            <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800/50 shrink-0 overflow-hidden shadow-sm">
+                                                {itemUser?.avatar_data ? (
+                                                    <img src={itemUser.avatar_data} alt={itemUser.full_name} className="w-full h-full object-cover" />
+                                                ) : itemUser ? (
+                                                    <span className="text-[10px] font-black text-slate-600">
+                                                        {itemUser.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                                    </span>
+                                                ) : (
+                                                    <Bell size={15} />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className={cn("text-xs leading-none mb-1.5", !n.is_read ? "text-[#04154D] font-extrabold" : "text-slate-800 dark:text-slate-200 font-bold")}>{n.title}</h4>
+                                                <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 font-medium line-clamp-1">{renderFormattedMessage(n.message, false)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-center" onClick={(e) => e.stopPropagation()}>
+                                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 text-[9px] font-bold uppercase tracking-wider rounded border border-slate-200 dark:border-slate-800">
+                                                {n.notification_type.replace(/_/g, ' ')}
+                                            </span>
+                                        </div>
+                                        <div className="text-center text-[10px] text-slate-400 font-bold tracking-wider uppercase">
+                                            {formatDateTime(n.created_at)}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
+                    <button 
+                        onClick={onClose} 
+                        className="px-5 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50 rounded-lg text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900"
+                    >
+                        Close Archive
+                    </button>
+                </div>
+            </motion.div>
+        </div>,
+        document.body
+    );
+}
+
 export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
     const { user, logout } = useAuthStore();
-    const { notifications, markAllRead, deleteNotification } = useNotificationStore();
+    const { notifications, markAllRead, deleteNotification, deleteBulkNotifications } = useNotificationStore();
     const navigate = useNavigate();
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
+    const [isArchiveOpen, setIsArchiveOpen] = useState(false);
     const [isPulsing, setIsPulsing] = useState(false);
     const [newNotifToast, setNewNotifToast] = useState<Notification | null>(null);
+    const [notifTab, setNotifTab] = useState<'ALL' | 'VERDICTS' | 'UPDATES' | 'SYSTEM'>('ALL');
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const dropdownRef = useRef<HTMLDivElement>(null);
     const profileRef = useRef<HTMLDivElement>(null);
     const seenIdsRef = useRef<Set<string>>(new Set());
@@ -293,6 +549,40 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
     const [users, setUsers] = useState<SystemUser[]>([]);
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    const groupedNotifications = useMemo(() => {
+        let filtered = notifications;
+        if (notifTab === 'VERDICTS') {
+            filtered = notifications.filter(n => (n.title || '').toUpperCase().includes('VERDICT') || n.notification_type === 'status_change');
+        } else if (notifTab === 'UPDATES') {
+            filtered = notifications.filter(n => (n.title || '').toUpperCase().includes('MASTERLIST') || (n.title || '').toUpperCase().includes('UPDATE') && !(n.title || '').toUpperCase().includes('VERDICT'));
+        } else if (notifTab === 'SYSTEM') {
+            filtered = notifications.filter(n => !(n.title || '').toUpperCase().includes('MASTERLIST') && !(n.title || '').toUpperCase().includes('VERDICT') && n.notification_type !== 'status_change');
+        }
+
+        const groups: { [key: string]: Notification[] } = {};
+        const result: { groupKey?: string; notifications: Notification[]; mainNotif: Notification }[] = [];
+
+        filtered.forEach(n => {
+            const match = n.message.match(/(?:updated|marked|passed|failed)\s+(?:multiple fields on\s+)?([A-Za-z0-9\s-]+)'s/i) || 
+                          n.message.match(/(?:(?:Passed|Failed|Endorsed)\s+)?([A-Za-z0-9\s-]+)(?:'s evaluation| moved from)/i);
+            const candidateName = match ? match[1].trim() : 'UNKNOWN';
+            
+            if (candidateName !== 'UNKNOWN' && ((n.title || '').toUpperCase().includes('MASTERLIST') || (n.title || '').toUpperCase().includes('VERDICT'))) {
+                const timeKey = new Date(n.created_at).toISOString().slice(0, 13); // Group by hour
+                const key = `${n.title}-${candidateName}-${timeKey}`;
+                if (!groups[key]) {
+                    groups[key] = [];
+                    result.push({ groupKey: key, notifications: groups[key], mainNotif: n });
+                }
+                groups[key].push(n);
+            } else {
+                result.push({ notifications: [n], mainNotif: n });
+            }
+        });
+        
+        return result.sort((a, b) => new Date(b.mainNotif.created_at).getTime() - new Date(a.mainNotif.created_at).getTime());
+    }, [notifications, notifTab]);
 
     useEffect(() => {
         UserService.getAll().then(setUsers).catch(console.error);
@@ -357,11 +647,14 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
             );
 
             if (!isActionBySelf) {
-                playNotificationSound();
-                setIsPulsing(true);
-                if (pulseTimeoutRef.current) window.clearTimeout(pulseTimeoutRef.current);
-                pulseTimeoutRef.current = window.setTimeout(() => setIsPulsing(false), 6000);
-                setNewNotifToast(newest);
+                const notificationsDisabled = typeof window !== 'undefined' && localStorage.getItem('chronicle_notifications_disabled') === 'true';
+                if (!notificationsDisabled) {
+                    playNotificationSound();
+                    setIsPulsing(true);
+                    if (pulseTimeoutRef.current) window.clearTimeout(pulseTimeoutRef.current);
+                    pulseTimeoutRef.current = window.setTimeout(() => setIsPulsing(false), 6000);
+                    setNewNotifToast(newest);
+                }
             }
         }
     }, [notifications, user]);
@@ -380,12 +673,13 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
                 <div className="absolute top-4 left-4 z-[60] lg:hidden text-left">
                     <button 
                         onClick={onMenuClick}
-                        className="p-2 bg-white hover:bg-slate-100 rounded-full shadow-sm border border-slate-200/50 backdrop-blur-md transition-all cursor-pointer flex items-center justify-center"
+                        className="p-2 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800/50 rounded-full shadow-sm border border-slate-200 dark:border-slate-800/50 backdrop-blur-md transition-all cursor-pointer flex items-center justify-center"
                     >
                         <Menu size={18} className="text-[#04154D]" />
                     </button>
                 </div>
             )}
+            {/* NOTIFICATIONS DISABLED
             <div className="absolute top-4 right-6 z-[60] text-left">
                 <div className="relative text-left" ref={dropdownRef}>
                     <button
@@ -394,8 +688,8 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
                             "p-2 rounded-full transition-all relative group text-left shadow-sm border backdrop-blur-md flex items-center justify-center cursor-pointer",
                             unreadCount > 0 
                                 ? "bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-500 hover:from-blue-700 hover:to-indigo-700 text-white" 
-                                : "bg-white border-slate-200/50 hover:bg-slate-100/80 active:bg-slate-200/80",
-                            isNotifOpen && (unreadCount > 0 ? "scale-105" : "bg-slate-100")
+                                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/50 hover:bg-slate-100 dark:bg-slate-800/50/80 active:bg-slate-200/80",
+                            isNotifOpen && (unreadCount > 0 ? "scale-105" : "bg-slate-100 dark:bg-slate-800/50")
                         )}
                     >
                         {isPulsing && (
@@ -431,109 +725,143 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
                                 animate={{ opacity: 1, y: 0, scale: 1 }} 
                                 exit={{ opacity: 0, y: 12, scale: 0.96 }} 
                                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                                className="absolute right-0 mt-2.5 w-[310px] bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_12px_30px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.02)] border border-slate-100/80 overflow-hidden text-left"
+                                className="absolute right-0 mt-2.5 w-[320px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(4,21,77,0.15)] border border-slate-200 dark:border-slate-800/60 overflow-hidden text-left font-sans"
                             >
-                                <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/40 text-left">
-                                    <div className="flex items-center gap-1.5 text-left">
-                                        <h3 className="font-extrabold text-slate-800 text-[9px] uppercase tracking-[0.15em] text-left">Notifications</h3>
+                                <div className="px-4 py-3.5 flex items-center justify-between bg-gradient-to-r from-[#04154D] to-[#0a2999] text-white text-left">
+                                    <div className="flex items-center gap-2 text-left">
+                                        <h3 className="font-extrabold text-[10px] uppercase tracking-[0.15em] text-left text-white leading-none">Notifications</h3>
                                         {unreadCount > 0 && (
-                                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-extrabold rounded-full">
+                                            <span className="px-2 py-0.5 bg-sky-400 text-white text-[9px] font-black rounded-full leading-none">
                                                 {unreadCount}
                                             </span>
                                         )}
                                     </div>
                                     <button 
                                         onClick={() => markAllRead()} 
-                                        className="text-[8.5px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest transition-all hover:underline text-left"
+                                        className="text-[9px] font-bold text-sky-300 hover:text-white uppercase tracking-widest transition-all hover:underline text-left cursor-pointer"
                                     >
                                         Mark all read
                                     </button>
                                 </div>
+                                <div className="flex items-center gap-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100/80">
+                                    {(['ALL', 'VERDICTS', 'UPDATES', 'SYSTEM'] as const).map(tab => (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setNotifTab(tab)}
+                                            className={cn(
+                                                "px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer",
+                                                notifTab === tab ? "bg-white dark:bg-slate-900 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-800/50" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800/50"
+                                            )}
+                                        >
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
                                 <div className="max-h-[300px] overflow-y-auto custom-scrollbar text-left divide-y divide-slate-100/60">
-                                    {notifications.length === 0 ? (
+                                    {groupedNotifications.length === 0 ? (
                                         <div className="py-8 text-center text-slate-400">
-                                            <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                                            <div className="w-8 h-8 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
                                                 <Bell size={14} className="text-slate-400" />
                                             </div>
-                                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">No notifications yet</p>
+                                            <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No notifications yet</p>
                                         </div>
                                     ) : (
-                                        notifications
-                                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                                            .map((n, index) => {
+                                        groupedNotifications
+                                            .slice(0, 15)
+                                            .map((group: { groupKey?: string; notifications: Notification[]; mainNotif: Notification }, index: number) => {
+                                                const n = group.mainNotif;
                                                 const itemUser = getTriggerUser(n.message, users, user);
-                                                let notifIcon = <Bell size={12} />;
-                                                let iconBg = "bg-slate-50 text-slate-500 border-slate-200/50";
+                                                let notifIcon = <User size={12} />;
+                                                let iconBg = "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800/50";
                                                 
                                                 if (n.notification_type === 'status_change') {
-                                                    notifIcon = <Activity size={12} />;
+                                                    notifIcon = <User size={12} />;
                                                     iconBg = "bg-blue-600/10 text-blue-600 border-blue-600/20";
                                                 } else if (n.notification_type === 'request_accepted') {
-                                                    notifIcon = <CheckCircle2 size={12} />;
+                                                    notifIcon = <User size={12} />;
                                                     iconBg = "bg-emerald-50 text-emerald-600 border-emerald-100";
                                                 } else if (n.notification_type === 'queue_assigned') {
-                                                    notifIcon = <Users size={12} />;
+                                                    notifIcon = <User size={12} />;
                                                     iconBg = "bg-sky-50 text-sky-600 border-sky-100";
                                                 }
- 
+
+                                                const isUnread = group.notifications.some((not: Notification) => !not.is_read);
+                                                
                                                 return (
-                                                    <motion.div 
-                                                        key={n.id} 
-                                                        initial={{ opacity: 0, x: -8 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: index * 0.02 }}
-                                                        onClick={() => { setSelectedNotif(n); setIsNotifOpen(false); }} 
-                                                        className={cn(
-                                                            "px-3.5 py-2.5 hover:bg-slate-50/50 cursor-pointer transition-all flex gap-2.5 relative group text-left", 
-                                                            !n.is_read ? "bg-blue-50/15" : "bg-transparent"
-                                                        )}
-                                                    >
-                                                        {!n.is_read && (
-                                                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-600 text-left" />
-                                                        )}
-                                                        <div className={cn("w-7.5 h-7.5 rounded-lg flex items-center justify-center shrink-0 border text-left overflow-hidden shadow-sm transition-all group-hover:scale-105", iconBg)}>
-                                                            {itemUser?.avatar_data ? (
-                                                                <img src={itemUser.avatar_data} alt={itemUser.full_name} className="w-full h-full object-cover" />
-                                                            ) : itemUser ? (
-                                                                <span className="text-[8.5px] font-black text-blue-700">
-                                                                    {itemUser.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                                                                </span>
-                                                            ) : (
-                                                                notifIcon
+                                                    <div key={group.groupKey || n.id}>
+                                                        <motion.div 
+                                                            initial={{ opacity: 0, x: -8 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: index * 0.02 }}
+                                                            onClick={() => { setSelectedNotif(n); setIsNotifOpen(false); }} 
+                                                            className={cn(
+                                                                "px-3.5 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800/50 cursor-pointer transition-all flex gap-2.5 relative group text-left", 
+                                                                isUnread ? "bg-blue-50/15" : "bg-transparent"
                                                             )}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0 text-left">
-                                                            <div className="flex items-center justify-between mb-0.5 text-left">
-                                                                <p className={cn(
-                                                                    "text-[9px] leading-none uppercase tracking-wider text-left truncate pr-2 transition-colors", 
-                                                                    n.is_read ? "text-slate-500 font-semibold" : "text-slate-800 font-bold"
-                                                                )}>
-                                                                    {n.title}
-                                                                </p>
-                                                                <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-wider shrink-0 text-left">{timeAgo(n.created_at)}</span>
+                                                        >
+                                                            {isUnread && (
+                                                                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-600 text-left" />
+                                                            )}
+                                                            <div className={cn("w-7.5 h-7.5 rounded-lg flex items-center justify-center shrink-0 border text-left overflow-hidden shadow-sm transition-all group-hover:scale-105", iconBg)}>
+                                                                {itemUser?.avatar_data ? (
+                                                                    <img src={itemUser.avatar_data} alt={itemUser.full_name} className="w-full h-full object-cover" />
+                                                                ) : itemUser ? (
+                                                                    <span className="text-[8.5px] font-black text-blue-700">
+                                                                        {itemUser.full_name.split(' ').map(nm => nm[0]).join('').slice(0, 2).toUpperCase()}
+                                                                    </span>
+                                                                ) : (
+                                                                    notifIcon
+                                                                )}
                                                             </div>
-                                                            <p className={cn(
-                                                                "text-[10px] line-clamp-2 leading-normal text-left transition-colors",
-                                                                n.is_read ? "text-slate-400" : "text-slate-600 font-medium"
-                                                            )}>
-                                                                {renderFormattedMessage(n.message, false)}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex flex-col justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-left">
-                                                            <button 
-                                                                onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }} 
-                                                                className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all text-left"
-                                                            >
-                                                                <Trash2 size={11} />
-                                                            </button>
-                                                        </div>
-                                                    </motion.div>
+                                                            <div className="flex-1 min-w-0 text-left">
+                                                                <div className="flex items-center justify-between mb-0.5 text-left">
+                                                                    <p className={cn(
+                                                                        "text-[9px] leading-none uppercase tracking-wider text-left truncate pr-2 transition-colors flex gap-1", 
+                                                                        !isUnread ? "text-slate-500 dark:text-slate-400 font-semibold" : "text-slate-800 dark:text-slate-200 font-bold"
+                                                                    )}>
+                                                                        {n.title}
+                                                                        {group.notifications.length > 1 && (
+                                                                            <span className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 rounded text-[8px] font-black leading-none ml-1 shrink-0">
+                                                                                {group.notifications.length} items
+                                                                            </span>
+                                                                        )}
+                                                                    </p>
+                                                                    <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-wider shrink-0 text-left">{timeAgo(n.created_at)}</span>
+                                                                </div>
+                                                                <p className={cn(
+                                                                    "text-[10px] line-clamp-2 leading-normal text-left transition-colors mt-0.5",
+                                                                    !isUnread ? "text-slate-400" : "text-slate-600 font-medium"
+                                                                )}>
+                                                                    {group.notifications.length > 1 ? (
+                                                                        <span>
+                                                                            <span className="font-bold text-slate-700 dark:text-slate-300">{itemUser?.full_name || 'Someone'}</span> made {group.notifications.length} updates regarding {n.title.toUpperCase().includes('MASTERLIST') ? 'this masterlist record' : 'this candidate'} recently.
+                                                                        </span>
+                                                                    ) : renderFormattedMessage(n.message, false)}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-col justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-left">
+                                                                <button 
+                                                                    onClick={(e) => { 
+                                                                        e.stopPropagation(); 
+                                                                        group.notifications.forEach((not: Notification) => deleteNotification(not.id)); 
+                                                                    }} 
+                                                                    className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all text-left cursor-pointer"
+                                                                    title="Delete"
+                                                                >
+                                                                    <Trash2 size={11} />
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    </div>
                                                 );
                                             })
                                     )}
                                 </div>
-                                <div className="p-1.5 border-t border-slate-100 bg-slate-50/40 text-center text-left">
-                                    <button className="w-full text-center text-[8.5px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100/50 py-1.5 rounded-lg uppercase tracking-wider transition-all text-left">
+                                <div className="p-1.5 border-t border-slate-100 bg-slate-50 dark:bg-slate-800/40 text-center text-left">
+                                    <button 
+                                        onClick={() => { setIsArchiveOpen(true); setIsNotifOpen(false); }}
+                                        className="w-full text-center text-[8.5px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-800/50/50 py-1.5 rounded-lg uppercase tracking-wider transition-all text-left cursor-pointer"
+                                    >
                                         View Archive Center
                                     </button>
                                 </div>
@@ -542,9 +870,23 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
                     </AnimatePresence>
                 </div>
             </div>
+            */}
             <AnimatePresence>{selectedNotif && <NotificationModal notification={selectedNotif} onClose={() => setSelectedNotif(null)} users={users} />}</AnimatePresence>
+            <AnimatePresence>
+                {isArchiveOpen && (
+                    <ArchiveCenterModal 
+                        isOpen={isArchiveOpen} 
+                        onClose={() => setIsArchiveOpen(false)} 
+                        notifications={notifications} 
+                        deleteBulkNotifications={deleteBulkNotifications} 
+                        users={users}
+                        currentUser={user}
+                        setSelectedNotif={(n) => { setSelectedNotif(n); setIsArchiveOpen(false); }}
+                    />
+                )}
+            </AnimatePresence>
 
-            {/* Premium floating notification toast preview */}
+            {/* Premium floating notification toast preview DISABLED
             <AnimatePresence>
                 {newNotifToast && (() => {
                     const parsedAuthorName = newNotifToast.message.match(/by\s+([A-Za-z0-9\s•·_-]+)$/i)?.[1]?.replace(/·.*$/, '')?.replace(/•.*$/, '')?.trim() || '';
@@ -568,7 +910,7 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
                             />
                             <div className="flex justify-between items-start">
                                 <div className="flex gap-3 items-center">
-                                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-sky-300 border border-white/10 shrink-0 overflow-hidden">
+                                    <div className="w-10 h-10 rounded-lg bg-white/10 dark:bg-slate-900/10 flex items-center justify-center text-sky-300 border border-white/10 shrink-0 overflow-hidden">
                                         {toastUser?.avatar_data ? (
                                             <img src={toastUser.avatar_data} alt={toastUser.full_name} className="w-full h-full object-cover" />
                                         ) : toastUser ? (
@@ -590,7 +932,7 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
                                 </div>
                                 <button 
                                     onClick={() => setNewNotifToast(null)}
-                                    className="text-white/60 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+                                    className="text-white/60 hover:text-white p-1 rounded-full hover:bg-white/10 dark:hover:bg-slate-900/10 transition-colors"
                                 >
                                     <X size={16} />
                                 </button>
@@ -602,6 +944,7 @@ export function GlobalHeader({ onMenuClick }: { onMenuClick?: () => void }) {
                     );
                 })()}
             </AnimatePresence>
+            */}
         </>
     );
 }

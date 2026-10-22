@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="20" fill="#0f172a"/>
+  <!-- a letter -->
+  <text x="50" y="55" font-family="'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="44" fill="#FFFFFF" text-anchor="middle">a</text>
+  <!-- smile arrow -->
+  <path d="M 28 64 C 42 74, 58 74, 72 64" fill="none" stroke="#FF9900" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M 68 62 L 74 65 L 70 70 Z" fill="#FF9900"/>
+</svg>

@@ -13,7 +13,7 @@ export function AccountsTab() {
         deletingId, setDeletingId,
         formData, setFormData,
         scrollRef, isDragging,
-        handleAdd, handleEdit, handleSave, handleDelete,
+        handleAdd, handleEdit, handleSave, handleDelete, handleInlineSave,
         handleMouseDown, handleMouseUp, handleMouseMove,
         filteredAccounts
     } = useAccounts();
@@ -39,6 +39,7 @@ export function AccountsTab() {
                 onMouseMove={handleMouseMove}
                 onEdit={handleEdit}
                 onDelete={setDeletingId}
+                onInlineSave={handleInlineSave}
             />
 
             <AccountFormModal

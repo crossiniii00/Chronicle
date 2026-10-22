@@ -154,7 +154,7 @@ authRouter.get('/users', requireAuth, requireRole('admin', 'recruiter', 'ops_val
     }
 });
 
-authRouter.post('/users', requireAuth, requireRole('admin'), async (req, res, next) => {
+authRouter.post('/users', requireAuth, requireRole('admin', 'recruiter', 'ops_validator'), async (req, res, next) => {
     try {
         const payload = provisionSchema.parse(req.body);
         const newUser = await AuthService.provisionUser(payload);
@@ -164,7 +164,7 @@ authRouter.post('/users', requireAuth, requireRole('admin'), async (req, res, ne
     }
 });
 
-authRouter.patch('/users/:id', requireAuth, requireRole('admin'), async (req, res, next) => {
+authRouter.patch('/users/:id', requireAuth, requireRole('admin', 'recruiter', 'ops_validator'), async (req, res, next) => {
     try {
         const user = await AuthService.updateUser(req.params.id, req.body);
         res.json(user);
@@ -173,7 +173,7 @@ authRouter.patch('/users/:id', requireAuth, requireRole('admin'), async (req, re
     }
 });
 
-authRouter.delete('/users/:id', requireAuth, requireRole('admin'), async (req, res, next) => {
+authRouter.delete('/users/:id', requireAuth, requireRole('admin', 'recruiter', 'ops_validator'), async (req, res, next) => {
     try {
         await UserRepository.delete(req.params.id);
         res.status(204).send();

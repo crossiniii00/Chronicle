@@ -144,6 +144,7 @@ export async function ensureDatabaseTables() {
     `);
     await addIndex('applications', 'applicant_email');
     await addColumn('applications', 'updated_at', 'TIMESTAMPTZ DEFAULT NOW()');
+    await addColumn('applications', 'quota_history_id', 'UUID');
 
     // 2. Notifications Table
     await runSafeQuery('Create Notifications Table', `
@@ -199,6 +200,7 @@ export async function ensureDatabaseTables() {
             current_application_id UUID,
             current_applicant_name TEXT,
             occupied_since TIMESTAMPTZ,
+            occupied_until TIMESTAMPTZ,
             image_url TEXT,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -207,7 +209,10 @@ export async function ensureDatabaseTables() {
     await addColumn('interview_rooms', 'updated_at', 'TIMESTAMPTZ DEFAULT NOW()');
     await addColumn('interview_rooms', 'image_url', 'TEXT');
     await addColumn('interview_rooms', 'room_type', "TEXT DEFAULT 'onsite'");
-    
+    await addColumn('interview_rooms', 'reservations', "JSONB DEFAULT '[]'::jsonb");
+    await addColumn('interview_rooms', 'occupied_until', 'TIMESTAMPTZ');
+    await addColumn('interview_rooms', 'assigned_interviewer_name', 'TEXT');
+
     // 3.1 Departments Table
     await runSafeQuery('Create Departments Table', `
         CREATE TABLE IF NOT EXISTS departments (
@@ -225,6 +230,7 @@ export async function ensureDatabaseTables() {
     await addColumn('departments', 'account_image_url', 'TEXT');
     await addColumn('departments', 'account_image_data', 'TEXT');
     await addColumn('departments', 'type', 'TEXT');
+    await addColumn('departments', 'sub_accounts', 'JSONB DEFAULT \'[]\'');
     await addColumn('departments', 'eligibility_settings', 'JSONB DEFAULT \'{"required":["Accepted Offer","1st Day Show up","Final Specific Status"],"optional":["2nd Day Show up"]}\'');
     await runSafeQuery('Create functional index for departments name', `
         CREATE INDEX IF NOT EXISTS idx_departments_lower_name ON departments (LOWER(name))
@@ -340,7 +346,7 @@ export async function ensureDatabaseTables() {
     await runSafeQuery('Patch App Typing WPM Type', `ALTER TABLE applications ALTER COLUMN typing_test_wpm TYPE TEXT`);
     await runSafeQuery('Patch App Accuracy Type', `ALTER TABLE applications ALTER COLUMN typing_test_accuracy TYPE TEXT`);
     await runSafeQuery('Patch App Score Type', `ALTER TABLE applications ALTER COLUMN assessment_score TYPE TEXT`);
-    
+
     await addColumn('applications', 'typing_test_duration_seconds', 'INTEGER');
     await addColumn('applications', 'typing_test_completed_at', 'TIMESTAMPTZ');
     await addColumn('applications', 'skills', 'JSONB');
@@ -364,7 +370,15 @@ export async function ensureDatabaseTables() {
     await addColumn('applications', 'course_strand', 'TEXT');
     await addColumn('applications', 'queue_number', 'INTEGER');
     await addColumn('applications', 'queue_type', 'TEXT');
-    
+    await addColumn('applications', 'queue_prefix', 'VARCHAR(10) DEFAULT \'Q\'');
+
+    // Add to queue table too
+    await addColumn('queue', 'queue_prefix', 'VARCHAR(10) DEFAULT \'Q\'');
+
+    // Normalize any S/L prefixes back to Q
+    await runSafeQuery('Normalize application queue prefixes to Q', `UPDATE applications SET queue_prefix = 'Q' WHERE queue_prefix IN ('S', 'L')`);
+    await runSafeQuery('Normalize queue entry prefixes to Q', `UPDATE queue SET queue_prefix = 'Q' WHERE queue_prefix IN ('S', 'L')`);
+
     // --- MASTER REGISTRY COLUMNS ---
     await addColumn('applications', 'master_first_name', 'TEXT');
     await addColumn('applications', 'master_last_name', 'TEXT');
@@ -395,10 +409,15 @@ export async function ensureDatabaseTables() {
     await addColumn('applications', 'master_pagibig_status', 'TEXT');
     await addColumn('applications', 'master_first_day_show_up', 'TEXT');
     await addColumn('applications', 'master_second_day_show_up', 'TEXT');
+    await addColumn('applications', 'master_last_keep_warm', 'TEXT');
     await addColumn('applications', 'hired_at', 'TEXT');
     await addColumn('applications', 'metadata', 'JSONB DEFAULT \'{}\'');
     await addColumn('applications', 'hiring_source', 'TEXT');
     await addColumn('applications', 'source', 'TEXT');
+    await addColumn('applications', 'drug_test', 'TEXT');
+    await addColumn('applications', 'current_status_2', 'TEXT');
+    await addColumn('applications', 'current_status_3', 'TEXT');
+    await addColumn('applications', 'master_claim_date', 'TEXT');
 
     await addIndex('applications', 'applicant_name');
     await addIndex('applications', 'department');
@@ -418,9 +437,13 @@ export async function ensureDatabaseTables() {
     await addColumn('applications', 'rejection_reason', 'TEXT');
     await addColumn('applications', 'notes', 'TEXT');
     await addColumn('applications', 'master_middle_name', 'TEXT');
+    await addColumn('applications', 'master_id_remarks', 'TEXT');
+    await addColumn('applications', 'middle_name', 'TEXT');
+    await addColumn('applications', 'first_name', 'TEXT');
+    await addColumn('applications', 'last_name', 'TEXT');
+    await addColumn('applications', 'preferred_nickname', 'TEXT');
     await addColumn('applications', 'interview_notes', 'TEXT');
-    await addColumn('applications', 'endorsed_to_recruiter_s', 'BOOLEAN DEFAULT FALSE');
-    await addColumn('applications', 'recruiter_s_scheduling_status', 'TEXT');
+
     await addColumn('applications', 'current_status', 'TEXT'); // Ensure it's text if not already
     await addColumn('applications', 'highlight_color', 'TEXT');
 
@@ -477,9 +500,32 @@ export async function ensureDatabaseTables() {
     await addColumn('positions', 'location', 'TEXT');
     await addColumn('positions', 'work_arrangement', 'TEXT');
     await addColumn('positions', 'created_by', 'UUID');
-    await addColumn('positions', 'image_url', 'TEXT');
     await addColumn('positions', 'training_start_date', 'DATE');
     await addColumn('positions', 'hiring_quota_id', 'TEXT');
+    await addColumn('positions', 'opening_name', 'TEXT');
+    await addColumn('positions', 'manual_requirement', 'INTEGER');
+    await addColumn('positions', 'manual_job_offers', 'INTEGER');
+    await addColumn('positions', 'manual_fallout', 'INTEGER');
+    await addColumn('positions', 'manual_active_hires', 'INTEGER');
+    await addColumn('positions', 'manual_balance', 'INTEGER');
+    await addColumn('positions', 'manual_day_1_show_up', 'INTEGER');
+    await addColumn('positions', 'salary_matrix_category', 'TEXT');
+    await addColumn('positions', 'class_type', 'TEXT');
+    await addColumn('positions', 'roster_date', 'DATE');
+    await addColumn('positions', 'hiring_req_hc', 'INTEGER');
+    await addColumn('positions', 'total_offers_extended', 'INTEGER');
+    await addColumn('positions', 'net_hires_internal', 'INTEGER');
+    await addColumn('positions', 'net_hires_external', 'INTEGER');
+    await addColumn('positions', 'jo_balance', 'INTEGER');
+    await addColumn('positions', 'notes', 'TEXT');
+    await addColumn('positions', 'country', 'TEXT');
+    await addColumn('positions', 'city', 'TEXT');
+    await addColumn('positions', 'requester_name', 'TEXT');
+    await addColumn('positions', 'recruitment_progress', 'TEXT');
+    await addColumn('positions', 'concatenate', 'TEXT');
+    await addColumn('positions', 'request_date', 'DATE');
+    await addColumn('positions', 'approval_date', 'DATE');
+    await addColumn('positions', 'is_billable', 'BOOLEAN');
 
     // Job Categories Table
     await runSafeQuery('Create Job Categories Table', `
@@ -522,6 +568,30 @@ export async function ensureDatabaseTables() {
     await addColumn('hiring_quota_history', 'manual_hires', 'INTEGER');
     await addColumn('hiring_quota_history', 'training_start_date', 'DATE');
     await addColumn('hiring_quota_history', 'hiring_quota_id', 'TEXT');
+    await addColumn('hiring_quota_history', 'opening_name', 'TEXT');
+    await addColumn('hiring_quota_history', 'manual_requirement', 'INTEGER');
+    await addColumn('hiring_quota_history', 'manual_job_offers', 'INTEGER');
+    await addColumn('hiring_quota_history', 'manual_fallout', 'INTEGER');
+    await addColumn('hiring_quota_history', 'manual_active_hires', 'INTEGER');
+    await addColumn('hiring_quota_history', 'manual_balance', 'INTEGER');
+    await addColumn('hiring_quota_history', 'manual_day_1_show_up', 'INTEGER');
+    await addColumn('hiring_quota_history', 'salary_matrix_category', 'TEXT');
+    await addColumn('hiring_quota_history', 'class_type', 'TEXT');
+    await addColumn('hiring_quota_history', 'roster_date', 'DATE');
+    await addColumn('hiring_quota_history', 'hiring_req_hc', 'INTEGER');
+    await addColumn('hiring_quota_history', 'total_offers_extended', 'INTEGER');
+    await addColumn('hiring_quota_history', 'net_hires_internal', 'INTEGER');
+    await addColumn('hiring_quota_history', 'net_hires_external', 'INTEGER');
+    await addColumn('hiring_quota_history', 'jo_balance', 'INTEGER');
+    await addColumn('hiring_quota_history', 'notes', 'TEXT');
+    await addColumn('hiring_quota_history', 'country', 'TEXT');
+    await addColumn('hiring_quota_history', 'city', 'TEXT');
+    await addColumn('hiring_quota_history', 'requester_name', 'TEXT');
+    await addColumn('hiring_quota_history', 'recruitment_progress', 'TEXT');
+    await addColumn('hiring_quota_history', 'concatenate', 'TEXT');
+    await addColumn('hiring_quota_history', 'request_date', 'DATE');
+    await addColumn('hiring_quota_history', 'approval_date', 'DATE');
+    await addColumn('hiring_quota_history', 'is_billable', 'BOOLEAN');
 
     await runSafeQuery('Create Hiring Quota Requests', `
         CREATE TABLE IF NOT EXISTS hiring_quota_requests (
@@ -558,6 +628,7 @@ export async function ensureDatabaseTables() {
     `);
     await addColumn('email_templates', 'attachment_name', 'TEXT');
     await addColumn('email_templates', 'attachment_path', 'TEXT');
+    await addColumn('email_templates', 'cc_emails', 'TEXT');
 
     await runSafeQuery('Create Status History', `
         CREATE TABLE IF NOT EXISTS status_history (
@@ -593,6 +664,9 @@ export async function ensureDatabaseTables() {
 
     await addColumn('interview_questions', 'options', 'JSONB');
     await addColumn('interview_questions', 'max_rating', 'INTEGER DEFAULT 5');
+    await addColumn('interview_questions', 'allow_notes', 'BOOLEAN DEFAULT false');
+    await addColumn('interview_questions', 'account', "VARCHAR(255) DEFAULT 'ALL'");
+    await addColumn('interview_questions', 'lob', "VARCHAR(255) DEFAULT 'ALL'");
 
     // 7. Report Configs
     await runSafeQuery('Create Report Configs', `
@@ -634,6 +708,14 @@ export async function ensureDatabaseTables() {
 
     await runSafeQuery('Index Forum Posts parent_id', `
         CREATE INDEX IF NOT EXISTS idx_forum_posts_parent_id ON forum_posts(parent_id)
+    `);
+
+    await runSafeQuery('Index Application Queue for lateral joins', `
+        CREATE INDEX IF NOT EXISTS idx_queue_app_type_created ON queue(application_id, queue_type, created_at DESC)
+    `);
+
+    await runSafeQuery('Index Status History for lateral joins', `
+        CREATE INDEX IF NOT EXISTS idx_status_hist_app_from_changed ON status_history(application_id, from_status, changed_at DESC)
     `);
 
     await runSafeQuery('Create Forum Comments', `
@@ -686,11 +768,24 @@ export async function ensureDatabaseTables() {
         )
     `);
 
+    await runSafeQuery('Create Typing Test Results Table', `
+        CREATE TABLE IF NOT EXISTS typing_test_results (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+            prompt_text TEXT NOT NULL,
+            typed_text TEXT NOT NULL,
+            duration_seconds INTEGER NOT NULL,
+            words_per_minute INTEGER NOT NULL,
+            accuracy_percent INTEGER NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+
     await addIndex('forum_posts', 'created_at');
     await addIndex('forum_comments', 'post_id');
     await addIndex('forum_reactions', 'post_id');
     await addIndex('forum_reactions', 'comment_id');
-    
+
     // Performance optimization indexes
     await addIndex('applications', 'assigned_ops_validator_id');
     await addIndex('work_experience', 'application_id');
@@ -710,6 +805,13 @@ export async function ensureDatabaseTables() {
     await addIndex('mhrt_directory', 'account');
     await addIndex('hiring_quota_history', 'position_id');
     await addIndex('hiring_quota_requests', 'requested_by');
+    await addIndex('status_history', 'application_id');
+    await addIndex('status_history', 'to_status');
+    await addIndex('queue', 'application_id');
+    await addIndex('applications', 'applied_at');
+    await addIndex('applications', 'current_status');
+    await addIndex('applications', 'applicant_email');
+    await addIndex('notifications', 'user_id');
 
     // 9. Seed Debug User
     try {
@@ -740,7 +842,24 @@ export async function ensureDatabaseTables() {
         UPDATE queue 
         SET status = 'SKIPPED', completed_at = NOW() 
         WHERE status IN ('WAITING', 'IN_PROGRESS', 'CALLED') 
-          AND created_at < CURRENT_DATE::timestamptz
+          AND created_at < NOW() - INTERVAL '12 hours'
+    `);
+
+    // 8.6 Clean up stale notifications older than 7 days & retain top 100 per user
+    await runSafeQuery('Clean old notifications', `
+        DELETE FROM notifications 
+        WHERE created_at < NOW() - INTERVAL '7 days';
+    `);
+
+    await runSafeQuery('Prune excessive notifications per user', `
+        DELETE FROM notifications
+        WHERE id NOT IN (
+            SELECT id FROM (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) as rnum
+                FROM notifications
+            ) n_ranked
+            WHERE rnum <= 100
+        );
     `);
 
     // 9. Configure Aggressive Autovacuum for High-Churn Tables
@@ -763,6 +882,91 @@ export async function ensureDatabaseTables() {
             );
         `);
     }
+
+    // 9.5 Retroactive cleanup for existing rejected/failed/withdrawn records
+    await runSafeQuery('Retroactively update rejected records specific status', `
+        UPDATE applications 
+        SET metadata = COALESCE(metadata, '{}'::jsonb) 
+            || jsonb_build_object(
+                'final_specific_status', 'OV - Failed',
+                'Final Specific Status', 'OV - Failed',
+                'Specific Status', 'OV - Failed',
+                'overall_status', 'CLOSED'
+            ),
+        master_remarks = 'OV - Failed'
+        WHERE current_status IN ('REJECTED', 'FAILED')
+    `);
+
+    await runSafeQuery('Retroactively update withdrawn records specific status', `
+        UPDATE applications 
+        SET metadata = COALESCE(metadata, '{}'::jsonb) 
+            || jsonb_build_object(
+                'final_specific_status', 'OV - Withdrew Application',
+                'Final Specific Status', 'OV - Withdrew Application',
+                'Specific Status', 'OV - Withdrew Application',
+                'overall_status', 'CLOSED'
+            ),
+        master_remarks = 'OV - Withdrew Application'
+        WHERE current_status IN ('WITHDRAWN', 'Withdrawn')
+    `);
+
+    // 9.6 Retroactive status normalization and typo self-healing
+    await runSafeQuery('Retroactively normalize applications table statuses', `
+        UPDATE applications 
+        SET current_status = CASE
+            WHEN UPPER(TRIM(current_status)) IN ('FOR_JOB_OFFER', 'FORJOBOFFER', 'FOR JOB OFFER') THEN 'For Job Offer'
+            WHEN UPPER(TRIM(current_status)) IN ('ACCEPTED_OFFER', 'ACCEPTEDOFFER', 'ACCEPTED OFFER') THEN 'Accepted Offer'
+            WHEN UPPER(TRIM(current_status)) IN ('PROMOTED', 'PROMOTION') THEN 'Promoted'
+            WHEN UPPER(TRIM(current_status)) IN ('LATERAL', 'LATERAL_TRANSFER', 'LATERALTRANSFER', 'LATERAL TRANSFER') THEN 'Lateral Transfer'
+            WHEN UPPER(TRIM(current_status)) IN ('SENT_JO_AND_BGC', 'SENTJOANDBGC', 'SENT JO AND BGC') THEN 'Sent JO and BGC'
+            WHEN UPPER(TRIM(current_status)) IN ('FOR_PAN', 'FORPAN', 'FOR PAN') THEN 'For PAN'
+            WHEN UPPER(TRIM(current_status)) = 'WITHDRAWN' THEN 'Withdrawn'
+            WHEN UPPER(TRIM(current_status)) IN ('FINAL_iNTERVIEWW', 'FINAL_INTERVIEWW', 'FINALINTERVIEW', 'FINALINTERVIEWW') THEN 'FINAL_INTERVIEW'
+            WHEN UPPER(TRIM(current_status)) IN ('REJECCTED', 'REJECTTED') THEN 'REJECTED'
+            ELSE UPPER(TRIM(REPLACE(current_status, ' ', '_')))
+        END
+        WHERE current_status IS NOT NULL AND current_status != ''
+    `);
+
+    await runSafeQuery('Retroactively normalize status_history from_status', `
+        UPDATE status_history 
+        SET from_status = CASE
+            WHEN UPPER(TRIM(from_status)) IN ('FOR_JOB_OFFER', 'FORJOBOFFER', 'FOR JOB OFFER') THEN 'For Job Offer'
+            WHEN UPPER(TRIM(from_status)) IN ('ACCEPTED_OFFER', 'ACCEPTEDOFFER', 'ACCEPTED OFFER') THEN 'Accepted Offer'
+            WHEN UPPER(TRIM(from_status)) IN ('PROMOTED', 'PROMOTION') THEN 'Promoted'
+            WHEN UPPER(TRIM(from_status)) IN ('LATERAL', 'LATERAL_TRANSFER', 'LATERALTRANSFER', 'LATERAL TRANSFER') THEN 'Lateral Transfer'
+            WHEN UPPER(TRIM(from_status)) IN ('SENT_JO_AND_BGC', 'SENTJOANDBGC', 'SENT JO AND BGC') THEN 'Sent JO and BGC'
+            WHEN UPPER(TRIM(from_status)) IN ('FOR_PAN', 'FORPAN', 'FOR PAN') THEN 'For PAN'
+            WHEN UPPER(TRIM(from_status)) = 'WITHDRAWN' THEN 'Withdrawn'
+            WHEN UPPER(TRIM(from_status)) IN ('FINAL_iNTERVIEWW', 'FINAL_INTERVIEWW', 'FINALINTERVIEW', 'FINALINTERVIEWW') THEN 'FINAL_INTERVIEW'
+            WHEN UPPER(TRIM(from_status)) IN ('REJECCTED', 'REJECTTED') THEN 'REJECTED'
+            ELSE UPPER(TRIM(REPLACE(from_status, ' ', '_')))
+        END
+        WHERE from_status IS NOT NULL AND from_status != ''
+    `);
+
+    await runSafeQuery('Retroactively normalize status_history to_status', `
+        UPDATE status_history 
+        SET to_status = CASE
+            WHEN UPPER(TRIM(to_status)) IN ('FOR_JOB_OFFER', 'FORJOBOFFER', 'FOR JOB OFFER') THEN 'For Job Offer'
+            WHEN UPPER(TRIM(to_status)) IN ('ACCEPTED_OFFER', 'ACCEPTEDOFFER', 'ACCEPTED OFFER') THEN 'Accepted Offer'
+            WHEN UPPER(TRIM(to_status)) IN ('PROMOTED', 'PROMOTION') THEN 'Promoted'
+            WHEN UPPER(TRIM(to_status)) IN ('LATERAL', 'LATERAL_TRANSFER', 'LATERALTRANSFER', 'LATERAL TRANSFER') THEN 'Lateral Transfer'
+            WHEN UPPER(TRIM(to_status)) IN ('SENT_JO_AND_BGC', 'SENTJOANDBGC', 'SENT JO AND BGC') THEN 'Sent JO and BGC'
+            WHEN UPPER(TRIM(to_status)) IN ('FOR_PAN', 'FORPAN', 'FOR PAN') THEN 'For PAN'
+            WHEN UPPER(TRIM(to_status)) = 'WITHDRAWN' THEN 'Withdrawn'
+            WHEN UPPER(TRIM(to_status)) IN ('FINAL_iNTERVIEWW', 'FINAL_INTERVIEWW', 'FINALINTERVIEW', 'FINALINTERVIEWW') THEN 'FINAL_INTERVIEW'
+            WHEN UPPER(TRIM(to_status)) IN ('REJECCTED', 'REJECTTED') THEN 'REJECTED'
+            ELSE UPPER(TRIM(REPLACE(to_status, ' ', '_')))
+        END
+        WHERE to_status IS NOT NULL AND to_status != ''
+    `);
+
+    await addColumn('applications', 'sss_no', 'TEXT');
+    await addColumn('applications', 'tin_no', 'TEXT');
+    await addColumn('applications', 'philhealth_no', 'TEXT');
+    await addColumn('applications', 'pagibig_no', 'TEXT');
+    await addColumn('applications', 'drug_test', 'TEXT');
 
     console.log('[DB-INIT] Self-healing sequence complete.');
 }

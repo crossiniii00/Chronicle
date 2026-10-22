@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx-js-style';
 import { MhrtService, type H2RRecord } from '@/services/MhrtService';
 import { REAL_H2R } from '../constants/h2rConstants';
 
@@ -91,6 +92,11 @@ export function useH2R() {
 
     const handleMouseUp = () => {
         setIsDragging(false);
+        if (scrollRef.current) {
+            setTimeout(() => {
+                if (scrollRef.current) delete scrollRef.current.dataset.dragging;
+            }, 50);
+        }
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
@@ -100,17 +106,45 @@ export function useH2R() {
         scrollRef.current.scrollLeft = scrollLeft - walkX;
         const deltaY = (e.pageY - startY) * 1.5;
         window.scrollTo(0, startWinY - deltaY);
+        
+        if (Math.abs(walkX) > 5 || Math.abs(deltaY) > 5) {
+            scrollRef.current.dataset.dragging = "true";
+        }
     };
 
     const filteredRecords = useMemo(() => {
-        if (!searchTerm) return records;
-        const s = searchTerm.toLowerCase();
-        return records.filter(rec =>
-            rec.account.toLowerCase().includes(s) ||
-            rec.lob.toLowerCase().includes(s) ||
-            rec.jobLocation.toLowerCase().includes(s)
-        );
+        return records.filter(r => {
+            if (!searchTerm) return true;
+            const term = searchTerm.toLowerCase();
+            return (
+                (r.account || '').toLowerCase().includes(term) ||
+                (r.lob || '').toLowerCase().includes(term) ||
+                (r.jobLocation || '').toLowerCase().includes(term)
+            );
+        });
     }, [records, searchTerm]);
+
+    const handleExport = () => {
+        const exportData = filteredRecords.map(r => ({
+            'Account': r.account || 'N/A',
+            'LOB': r.lob || 'N/A',
+            'Job Location': r.jobLocation || 'N/A',
+            'Division': r.division || 'N/A',
+            'Line of Business': r.lineOfBusiness || 'N/A',
+            'Department': r.department || 'N/A',
+            'Reports To': r.reportsTo || 'N/A',
+            'Training': r.training || 'N/A',
+            'Nesting': r.nesting || 'N/A',
+            'Start Date': r.startDate || 'N/A',
+            'Headcount': r.headcount || 'N/A',
+            'Req. ID': r.reqId || 'N/A'
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'H2R Records');
+        XLSX.writeFile(workbook, `H2R_RECORDS_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
 
     return {
         searchTerm, setSearchTerm,
@@ -120,7 +154,7 @@ export function useH2R() {
         deletingId, setDeletingId,
         formData, setFormData,
         scrollRef, isDragging,
-        handleAdd, handleEdit, handleSave, handleDelete,
+        handleAdd, handleEdit, handleSave, handleDelete, handleExport,
         handleMouseDown, handleMouseUp, handleMouseMove,
         filteredRecords
     };

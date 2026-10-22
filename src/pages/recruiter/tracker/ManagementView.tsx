@@ -3,7 +3,7 @@ import { ApplicantManagement } from '../ApplicantManagement';
 
 export function ManagementView() {
     const [searchParams] = useSearchParams();
-    const tab = (searchParams.get('tab') || 'ongoing') as any;
+    const tab = (searchParams.get('tab') || 'all_tab') as any;
     
     return <ApplicantManagement key={tab} initialTab={tab} mode="full" />;
 }

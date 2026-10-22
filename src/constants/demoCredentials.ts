@@ -1,26 +1,26 @@
 export const DEMO_CREDENTIALS = [
     {
-        email: 'admin@contactpoint.com',
+        email: 'admin@cp-360.com',
         password: 'password123',
-        label: 'Admin Portal',
+        label: 'Alexander Vance',
         role: 'Admin'
     },
     {
-        email: 'demos@gmail.com',
+        email: 'recruiter@cp-360.com',
         password: 'password123',
-        label: 'Recruiter S',
+        label: 'Elena Rostova',
         role: 'Recruiter'
     },
     {
-        email: 'willuworkx@gmail.com',
+        email: 'ops@cp-360.com',
         password: 'password123',
-        label: 'Ops Validator',
-        role: 'Ops'
+        label: 'Marcus Thorne',
+        role: 'Ops Validator'
     },
     {
-        email: 'Keinudedios1210@gmail.com',
+        email: 'interviewer@cp-360.com',
         password: 'password123',
-        label: 'Interviewer',
+        label: 'Sofia Chen',
         role: 'Interviewer'
     }
 ];
@@ -33,7 +33,7 @@ export const DEMO_APPLICANT_DATA = {
         phone: '09171234567',
         birth_date: '1995-06-15',
         place_of_birth: 'Cebu City',
-        gender: 'Male',
+        sex: 'Male',
         civil_status: 'Single',
         nationality: 'Filipino',
         current_address: '123 Alpha St, IT Park, Lahug, Cebu City',

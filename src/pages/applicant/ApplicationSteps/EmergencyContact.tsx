@@ -46,7 +46,7 @@ export function EmergencyContact({ form, updateForm, resumeFile, setResumeFile, 
                 </div>
 
                 {/* Form */}
-                <div className="bg-white rounded-sm border border-surface-200 p-8 shadow-sm">
+                <div className="bg-white dark:bg-slate-900 rounded-sm border border-surface-200 p-8 shadow-sm">
                     <h1 className="mb-6 text-2xl font-bold text-surface-900">Emergency Contact and Resume</h1>
                     
                     <div className="space-y-8">

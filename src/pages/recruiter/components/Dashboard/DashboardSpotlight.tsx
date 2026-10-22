@@ -34,9 +34,9 @@ export const DashboardSpotlight: React.FC<DashboardSpotlightProps> = ({
     currentAccount
 }) => {
     return (
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
             {/* Recruiter Spotlight */}
-            <div className="bg-gradient-to-br from-white via-amber-50/15 to-orange-50/5 border border-amber-200/60 rounded-xl p-8 shadow-premium flex flex-col justify-between min-h-[250px] relative overflow-hidden group hover:shadow-premium-hover transition-all duration-300">
+            <div className="bg-gradient-to-br from-white via-amber-50/15 to-orange-50/5 border border-amber-200/60 rounded-none p-8 shadow-premium flex flex-col justify-between min-h-[250px] relative overflow-hidden group hover:shadow-premium-hover transition-all duration-300">
                 <div className="absolute top-0 right-0 w-36 h-36 bg-amber-200/10 rounded-full blur-3xl -z-10 group-hover:bg-amber-200/25 transition-colors duration-500" />
                 
                 <div className="flex items-center justify-between mb-4 z-10">
@@ -88,13 +88,13 @@ export const DashboardSpotlight: React.FC<DashboardSpotlightProps> = ({
                                     </p>
 
                                     <div className="grid grid-cols-2 gap-4 mt-4">
-                                        <div className="bg-amber-50/40 border border-amber-100/50 p-3 rounded-lg text-left shadow-sm">
+                                        <div className="bg-amber-50/40 border border-amber-100/50 p-3 rounded-none text-left shadow-sm">
                                             <p className="text-[8px] font-black text-amber-600 uppercase tracking-wider leading-none">Hires Placed</p>
                                             <p className="text-xl font-black text-amber-700 mt-1">{currentRecruiter.hires}</p>
                                         </div>
-                                        <div className="bg-slate-50/50 border border-slate-200/50 p-3 rounded-lg text-left shadow-sm">
+                                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800/50 p-3 rounded-none text-left shadow-sm">
                                             <p className="text-[8px] font-black text-slate-600 uppercase tracking-wider leading-none">Candidates</p>
-                                            <p className="text-xl font-black text-slate-800 mt-1">{currentRecruiter.active}</p>
+                                            <p className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">{currentRecruiter.active}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -105,7 +105,7 @@ export const DashboardSpotlight: React.FC<DashboardSpotlightProps> = ({
             </div>
 
             {/* Account Highlights */}
-            <div className="bg-gradient-to-br from-white via-violet-50/15 to-indigo-50/5 border border-violet-200/60 rounded-xl p-8 shadow-premium flex flex-col justify-between min-h-[250px] relative overflow-hidden group hover:shadow-premium-hover transition-all duration-300">
+            <div className="bg-gradient-to-br from-white via-violet-50/15 to-indigo-50/5 border border-violet-200/60 rounded-none p-8 shadow-premium flex flex-col justify-between min-h-[250px] relative overflow-hidden group hover:shadow-premium-hover transition-all duration-300">
                 <div className="absolute top-0 right-0 w-36 h-36 bg-violet-200/10 rounded-full blur-3xl -z-10 group-hover:bg-violet-200/25 transition-colors duration-500" />
 
                 <div className="flex items-center justify-between mb-4 z-10">
@@ -132,7 +132,7 @@ export const DashboardSpotlight: React.FC<DashboardSpotlightProps> = ({
                                 className="w-full"
                             >
                                 <div className="flex items-center gap-6">
-                                    <div className="w-20 h-20 rounded-xl border border-violet-100 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-xl p-2 group-hover:scale-105 group-hover:-rotate-3 transition-all duration-500 ring-4 ring-violet-500/10">
+                                    <div className="w-20 h-20 rounded-none border border-violet-100 bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 shadow-xl p-2 group-hover:scale-105 group-hover:-rotate-3 transition-all duration-500 ring-4 ring-violet-500/10">
                                         {currentAccount.accountImageUrl ? (
                                             <img src={currentAccount.accountImageUrl} alt={currentAccount.name} className="w-full h-full object-contain" />
                                         ) : (
@@ -174,44 +174,6 @@ export const DashboardSpotlight: React.FC<DashboardSpotlightProps> = ({
                 </div>
             </div>
 
-            {/* Spotlight Topic - Forum Link */}
-            <Link to="/recruiter/forums" className="bg-gradient-to-br from-white via-emerald-50/15 to-teal-50/5 border border-emerald-200/60 rounded-xl p-8 shadow-premium flex flex-col justify-between min-h-[250px] relative overflow-hidden group hover:shadow-premium-hover transition-all duration-300 cursor-pointer">
-                <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-200/10 rounded-full blur-3xl -z-10 group-hover:bg-emerald-200/25 transition-colors duration-500" />
-
-                <div className="flex items-center justify-between mb-4 z-10">
-                    <h3 
-                        className="text-xs text-surface-600 uppercase tracking-[0.15em] flex items-center gap-2"
-                        style={{ fontFamily: 'var(--font-family-display)', fontStyle: 'italic', fontWeight: 500 }}
-                    >
-                        <MessageSquare size={14} className="text-emerald-600" /> Spotlight Topic
-                    </h3>
-                    <span className="px-3 py-1 text-[8px] font-black uppercase bg-emerald-50/80 border border-emerald-200 text-emerald-700 tracking-widest rounded-full shadow-sm">
-                        Forum
-                    </span>
-                </div>
-
-                <div className="relative flex-1 z-10 flex flex-col justify-center items-center text-center min-h-[120px]">
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="space-y-4"
-                    >
-                        <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-                            <MessageSquare size={28} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-surface-700">Join the Discussion</p>
-                            <p className="text-[10px] text-surface-400 mt-1 font-medium">Share insights, ask questions, and collaborate with your team</p>
-                        </div>
-                        <div className="pt-2">
-                            <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-emerald-600 group-hover:text-emerald-700 transition-colors">
-                                Go to Forum <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
-                            </span>
-                        </div>
-                    </motion.div>
-                </div>
-            </Link>
         </div>
     );
 };

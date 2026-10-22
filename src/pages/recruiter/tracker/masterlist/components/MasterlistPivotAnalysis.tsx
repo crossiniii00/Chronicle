@@ -271,7 +271,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
         const total = Object.values(stats).reduce((a, b) => a + b, 0);
 
         return (
-            <div className="bg-white border border-[#edebe9] rounded-none shadow-sm overflow-hidden flex flex-col h-full group/card">
+            <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm overflow-hidden flex flex-col h-full group/card">
                 <div className={cn("px-4 py-2 text-white flex items-center justify-between transition-colors", color)}>
                     <div className="flex items-center gap-2">
                         <Icon size={14} />
@@ -281,7 +281,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
                         <select 
                             value={filterVal}
                             onChange={(e) => setFilterVal(e.target.value)}
-                            className="bg-white/20 border-none text-[8px] font-bold uppercase text-white outline-none rounded-none px-1 py-0.5 cursor-pointer hover:bg-white/30 transition-colors max-w-[100px]"
+                            className="bg-white/20 dark:bg-slate-900/20 border-none text-[8px] font-bold uppercase text-white outline-none rounded-none px-1 py-0.5 cursor-pointer hover:bg-white/30 dark:hover:bg-slate-900/30 transition-colors max-w-[100px]"
                         >
                             <option value="ALL" className="text-black">ALL {filterType === 'account' ? 'ACCOUNTS' : 'STATUSES'}</option>
                             {filterOptions.map(opt => (
@@ -296,7 +296,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
                         const percentage = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
                         return (
                             <div key={label} className="space-y-1">
-                                <div className="flex justify-between items-center text-[9px] font-bold text-[#323130] uppercase">
+                                <div className="flex justify-between items-center text-[9px] font-bold text-[#323130] dark:text-slate-300 uppercase">
                                     <span className="truncate pr-2">{label.replace(/_/g, ' ')}</span>
                                     <span>{count}</span>
                                 </div>
@@ -368,7 +368,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
             {/* 2. Mobility & Success Heatmap */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Account Mobility Analysis */}
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4 flex flex-col">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4 flex flex-col">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-[11px] font-bold text-[#0078d4] uppercase flex items-center gap-2">
                             <Target size={14} /> Account Assignment Mobility
@@ -403,7 +403,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
                 </div>
 
                 {/* Account Fail Rate Analysis */}
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4">
                     <h3 className="text-[11px] font-bold text-[#d13438] uppercase mb-4 flex items-center gap-2">
                         <Activity size={14} /> Fail Rate Heatmap by Account
                     </h3>
@@ -440,8 +440,8 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
 
             {/* 3. Remarks Intelligence (High Impact) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4 col-span-1 lg:col-span-2">
-                    <h3 className="text-[11px] font-bold text-[#323130] uppercase mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4 col-span-1 lg:col-span-2">
+                    <h3 className="text-[11px] font-bold text-[#323130] dark:text-slate-300 uppercase mb-4 flex items-center gap-2">
                         <FileText size={14} /> Remarks Intelligence Analysis
                     </h3>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -499,7 +499,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
             {/* 4. Time-Series Trends */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Month Chart */}
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4">
                     <h3 className="text-[11px] font-bold text-[#002060] uppercase mb-4 flex items-center gap-2">
                         <Calendar size={14} /> Per Month Status Analysis
                     </h3>
@@ -520,7 +520,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
                 </div>
 
                 {/* Week Chart */}
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4">
                     <h3 className="text-[11px] font-bold text-[#d13438] uppercase mb-4 flex items-center gap-2">
                         <BarChart3 size={14} /> Per Week Status Analysis
                     </h3>
@@ -544,7 +544,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
             {/* 5. Skills & Sourcing Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Performance Analysis: Typing & Exam */}
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4">
                     <h3 className="text-[11px] font-bold text-[#0078d4] uppercase mb-4 flex items-center gap-2">
                         <Zap size={14} /> Typing Speed Distribution (WPM)
                     </h3>
@@ -561,7 +561,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
                     </div>
                 </div>
 
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4">
                     <h3 className="text-[11px] font-bold text-[#107c10] uppercase mb-4 flex items-center gap-2">
                         <Target size={14} /> Assessment Score Distribution
                     </h3>
@@ -579,7 +579,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
                 </div>
 
                 {/* Position Distribution */}
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4">
                     <h3 className="text-[11px] font-bold text-[#5c2d91] uppercase mb-4 flex items-center gap-2">
                         <Users size={14} /> Candidate Distribution by Position
                     </h3>
@@ -597,7 +597,7 @@ export function MasterlistPivotAnalysis({ data }: PivotAnalysisProps) {
                 </div>
 
                 {/* Sourcing Analysis */}
-                <div className="bg-white border border-[#edebe9] rounded-none shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none shadow-sm p-4">
                     <h3 className="text-[11px] font-bold text-[#ffb900] uppercase mb-4 flex items-center gap-2">
                         <Share2 size={14} /> Top Hiring Sources
                     </h3>

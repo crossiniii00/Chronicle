@@ -1,0 +1,15 @@
+﻿ {                                                                                                                                                                    +
+     "04baa92d-3081-4cbb-9517-b99a195eda21": "Yes.",                                                                                                                  +
+     "0b028b5b-b8af-46a9-89ac-d45afd2ab0c8": "None",                                                                                                                  +
+     "22c38243-e3ac-4312-bc16-7cca4031b324": "None. ",                                                                                                                +
+     "360f9b6a-7d6c-41e7-a980-1c14e311d3b1": "Looking for an opportunity.",                                                                                           +
+     "40d1bf73-3bfc-4ee3-9da9-1d0ca6e702b1": "- acquire knowledge and skills. ",                                                                                      +
+     "63b64cba-32b0-4ce6-815f-011486f26aa9": "The candidate was able to convey thoughts despite of being new to BPO industry.",                                       +
+     "6cf57a49-1f24-4b39-b7bc-3aa626b753ef": "-",                                                                                                                     +
+     "737ef5db-461b-4b76-a3de-a3b574f3b163": "15k basic salary.",                                                                                                     +
+     "8250bce7-5842-4a35-84a7-232b6b467579": "Flexible. ",                                                                                                            +
+     "be3d7992-f21f-4551-b270-d80503b3a89b": "None. ",                                                                                                                +
+     "f6b85476-e85b-4244-ac36-5f66394c96bb": "SHS GRAD\nNO BPO EXPERIENCE\nWILLING TO LEARN",                                                                         +
+     "fb929808-1f74-404d-b2d6-631b4c8a3bf4": "Challenge: How will you handle a difficult customer?\nSolution: Be calm and acknowledge the customer, provide solution."+
+ }
+

@@ -3,7 +3,7 @@ import { cn } from '@/utils/formatters';
 import { useAuthStore } from '@/store/authStore';
 import {
     GraduationCap, UserX, Users, Calendar,
-    BarChart3, Layout, LogOut, Mail, Trophy
+    BarChart3, Layout, LogOut, Mail, Trophy, Settings
 } from 'lucide-react';
 
 interface MasterlistTabsProps {
@@ -11,12 +11,16 @@ interface MasterlistTabsProps {
     setActiveTab: (val: string) => void;
     activeSubTab: string;
     setActiveSubTab: (val: string) => void;
-    isEditing: boolean;
+    isEditing?: boolean;
+    setIsEditing?: (val: boolean) => void;
+    isConfigEditing?: boolean;
+    setIsConfigEditing?: (val: boolean) => void;
 }
 
-export function MasterlistTabs({ activeTab, setActiveTab, isEditing }: MasterlistTabsProps) {
+export function MasterlistTabs({ activeTab, setActiveTab, isEditing, setIsEditing, isConfigEditing, setIsConfigEditing }: MasterlistTabsProps) {
     const { user } = useAuthStore();
     const isRecruiterS = user?.role === 'recruiter_s';
+    const isTabsEditing = isConfigEditing || false;
 
     const defaultTabs = isRecruiterS
         ? [
@@ -30,8 +34,7 @@ export function MasterlistTabs({ activeTab, setActiveTab, isEditing }: Masterlis
             { id: 'POOL', label: 'Pool', icon: Users },
             { id: 'PIVOT', label: 'Pivot', icon: Layout },
             { id: 'OFFBOARDING_TRACKER', label: 'Offboarding Tracker', icon: LogOut },
-            { id: 'OFFBOARDING_WINNERS', label: 'Onboarding winners', icon: Trophy },
-            { id: 'EMAIL', label: 'Email', icon: Mail }
+            { id: 'OFFBOARDING_WINNERS', label: 'Onboarding winners', icon: Trophy }
         ];
 
     const [tabsList, setTabsList] = React.useState<any[]>(() => {
@@ -92,7 +95,7 @@ export function MasterlistTabs({ activeTab, setActiveTab, isEditing }: Masterlis
     };
 
     return (
-        <div className="bg-white border-b border-surface-200 sticky top-0 z-[60]">
+        <div className="bg-white dark:bg-slate-900 border-b border-surface-200 sticky top-0 z-[60]">
             <div className="flex items-center justify-center gap-0 overflow-x-auto no-scrollbar px-6 border-b border-surface-100">
                 {tabsList.map((tab, idx) => {
                     const Icon = tab.icon;
@@ -104,11 +107,11 @@ export function MasterlistTabs({ activeTab, setActiveTab, isEditing }: Masterlis
                             className={cn(
                                 "px-6 py-3.5 text-[12.5px] font-medium tracking-normal transition-all relative min-w-max flex items-center gap-2.5 group",
                                 isActive
-                                    ? "text-black bg-white"
+                                    ? "text-black bg-white dark:bg-slate-900"
                                     : "text-surface-500 hover:text-surface-900 hover:bg-surface-50"
                             )}
                         >
-                            {isEditing && (
+                            {isTabsEditing && (
                                 <div className="flex items-center gap-1 mr-1 shrink-0">
                                     <span
                                         onClick={(e) => handleMoveTab(idx, 'left', e)}
@@ -116,7 +119,7 @@ export function MasterlistTabs({ activeTab, setActiveTab, isEditing }: Masterlis
                                             "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] border font-bold transition-all",
                                             idx === 0
                                                 ? "text-slate-300 border-slate-100 cursor-not-allowed"
-                                                : "text-slate-600 border-slate-300 hover:bg-slate-100 active:scale-90"
+                                                : "text-slate-600 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-800/50 active:scale-90"
                                         )}
                                         title="Move tab left"
                                     >
@@ -128,7 +131,7 @@ export function MasterlistTabs({ activeTab, setActiveTab, isEditing }: Masterlis
                                             "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] border font-bold transition-all",
                                             idx === tabsList.length - 1
                                                 ? "text-slate-300 border-slate-100 cursor-not-allowed"
-                                                : "text-slate-600 border-slate-300 hover:bg-slate-100 active:scale-90"
+                                                : "text-slate-600 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-800/50 active:scale-90"
                                         )}
                                         title="Move tab right"
                                     >
@@ -144,6 +147,18 @@ export function MasterlistTabs({ activeTab, setActiveTab, isEditing }: Masterlis
                         </button>
                     );
                 })}
+                <button
+                    onClick={() => {
+                        if (setIsConfigEditing) setIsConfigEditing(!isConfigEditing);
+                    }}
+                    className={cn(
+                        "ml-4 px-3 py-1.5 rounded-sm flex items-center justify-center transition-all",
+                        isTabsEditing ? "bg-black text-white" : "text-surface-400 hover:bg-surface-100 hover:text-black"
+                    )}
+                    title={isTabsEditing ? "Done editing tabs" : "Edit tabs order"}
+                >
+                    <Settings size={14} />
+                </button>
             </div>
         </div>
     );

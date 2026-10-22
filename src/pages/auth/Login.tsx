@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import RotatingText from '@/components/common/RotatingText';
 import { PageTransition } from '@/components/common/PageTransition';
 import { SlideshowBackground } from '@/components/common/SlideshowBackground';
+import { DEMO_CREDENTIALS } from '@/constants/demoCredentials';
 
 export function LoginPage() {
     const navigate = useNavigate();
@@ -77,22 +78,15 @@ export function LoginPage() {
                     <header className="absolute top-0 left-0 w-full z-30 flex items-center justify-between px-10 py-8">
                         <div
                             onClick={() => setShowAuth(false)}
-                            className="flex items-center gap-4 cursor-pointer group transition-all"
+                            className="flex items-center gap-3 cursor-pointer group transition-all"
                         >
-                            <div className="p-1.5 bg-white rounded-lg shadow-xl shadow-white/5 group-hover:bg-white/90 transition-colors">
-                                <img
-                                    src="/contactpoint-logo.png?v=3"
-                                    alt="CP360"
-                                    className="w-8 h-8 object-contain"
-                                />
+                            <div className="w-8 h-8 rounded-lg bg-white text-black font-black flex items-center justify-center text-sm shadow-xl shadow-white/5">
+                                C
                             </div>
                             <div className="flex flex-col">
-                                <h1 className="text-white font-black text-[11px] uppercase leading-tight">
-                                    <span className="tracking-widest">CONTACTPOINT</span> <span className="tracking-[0.35em]">360</span>
+                                <h1 className="text-white font-black text-sm uppercase leading-tight tracking-tight">
+                                    CHRONICLE<span className="text-neutral-400">CRM</span>
                                 </h1>
-                                <span className="text-white/30 font-bold text-[8px] tracking-[0.5em] uppercase">
-                                    RECRUITMENT
-                                </span>
                             </div>
                         </div>
 
@@ -154,7 +148,7 @@ export function LoginPage() {
                                     className="flex flex-col items-center justify-center"
                                 >
                                     <p className="text-[10px] font-bold tracking-[0.3em] text-white/50 uppercase mb-4">
-                                        CONTACTPOINT 360 RECRUITMENT HUB
+                                        CHRONICLECRM TALENT PLATFORM
                                     </p>
 
                                     <motion.h1
@@ -163,7 +157,7 @@ export function LoginPage() {
                                         <span className="whitespace-nowrap">Where Talent Meets</span>
                                         <RotatingText
                                             texts={['Opportunity', 'Potential', 'Growth']}
-                                            mainClassName="px-6 py-2 bg-[#FF0000] text-white rounded-2xl overflow-hidden justify-center shadow-[0_10px_30px_rgba(255,0,0,0.3)]"
+                                            mainClassName="px-6 py-2 bg-white text-black rounded-2xl overflow-hidden justify-center shadow-[0_10px_30px_rgba(255,255,255,0.2)] font-black"
                                             staggerFrom={"last"}
                                             initial={{ y: "100%", opacity: 0 }}
                                             animate={{ y: 0, opacity: 1 }}
@@ -207,85 +201,141 @@ export function LoginPage() {
                             ) : (
                                 <motion.div
                                     key="auth-form"
-                                    initial={{ opacity: 0, y: 40, scale: 0.9, filter: "blur(10px)" }}
-                                    animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-                                    exit={{ opacity: 0, y: 40, scale: 0.9, filter: "blur(10px)" }}
+                                    initial={{ opacity: 0, y: 30, scale: 0.96 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 20, scale: 0.96 }}
                                     transition={{
                                         type: "spring",
-                                        damping: 25,
-                                        stiffness: 200,
-                                        mass: 1
+                                        damping: 26,
+                                        stiffness: 240,
+                                        mass: 0.9
                                     }}
-                                    className="w-full max-w-[440px] z-50 px-4"
+                                    className="w-full max-w-[460px] z-50 px-4"
                                 >
-                                    <div className="bg-white p-11 shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[4px] text-left relative min-h-[360px] flex flex-col border border-white/10">
-                                        <div className="flex items-center gap-2.5 mb-6">
-                                            <img
-                                                src="/contactpoint-logo.png?v=3"
-                                                alt="ContactPoint 360"
-                                                className="w-6 h-6 object-contain"
-                                            />
-                                            <span className="text-[17px] font-semibold text-[#5e5e5e] tracking-tight">
-                                                ContactPoint 360
-                                            </span>
+                                    <div className="bg-white rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] border border-neutral-200/80 text-left overflow-hidden">
+                                        {/* Card Header */}
+                                        <div className="px-8 pt-8 pb-5 border-b border-neutral-100 flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-black text-white font-black flex items-center justify-center text-xs tracking-tight shadow-md">
+                                                    C
+                                                </div>
+                                                <div>
+                                                    <span className="text-[15px] font-black text-black tracking-tight block leading-tight">
+                                                        Chronicle<span className="text-neutral-400 font-semibold">CRM</span>
+                                                    </span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                                        Sign in to portal
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAuth(false)}
+                                                className="text-xs font-semibold text-neutral-400 hover:text-black transition-colors"
+                                            >
+                                                Back
+                                            </button>
                                         </div>
 
-                                        <h1 className="text-2xl font-bold text-[#1b1b1b] mb-2">
-                                            Sign in
-                                        </h1>
+                                        <div className="p-8">
+                                            {/* Demo Credentials Quick Switcher */}
+                                            <div className="mb-6">
+                                                <div className="flex items-center justify-between mb-2.5">
+                                                    <span className="text-[10px] font-black uppercase tracking-wider text-neutral-400">
+                                                        Quick Demo Access
+                                                    </span>
+                                                    <span className="text-[10px] text-neutral-400">Click to fill</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-1.5 p-1 bg-neutral-100/80 rounded-xl border border-neutral-200/60">
+                                                    {DEMO_CREDENTIALS.map(cred => {
+                                                        const isSelected = email === cred.email;
+                                                        return (
+                                                            <button
+                                                                key={cred.role}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEmail(cred.email);
+                                                                    setPassword(cred.password);
+                                                                    setError(null);
+                                                                }}
+                                                                className={`px-3 py-2 rounded-lg text-[11px] font-bold text-center transition-all ${
+                                                                    isSelected
+                                                                        ? 'bg-black text-white shadow-sm'
+                                                                        : 'text-neutral-600 hover:text-black hover:bg-white/60'
+                                                                }`}
+                                                            >
+                                                                {cred.role}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
 
-                                        <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
-                                            <div className="space-y-4 mb-4">
+                                            {/* Form */}
+                                            <form onSubmit={handleSubmit} className="space-y-4">
                                                 {error && (
-                                                    <div className="text-[13px] text-[#e81123] mb-2 animate-in fade-in slide-in-from-top-1">
+                                                    <div className="text-[12px] font-bold text-red-600 bg-red-50 border border-red-200 py-2.5 px-3.5 rounded-lg">
                                                         {error}
                                                     </div>
                                                 )}
 
-                                                <div className="space-y-4">
-                                                    <div className="relative group">
-                                                        <input
-                                                            type="email"
-                                                            value={email}
-                                                            onChange={e => setEmail(e.target.value)}
-                                                            className="w-full border-b border-[#e5e5e5] focus:border-brand-red py-3 text-[15px] outline-none transition-all placeholder:text-[#999999] bg-transparent"
-                                                            placeholder="Username"
-                                                        />
-                                                        <div className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-brand-red transition-all duration-300 group-focus-within:w-full" />
-                                                    </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-600 block">
+                                                        Username or Email
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        value={email}
+                                                        onChange={e => setEmail(e.target.value)}
+                                                        className="w-full px-3.5 py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 text-neutral-900 text-[14px] font-medium outline-none focus:border-black focus:bg-white focus:ring-1 focus:ring-black transition-all placeholder:text-neutral-400"
+                                                        placeholder="name@company.com"
+                                                    />
+                                                </div>
 
-                                                    <div className="relative group">
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-600 block">
+                                                            Password
+                                                        </label>
+                                                    </div>
+                                                    <div className="relative">
                                                         <input
                                                             type={showPw ? 'text' : 'password'}
                                                             value={password}
                                                             onChange={e => setPassword(e.target.value)}
-                                                            className="w-full border-b border-[#e5e5e5] focus:border-brand-red py-3 text-[15px] outline-none transition-all placeholder:text-[#999999] bg-transparent"
-                                                            placeholder="Password"
+                                                            className="w-full px-3.5 py-3 pr-10 rounded-xl border border-neutral-200 bg-neutral-50/50 text-neutral-900 text-[14px] font-medium outline-none focus:border-black focus:bg-white focus:ring-1 focus:ring-black transition-all placeholder:text-neutral-400"
+                                                            placeholder="••••••••"
                                                         />
-                                                        <div className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-brand-red transition-all duration-300 group-focus-within:w-full" />
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowPw(!showPw)}
-                                                            className="absolute right-0 top-1/2 -translate-y-1/2 text-[#999999] hover:text-brand-red transition-colors p-1"
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black transition-colors p-1"
+                                                            tabIndex={-1}
                                                         >
                                                             {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                                                         </button>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="mt-auto flex items-center justify-end pt-6">
-                                                <motion.button
-                                                    whileHover={{ scale: 1.02 }}
-                                                    whileTap={{ scale: 0.98 }}
-                                                    type="submit"
-                                                    disabled={loading}
-                                                    className="px-10 py-2.5 text-[15px] font-bold bg-brand-red hover:bg-red-700 text-white disabled:opacity-50 transition-all rounded-[2px] shadow-lg shadow-red-500/20"
-                                                >
-                                                    {loading ? 'Processing...' : 'Log in'}
-                                                </motion.button>
-                                            </div>
-                                        </form>
+                                                <div className="pt-2">
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.01 }}
+                                                        whileTap={{ scale: 0.99 }}
+                                                        type="submit"
+                                                        disabled={loading}
+                                                        className="w-full py-3.5 text-[13px] font-black uppercase tracking-widest bg-black hover:bg-neutral-800 text-white rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                                    >
+                                                        {loading ? 'Processing...' : 'Sign In'}
+                                                    </motion.button>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        {/* Card Footer */}
+                                        <div className="px-8 py-3.5 bg-neutral-50 border-t border-neutral-100 flex items-center justify-between text-[11px] text-neutral-400 font-medium">
+                                            <span>Secure Authentication</span>
+                                            <span className="font-semibold text-neutral-500">v8.2</span>
+                                        </div>
                                     </div>
                                 </motion.div>
                             )}

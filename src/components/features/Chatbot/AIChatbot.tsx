@@ -113,7 +113,7 @@ function stripMarkdownForSpeech(text: string): string {
 }
 
 const SUGGESTIONS: { label: string; prompt: string }[] = [
-    { label: 'Passing rate by gender', prompt: 'Show me the passing rate by gender as a chart.' },
+    { label: 'Passing rate by sex', prompt: 'Show me the passing rate by sex as a chart.' },
     { label: 'Open masterlist', prompt: 'Open the masterlist for me.' },
     { label: 'Hiring funnel', prompt: 'Open a dashboard of the hiring funnel broken down by status.' },
     { label: 'Test dashboard popup', prompt: '__test_dashboard__' },
@@ -740,11 +740,11 @@ export function AIChatbot() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                        className="fixed bottom-24 right-6 z-[9998] w-[380px] h-[540px] max-h-[calc(100vh-7rem)] max-w-[calc(100vw-3rem)] bg-white border border-[#edebe9] rounded-lg shadow-2xl flex flex-col overflow-hidden"
+                        className="fixed bottom-24 right-6 z-[9998] w-[380px] h-[540px] max-h-[calc(100vh-7rem)] max-w-[calc(100vw-3rem)] bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-lg shadow-2xl flex flex-col overflow-hidden"
                     >
                         <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-[#0f1941] to-[#1e3a8a] text-white">
                             <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-8 h-8 rounded-md bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                                <div className="w-8 h-8 rounded-md bg-white/10 dark:bg-slate-900/10 border border-white/20 flex items-center justify-center shrink-0">
                                     <Sparkles size={15} className="text-white" />
                                 </div>
                                 <div className="min-w-0">
@@ -762,8 +762,8 @@ export function AIChatbot() {
                                             className={cn(
                                                 "p-1.5 transition-colors",
                                                 voiceEnabled
-                                                    ? "bg-white/20 text-white"
-                                                    : "text-white/70 hover:bg-white/10"
+                                                    ? "bg-white/20 dark:bg-slate-900/20 text-white"
+                                                    : "text-white/70 hover:bg-white/10 dark:hover:bg-slate-900/10"
                                             )}
                                         >
                                             {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
@@ -775,16 +775,16 @@ export function AIChatbot() {
                                             className={cn(
                                                 "py-1.5 pl-0.5 pr-1.5 transition-colors border-l border-white/15",
                                                 voicePickerOpen
-                                                    ? "bg-white/20 text-white"
-                                                    : "text-white/70 hover:bg-white/10"
+                                                    ? "bg-white/20 dark:bg-slate-900/20 text-white"
+                                                    : "text-white/70 hover:bg-white/10 dark:hover:bg-slate-900/10"
                                             )}
                                         >
                                             <ChevronDown size={11} />
                                         </button>
                                     </div>
                                     {voicePickerOpen && (
-                                        <div className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-lg shadow-2xl border border-[#edebe9] overflow-hidden z-10">
-                                            <div className="px-3 py-2 bg-[#faf9f8] border-b border-[#edebe9]">
+                                        <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-slate-900 rounded-lg shadow-2xl border border-[#edebe9] dark:border-slate-800 overflow-hidden z-10">
+                                            <div className="px-3 py-2 bg-[#faf9f8] border-b border-[#edebe9] dark:border-slate-800">
                                                 <p className="text-[9.5px] font-bold uppercase tracking-widest text-surface-500">AI voice</p>
                                             </div>
                                             <div className="py-1">
@@ -811,7 +811,7 @@ export function AIChatbot() {
                                                             <span className="min-w-0 flex-1">
                                                                 <span className={cn(
                                                                     "block text-[12px] font-semibold",
-                                                                    active ? "text-[#0078d4]" : "text-[#201f1e]"
+                                                                    active ? "text-[#0078d4]" : "text-[#201f1e] dark:text-slate-200"
                                                                 )}>
                                                                     {p.label}{active && ' ✓'}
                                                                 </span>
@@ -822,7 +822,7 @@ export function AIChatbot() {
                                                 })}
                                                 {speechSupported && (
                                                     <>
-                                                        <div className="my-1 mx-2 border-t border-[#edebe9]" />
+                                                        <div className="my-1 mx-2 border-t border-[#edebe9] dark:border-slate-800" />
                                                         <button
                                                             onClick={toggleAlwaysOn}
                                                             className={cn(
@@ -839,7 +839,7 @@ export function AIChatbot() {
                                                             <span className="min-w-0 flex-1">
                                                                 <span className={cn(
                                                                     "block text-[12px] font-semibold",
-                                                                    alwaysOn ? "text-violet-700" : "text-[#201f1e]"
+                                                                    alwaysOn ? "text-violet-700" : "text-[#201f1e] dark:text-slate-200"
                                                                 )}>
                                                                     Hands-free mode{alwaysOn && ' ✓'}
                                                                 </span>
@@ -853,27 +853,27 @@ export function AIChatbot() {
                                                     </>
                                                 )}
                                             </div>
-                                            <div className="px-3 py-1.5 bg-[#faf9f8] border-t border-[#edebe9]">
+                                            <div className="px-3 py-1.5 bg-[#faf9f8] border-t border-[#edebe9] dark:border-slate-800">
                                                 <p className="text-[9.5px] text-surface-400 leading-snug">
-                                                                            {voices.length > 0
-                                                                                ? `${voices.length} voice${voices.length === 1 ? '' : 's'} detected on this device`
-                                                                                : 'Loading voices…'}
-                                                                        </p>
-                                                                    </div>
+                                                    {voices.length > 0
+                                                        ? `${voices.length} voice${voices.length === 1 ? '' : 's'} detected on this device`
+                                                        : 'Loading voices…'}
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                                 <button
                                     onClick={handleClear}
                                     title="Clear conversation"
-                                    className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                                    className="p-1.5 rounded hover:bg-white/10 dark:hover:bg-slate-900/10 transition-colors"
                                 >
                                     <Trash2 size={14} />
                                 </button>
                                 <button
                                     onClick={() => setOpen(false)}
                                     title="Close"
-                                    className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                                    className="p-1.5 rounded hover:bg-white/10 dark:hover:bg-slate-900/10 transition-colors"
                                 >
                                     <X size={14} />
                                 </button>
@@ -909,7 +909,7 @@ export function AIChatbot() {
                                         <button
                                             key={s.label}
                                             onClick={() => void sendMessage(s.prompt)}
-                                            className="block w-full text-left text-[12px] px-3 py-2 bg-white border border-surface-200 hover:border-primary-400 hover:bg-primary-50/50 rounded transition-colors"
+                                            className="block w-full text-left text-[12px] px-3 py-2 bg-white dark:bg-slate-900 border border-surface-200 hover:border-primary-400 hover:bg-primary-50/50 rounded transition-colors"
                                         >
                                             {s.label}
                                         </button>
@@ -918,7 +918,7 @@ export function AIChatbot() {
                             )}
                         </div>
 
-                        <div className="border-t border-[#edebe9] bg-white px-3 py-2.5" ref={inputAreaRef}>
+                        <div className="border-t border-[#edebe9] dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5" ref={inputAreaRef}>
                             {(isListening || alwaysOn) && (
                                 <div className={cn(
                                     "mb-2 flex items-center gap-2 px-2 py-1.5 border rounded",
@@ -963,7 +963,7 @@ export function AIChatbot() {
                                     placeholder={isListening ? 'Speak now…' : 'Ask me anything…'}
                                     rows={1}
                                     disabled={sending}
-                                    className="flex-1 resize-none max-h-24 px-3 py-2 text-[13px] border border-[#c8c6c4] rounded outline-none focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] disabled:bg-surface-50 disabled:text-surface-500"
+                                    className="flex-1 resize-none max-h-24 px-3 py-2 text-[13px] border border-[#c8c6c4] dark:border-slate-700 rounded outline-none focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] disabled:bg-surface-50 disabled:text-surface-500"
                                 />
                                 {speechSupported && (
                                     <button
@@ -984,7 +984,7 @@ export function AIChatbot() {
                                                 ? "bg-red-500 hover:bg-red-600 text-white border-red-600 animate-pulse"
                                                 : alwaysOn
                                                     ? "bg-violet-500 hover:bg-violet-600 text-white border-violet-600"
-                                                    : "bg-white hover:bg-surface-50 text-surface-600 border-[#c8c6c4]"
+                                                    : "bg-white dark:bg-slate-900 hover:bg-surface-50 text-surface-600 border-[#c8c6c4] dark:border-slate-700"
                                         )}
                                     >
                                         {isListening ? <MicOff size={14} /> : <Mic size={14} />}
@@ -1016,14 +1016,14 @@ export function AIChatbot() {
                     "fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-colors",
                     open
                         ? "bg-[#0f1941] hover:bg-[#1e3a8a] ring-2 ring-white"
-                        : "bg-white hover:bg-surface-50 ring-1 ring-surface-200"
+                        : "bg-white dark:bg-slate-900 hover:bg-surface-50 ring-1 ring-surface-200"
                 )}
             >
                 <AnimatePresence mode="wait" initial={false}>
                     {open ? (
                         <motion.img
                             key="logo"
-                            src="/contactpoint-logo.png"
+                            src="/contactpoint-logo.png?v=2"
                             alt=""
                             initial={{ opacity: 0, rotate: -90 }}
                             animate={{ opacity: 1, rotate: 0 }}
@@ -1034,7 +1034,7 @@ export function AIChatbot() {
                     ) : (
                         <motion.img
                             key="logo-default"
-                            src="/contactpoint-logo.png"
+                            src="/contactpoint-logo.png?v=2"
                             alt=""
                             initial={{ opacity: 0, rotate: 90 }}
                             animate={{ opacity: 1, rotate: 0 }}
@@ -1066,7 +1066,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                     "max-w-[80%] rounded-lg px-3 py-2 text-[12.5px] leading-relaxed break-words",
                     isUser
                         ? "bg-[#0078d4] text-white rounded-br-sm"
-                        : "bg-white border border-[#edebe9] text-[#201f1e] rounded-bl-sm"
+                        : "bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 text-[#201f1e] dark:text-slate-200 rounded-bl-sm"
                 )}
             >
                 {isUser ? message.content : <RichText text={message.content} />}
@@ -1291,7 +1291,7 @@ function ActionConfirmation({ actions, onApprove, onCancel }: {
                 </button>
                 <button
                     onClick={onCancel}
-                    className="flex-1 px-2.5 py-1.5 text-[11px] font-semibold bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded transition-colors"
+                    className="flex-1 px-2.5 py-1.5 text-[11px] font-semibold bg-white dark:bg-slate-900 border border-amber-300 hover:bg-amber-100 text-amber-900 rounded transition-colors"
                 >
                     Cancel
                 </button>

@@ -50,22 +50,33 @@ export class UserRepository {
             await client.query('BEGIN');
 
             const fks = await client.query(
-                `SELECT tc.table_name, kcu.column_name
+                `SELECT tc.table_name, kcu.column_name, c.is_nullable
                  FROM information_schema.table_constraints tc
                  JOIN information_schema.key_column_usage kcu
                      ON tc.constraint_name = kcu.constraint_name
                  JOIN information_schema.constraint_column_usage ccu
                      ON ccu.constraint_name = tc.constraint_name
+                 JOIN information_schema.columns c
+                     ON c.table_name = tc.table_name
+                    AND c.column_name = kcu.column_name
+                    AND c.table_schema = tc.table_schema
                  WHERE tc.constraint_type = 'FOREIGN KEY'
                    AND ccu.table_name = 'users'
                    AND ccu.table_schema = 'public'`
             );
 
             for (const fk of fks.rows) {
-                await client.query(
-                    `UPDATE "${fk.table_name}" SET "${fk.column_name}" = NULL WHERE "${fk.column_name}" = $1`,
-                    [id]
-                );
+                if (fk.is_nullable === 'NO' || fk.table_name === 'notifications') {
+                    await client.query(
+                        `DELETE FROM "${fk.table_name}" WHERE "${fk.column_name}" = $1`,
+                        [id]
+                    );
+                } else {
+                    await client.query(
+                        `UPDATE "${fk.table_name}" SET "${fk.column_name}" = NULL WHERE "${fk.column_name}" = $1`,
+                        [id]
+                    );
+                }
             }
 
             await client.query('DELETE FROM users WHERE id = $1', [id]);

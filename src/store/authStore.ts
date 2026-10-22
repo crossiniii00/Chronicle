@@ -20,9 +20,13 @@ interface AuthStore {
     refreshProfile: () => Promise<void>;
     resetSessionTimer: () => void;
     checkSessionExpiry: () => boolean;
+
+    // Global toggle for Recruiter S account filtering
+    isAccountFilterEnabled: boolean;
+    setIsAccountFilterEnabled: (enabled: boolean) => void;
 }
 
-const SESSION_MS = 30 * 60 * 1000; // 30 min
+const SESSION_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 export const useAuthStore = create<AuthStore>()(
     persist(
@@ -32,6 +36,7 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: false,
             loading: false,
             sessionExpiry: null,
+            isAccountFilterEnabled: true,
 
             login: async (email: string, password: string) => {
                 set({ loading: true });
@@ -82,6 +87,7 @@ export const useAuthStore = create<AuthStore>()(
                     const response = await apiClient.get('/auth/me');
                     if (response.data.user) {
                         set({ user: response.data.user });
+                        get().resetSessionTimer();
                     }
                 } catch (error) {
                     console.error('[AuthStore] Failed to refresh profile:', error);
@@ -102,6 +108,10 @@ export const useAuthStore = create<AuthStore>()(
                 }
                 return false;
             },
+
+            setIsAccountFilterEnabled: (enabled: boolean) => {
+                set({ isAccountFilterEnabled: enabled });
+            },
         }),
         {
             name: 'rms-auth',
@@ -110,6 +120,7 @@ export const useAuthStore = create<AuthStore>()(
                 accessToken: state.accessToken,
                 isAuthenticated: state.isAuthenticated,
                 sessionExpiry: state.sessionExpiry,
+                isAccountFilterEnabled: state.isAccountFilterEnabled,
             }),
         }
     )

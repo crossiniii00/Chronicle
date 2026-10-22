@@ -41,7 +41,7 @@ export const MonthDropdown: React.FC<MonthDropdownProps> = ({
             exit={{ opacity: 0, y: -4, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 600, damping: 16, mass: 0.6 }}
             onMouseEnter={onMouseEnter}
-            className="absolute top-full right-0 mt-2 w-80 bg-white rounded-sm shadow-2xl border border-surface-200 overflow-hidden z-50 origin-top-right"
+            className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-slate-900 rounded-none shadow-2xl border border-surface-200 overflow-hidden z-50 origin-top-right"
         >
             <div className="px-3 py-2.5 bg-gradient-to-br from-surface-50 to-white border-b border-surface-100 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -51,14 +51,14 @@ export const MonthDropdown: React.FC<MonthDropdownProps> = ({
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => setViewYear(y => y - 1)}
-                        className="w-5 h-5 rounded-sm hover:bg-surface-100 flex items-center justify-center text-surface-500 hover:text-black transition-colors"
+                        className="w-5 h-5 rounded-none hover:bg-surface-100 flex items-center justify-center text-surface-500 hover:text-black transition-colors"
                     >
                         <ChevronLeft size={12} />
                     </button>
                     <span className="text-[10px] font-bold text-surface-900 min-w-[36px] text-center tabular-nums">{viewYear}</span>
                     <button
                         onClick={() => setViewYear(y => y + 1)}
-                        className="w-5 h-5 rounded-sm hover:bg-surface-100 flex items-center justify-center text-surface-500 hover:text-black transition-colors"
+                        className="w-5 h-5 rounded-none hover:bg-surface-100 flex items-center justify-center text-surface-500 hover:text-black transition-colors"
                     >
                         <ChevronRight size={12} />
                     </button>
@@ -75,7 +75,7 @@ export const MonthDropdown: React.FC<MonthDropdownProps> = ({
                                 key={m}
                                 onClick={() => onPickMonth(viewYear, m)}
                                 className={cn(
-                                    "px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all relative",
+                                    "px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-none transition-all relative",
                                     isSelected
                                         ? "bg-black text-white shadow-sm"
                                         : "text-surface-700 hover:bg-surface-50"
@@ -122,7 +122,7 @@ export const MonthDropdown: React.FC<MonthDropdownProps> = ({
                                     key={d}
                                     onClick={() => onPickDay(d)}
                                     className={cn(
-                                        "h-7 text-[10px] font-semibold rounded-sm transition-colors relative",
+                                        "h-7 text-[10px] font-semibold rounded-none transition-colors relative",
                                         isSelected
                                             ? "bg-black text-white"
                                             : isToday

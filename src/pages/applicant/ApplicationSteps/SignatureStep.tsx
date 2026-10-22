@@ -28,9 +28,9 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
     };
 
     return (
-        <div 
+        <div
             className="min-h-screen w-full relative text-white pt-36 pb-16 px-4 overflow-x-hidden brand-gradient flex flex-col items-center justify-start"
-            style={{ 
+            style={{
                 fontFamily: "'Mulish', 'Segoe UI', 'Inter', sans-serif"
             }}
         >
@@ -43,13 +43,11 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
             {/* Premium Transparent Header */}
             <header className="fixed top-0 left-0 w-full z-[100] flex items-center justify-between px-6 md:px-10 py-5 bg-black/20 backdrop-blur-xl border-b border-white/10">
                 <div className="flex items-center gap-4 cursor-pointer group">
-                    <div className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
-                        <img src="/contactpoint-logo.png?v=2" alt="CP360" className="w-7 h-7 object-contain" />
+                    <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
+                        <img src="/contactpoint-logo.png?v=2" alt="ContactPoint 360" className="w-7 h-7 object-contain" />
                     </div>
                     <div className="flex flex-col text-left">
-                        <h1 className="text-white font-black text-[15px] tracking-[0.1em] uppercase leading-none">
-                            ContactPoint<span className="text-[#ef3e36]">360</span>
-                        </h1>
+                        <h1 className="text-white font-black text-[15px] tracking-[0.15em] uppercase leading-none">ContactPoint<span className="text-[#ef3e36]">360</span></h1>
                         <span className="text-white/60 font-black text-[9px] tracking-[0.3em] uppercase mt-1">
                             Talent Acquisition
                         </span>
@@ -57,14 +55,14 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
                 </div>
 
                 <div className="flex items-center gap-4 md:gap-6">
-                    <button 
-                        onClick={onBack} 
+                    <button
+                        onClick={onBack}
                         className="inline-flex items-center gap-2 text-white/70 hover:text-white text-xs font-black uppercase tracking-widest transition-colors"
                     >
                         <ArrowLeft size={14} />
                         <span className="hidden sm:inline">Back</span>
                     </button>
-                    <div className="h-4 w-[1px] bg-white/20" />
+                    <div className="h-4 w-[1px] bg-white/20 dark:bg-slate-900/20" />
                     <div className="text-[10px] font-black uppercase tracking-widest text-[#ef3e36] bg-[#ef3e36]/10 px-3.5 py-2 border border-[#ef3e36]/20 rounded-full">
                         Step 6 of 6: Sign Form
                     </div>
@@ -75,10 +73,10 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
 
 
                 {/* Form Card */}
-                <div className="w-full bg-white rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
+                <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
                     {/* Brand Top Border */}
                     <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#ef3e36]" />
-                    
+
                     <div className="absolute top-0 right-0 p-8 opacity-5 text-surface-900 pointer-events-none">
                         <ShieldCheck size={120} />
                     </div>
@@ -129,11 +127,11 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
                                     <div className="space-y-6">
                                         <div className="bg-surface-50 border-2 border-surface-200 rounded-xl p-8 flex items-center justify-center h-80 relative group shadow-inner">
                                             <img src={form.signature_data_url} alt="Signature" className="max-h-full drop-shadow-md" />
-                                            <button 
+                                            <button
                                                 onClick={() => updateForm('signature_data_url', undefined)}
                                                 className="absolute inset-0 bg-surface-900/60 text-white opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-2 backdrop-blur-[2px] rounded-xl"
                                             >
-                                                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                                <div className="w-10 h-10 rounded-full bg-white/20 dark:bg-slate-900/20 flex items-center justify-center">
                                                     <ArrowLeft size={20} />
                                                 </div>
                                                 <span className="font-black text-sm uppercase tracking-[0.2em]">Clear & Re-sign</span>
@@ -141,7 +139,7 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="border-2 border-surface-200 rounded-xl overflow-hidden shadow-sm hover:border-[#ef3e36]/30 transition-colors bg-white">
+                                    <div className="border-2 border-surface-200 rounded-xl overflow-hidden shadow-sm hover:border-[#ef3e36]/30 transition-colors bg-white dark:bg-slate-900">
                                         <SignaturePad onSave={handleSignatureSave} height="h-80" />
                                     </div>
                                 )}
@@ -153,7 +151,7 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
                                         {form.full_name}
                                     </p>
                                     <p className="text-[10px] font-black text-surface-400 uppercase tracking-[0.3em] text-center mt-3 italic">Signature Over Printed Name</p>
-                                    
+
                                     <div className="mt-6 flex items-center gap-4 text-surface-450">
                                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-50 rounded-md border border-surface-150">
                                             <Clock size={12} />
@@ -169,15 +167,15 @@ export function SignatureStep({ form, updateForm, onBack, onNext }: SignatureSte
 
                     {/* Navigation */}
                     <div className="mt-12 flex justify-between items-center border-t border-surface-100 pt-8">
-                        <button 
-                            onClick={onBack} 
+                        <button
+                            onClick={onBack}
                             className="inline-flex items-center gap-2 px-6 py-3 border border-surface-200 hover:border-surface-300 rounded-md text-surface-600 hover:text-surface-850 hover:bg-surface-50 font-bold transition-all text-xs uppercase tracking-widest"
                         >
                             <ArrowLeft size={14} />
                             Back
                         </button>
-                        <button 
-                            onClick={onNext} 
+                        <button
+                            onClick={onNext}
                             disabled={!form.signature_data_url}
                             className="inline-flex items-center gap-2 rounded-md bg-[#ef3e36] hover:bg-[#d32f2f] px-8 py-4 text-xs font-black uppercase tracking-widest text-white transition-all shadow-md shadow-[#ef3e36]/10 hover:shadow-[#ef3e36]/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >

@@ -9,13 +9,14 @@ interface ModalProps {
     onClose: () => void;
     title: ReactNode;
     children: ReactNode;
-    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '7xl' | 'full';
     className?: string;
     dark?: boolean;
     headerClassName?: string;
     closeButtonClassName?: string;
     overlayHeader?: boolean;
     closeOnOverlayClick?: boolean;
+    overflowVisible?: boolean;
 }
 
 export function Modal({ 
@@ -29,7 +30,8 @@ export function Modal({
     headerClassName,
     closeButtonClassName,
     overlayHeader = false,
-    closeOnOverlayClick = false
+    closeOnOverlayClick = false,
+    overflowVisible = false
 }: ModalProps) {
     if (!open) return null;
 
@@ -39,6 +41,7 @@ export function Modal({
         lg: 'max-w-2xl', 
         xl: 'max-w-4xl',
         '2xl': 'max-w-6xl',
+        '7xl': 'max-w-7xl',
         full: 'max-w-[95vw] h-[95vh]'
     }[size];
 
@@ -47,8 +50,9 @@ export function Modal({
             <div className="absolute inset-0 bg-gradient-to-br from-black/15 via-surface-900/20 to-black/25 backdrop-blur-[3px] transition-opacity" />
             <div
                 className={cn(
-                    'relative rounded-2xl shadow-2xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-fade-in transition-all ring-1 ring-black/5',
-                    dark ? 'bg-surface-900 border border-white/10 text-white' : 'bg-white border border-surface-200',
+                    'relative rounded-2xl shadow-2xl w-full max-h-[92vh] flex flex-col animate-fade-in transition-all ring-1 ring-black/5',
+                    overflowVisible ? 'overflow-visible' : 'overflow-hidden',
+                    dark ? 'bg-surface-900 border border-white/10 text-white' : 'bg-white dark:bg-slate-900 border border-surface-200',
                     sizeClass,
                     className
                 )}
@@ -58,7 +62,7 @@ export function Modal({
                     <div className={cn(
                         'flex items-center justify-between px-8 py-6 shrink-0',
                         overlayHeader ? 'absolute top-0 left-0 right-0 z-30' : '',
-                        headerClassName ? headerClassName : (dark ? 'bg-white/5 border-b border-white/10' : 'bg-white border-b border-surface-50')
+                        headerClassName ? headerClassName : (dark ? 'bg-white/5 dark:bg-slate-900/5 border-b border-white/10' : 'bg-white dark:bg-slate-900 border-b border-surface-50')
                     )}>
                         <h2 className={cn(
                             'text-[15px] font-semibold tracking-tight',
@@ -68,7 +72,7 @@ export function Modal({
                             onClick={onClose}
                             className={cn(
                                 'p-2 rounded-none transition-colors border border-transparent',
-                                closeButtonClassName || (dark ? 'hover:bg-white/10 text-white/40 hover:text-white' : 'hover:bg-surface-100 text-surface-400 hover:text-surface-900')
+                                closeButtonClassName || (dark ? 'hover:bg-white/10 dark:hover:bg-slate-900/10 text-white/40 hover:text-white' : 'hover:bg-surface-100 text-surface-400 hover:text-surface-900')
                             )}
                         >
                             <X size={18} />
@@ -76,7 +80,7 @@ export function Modal({
                     </div>
                 )}
                 <div className={cn(
-                    'overflow-y-auto custom-scrollbar flex-1',
+                    overflowVisible ? 'flex-1' : 'overflow-y-auto custom-scrollbar flex-1',
                     title ? 'p-10' : ''
                 )}>{children}</div>
             </div>
@@ -128,7 +132,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
                     disabled={loading}
                     className={cn(
                         "px-6 py-2.5 rounded-none transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50",
-                        dark ? "bg-transparent border border-white/20 text-white/40 hover:text-white hover:border-white" : "bg-white border border-surface-200 text-surface-600 hover:text-surface-900 hover:bg-surface-50"
+                        dark ? "bg-transparent border border-white/20 text-white/40 hover:text-white hover:border-white" : "bg-white dark:bg-slate-900 border border-surface-200 text-surface-600 hover:text-surface-900 hover:bg-surface-50"
                     )}
                 >
                     Cancel

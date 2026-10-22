@@ -6,13 +6,49 @@ import { formatDate } from '@/utils/formatters';
 import { cn } from '@/utils/formatters';
 import { Modal } from '@/components/common/Modal';
 import { socketService } from '@/services/socketService';
+import { useGlobalDataStore } from '@/store/globalDataStore';
 import type { User } from '@/types/user';
+
+const getBadgeStyles = (status: string, rawStatus?: string) => {
+    const raw = (rawStatus || status || '').toUpperCase();
+    if (['PASSED', 'HIRED', 'HIRED_PROCESSED'].includes(raw)) {
+        return { text: 'PASSED', className: 'bg-[#107c10]/10 text-[#107c10] border-[#107c10]/20' };
+    }
+    if (['ENDORSED', 'CONDITIONAL', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'FOR JOB OFFER', 'FOR_JOB_OFFER'].includes(raw)) {
+        return { text: 'ENDORSED', className: 'bg-[#5c2d91]/10 text-[#5c2d91] border-[#5c2d91]/20' };
+    }
+    if (raw.includes('NO SHOW') || raw.includes('NOSHOW')) {
+        return { text: 'NO SHOW', className: 'bg-amber-100 text-amber-800 border-amber-250' };
+    }
+    if (raw === 'WITHDRAWN') {
+        return { text: 'WITHDRAWN', className: 'bg-slate-100 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 border-slate-250' };
+    }
+    if (raw === 'WAITLISTED') {
+        return { text: 'WAITLISTED', className: 'bg-indigo-100 text-indigo-850 border-indigo-200' };
+    }
+    if (raw === 'NOT_ELIGIBLE_FOR_REHIRE' || raw.includes('NOT ELIGIBLE')) {
+        return { text: 'NOT ELIGIBLE', className: 'bg-rose-100 text-rose-800 border-rose-250' };
+    }
+    if (raw === 'PROMOTED') {
+        return { text: 'PROMOTED', className: 'bg-emerald-100 text-emerald-800 border-emerald-250' };
+    }
+    if (raw === 'LATERAL_TRANSFER' || raw.includes('LATERAL')) {
+        return { text: 'LATERAL TRANSFER', className: 'bg-sky-100 text-sky-850 border-sky-200' };
+    }
+    if (raw === 'BLACKLISTED') {
+        return { text: 'BLACKLISTED', className: 'bg-red-100 text-red-800 border-red-250' };
+    }
+    if (raw === 'FAILED' || raw === 'REJECTED') {
+        return { text: 'FAILED', className: 'bg-[#d83b01]/10 text-[#d83b01] border-[#d83b01]/20' };
+    }
+    return { text: status.toUpperCase(), className: 'bg-[#0078d4]/10 text-[#0078d4] border-[#0078d4]/20' };
+};
 
 export function WorkbenchTab({ user }: { user: User }) {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
     const [selectedDayStats, setSelectedDayStats] = useState<DailyStats | null>(null);
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState<Date | null>(new Date());
     const [viewMode, setViewMode] = useState<'calendar' | 'list' | 'graph'>('calendar');
     const [allInterviews, setAllInterviews] = useState<InterviewRecord[]>([]);
     const [loadingInterviews, setLoadingInterviews] = useState(false);
@@ -29,13 +65,23 @@ export function WorkbenchTab({ user }: { user: User }) {
     // Ledger Modal Filtering
     const [modalSearch, setModalSearch] = useState('');
     const [modalAccountFilter, setModalAccountFilter] = useState('ALL');
+    const [modalStatusFilter, setModalStatusFilter] = useState('ALL');
+    
+    const { applicationsLastUpdate } = useGlobalDataStore();
 
     const loadInterviewerStats = useCallback(async () => {
         if (!user?.full_name) return;
         
         try {
-            const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
-            const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+            let startDate: string;
+            let endDate: string;
+            if (currentMonth) {
+                startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
+                endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+            } else {
+                startDate = '2020-01-01';
+                endDate = '2030-12-31';
+            }
             
             const stats = await fetchInterviewerStats(user.full_name, startDate, endDate);
             setDailyStats(stats);
@@ -49,8 +95,15 @@ export function WorkbenchTab({ user }: { user: User }) {
         
         setLoadingInterviews(true);
         try {
-            const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
-            const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+            let startDate: string;
+            let endDate: string;
+            if (currentMonth) {
+                startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
+                endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+            } else {
+                startDate = '2020-01-01';
+                endDate = '2030-12-31';
+            }
             
             const stats = await fetchInterviewerStats(user.full_name, startDate, endDate);
             const interviews = stats.flatMap((day: DailyStats) => day.interviews);
@@ -69,46 +122,75 @@ export function WorkbenchTab({ user }: { user: User }) {
                 loadAllInterviews();
             }
 
-            const socket = socketService.getSocket();
-            socket.on('applications:updated', () => {
-                console.log('[Socket] Applications updated, refreshing workbench...');
-                loadInterviewerStats();
-                if (viewMode === 'list') loadAllInterviews();
-            });
-            
             const interval = setInterval(() => {
                 loadInterviewerStats();
                 if (viewMode === 'list') loadAllInterviews();
             }, 60000); // Fallback polling
             
             return () => {
-                socket.off('applications:updated');
                 clearInterval(interval);
             };
         }
-    }, [user?.full_name, currentMonth, viewMode, loadInterviewerStats, loadAllInterviews]);
+    }, [user?.full_name, currentMonth, viewMode, loadInterviewerStats, loadAllInterviews, applicationsLastUpdate]);
 
     // Handle Month/Filter Reset
     const handleMonthChange = (dateString: string) => {
-        const [year, month] = dateString.split('-').map(Number);
-        setCurrentMonth(new Date(year, month, 1));
+        if (dateString === 'ALL') {
+            setCurrentMonth(null);
+            setViewMode('list'); // Switch view mode to list for all time
+        } else {
+            const [year, month] = dateString.split('-').map(Number);
+            setCurrentMonth(new Date(year, month, 1));
+        }
         setSelectedFilterDate(''); // Reset day filter when month changes
     };
 
     const handleDateSelect = async (date: string) => {
         setSelectedDate(new Date(date));
-        const dayStats = dailyStats.find((stat: DailyStats) => stat.date === date);
+        const dayStats = filteredDailyStats.find((stat: any) => stat.date === date);
         setSelectedDayStats(dayStats || null);
         setModalSearch('');
         setModalAccountFilter('ALL');
+        setModalStatusFilter('ALL');
         setShowDayModal(true);
     };
 
-    const calendarDays = generateCalendarDays(currentMonth.getFullYear(), currentMonth.getMonth());
+    const calendarDays = currentMonth ? generateCalendarDays(currentMonth.getFullYear(), currentMonth.getMonth()) : [];
     const getStatsForDate = (date: string) => filteredDailyStats.find((stat: DailyStats) => stat.date === date);
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const getTagCounts = (interviews: InterviewRecord[]) => {
+        let noShow = 0;
+        let withdrawn = 0;
+        let waitlisted = 0;
+        let notEligible = 0;
+        let promoted = 0;
+        let lateralTransfer = 0;
+        let blacklisted = 0;
+
+        interviews.forEach(i => {
+            const raw = (i.raw_status || i.status || '').toUpperCase();
+            if (raw.includes('NO SHOW') || raw.includes('NOSHOW')) {
+                noShow++;
+            } else if (raw === 'WITHDRAWN') {
+                withdrawn++;
+            } else if (raw === 'WAITLISTED') {
+                waitlisted++;
+            } else if (raw === 'NOT_ELIGIBLE_FOR_REHIRE' || raw.includes('NOT ELIGIBLE')) {
+                notEligible++;
+            } else if (raw === 'PROMOTED') {
+                promoted++;
+            } else if (raw === 'LATERAL_TRANSFER' || raw.includes('LATERAL')) {
+                lateralTransfer++;
+            } else if (raw === 'BLACKLISTED') {
+                blacklisted++;
+            }
+        });
+
+        return { noShow, withdrawn, waitlisted, notEligible, promoted, lateralTransfer, blacklisted };
+    };
 
     const filteredDailyStats = useMemo(() => {
         return dailyStats.map(day => {
@@ -116,20 +198,35 @@ export function WorkbenchTab({ user }: { user: User }) {
                 const matchesAccount = listAccountFilter === 'ALL' || i.department === listAccountFilter;
                 return matchesAccount;
             });
+            const tagCounts = getTagCounts(interviews);
             return {
                 ...day,
                 interviews,
-                total_count: interviews.length,
-                endorsed_count: interviews.filter(i => ['ENDORSED', 'PASSED'].includes(i.status)).length,
-                failed_count: interviews.filter(i => i.status === 'FAILED').length
+                total_count: interviews.filter(i => i.status !== 'ENDORSED_OPS').length,
+                endorsed_count: interviews.filter(i => i.status === 'ENDORSED').length,
+                endorsedOver_count: interviews.filter(i => i.status === 'ENDORSED_OVER').length,
+                endorsedOps_count: interviews.filter(i => i.status === 'ENDORSED_OPS').length,
+                passed_count: interviews.filter(i => i.status === 'PASSED').length,
+                failed_count: interviews.filter(i => i.status === 'FAILED' || i.status === 'DROPPED').length,
+                ...tagCounts
             };
         });
     }, [dailyStats, listAccountFilter]);
 
     const totalStats = useMemo(() => ({
-        total: filteredDailyStats.reduce((sum: number, day: DailyStats) => sum + day.total_count, 0),
-        endorsed: filteredDailyStats.reduce((sum: number, day: DailyStats) => sum + day.endorsed_count, 0),
-        failed: filteredDailyStats.reduce((sum: number, day: DailyStats) => sum + day.failed_count, 0),
+        total: filteredDailyStats.reduce((sum: number, day: any) => sum + day.total_count, 0),
+        endorsed: filteredDailyStats.reduce((sum: number, day: any) => sum + day.endorsed_count, 0),
+        endorsedOver: filteredDailyStats.reduce((sum: number, day: any) => sum + day.endorsedOver_count, 0),
+        endorsedOps: filteredDailyStats.reduce((sum: number, day: any) => sum + day.endorsedOps_count, 0),
+        passed: filteredDailyStats.reduce((sum: number, day: any) => sum + day.passed_count, 0),
+        failed: filteredDailyStats.reduce((sum: number, day: any) => sum + day.failed_count, 0),
+        noShow: filteredDailyStats.reduce((sum: number, day: any) => sum + day.noShow, 0),
+        withdrawn: filteredDailyStats.reduce((sum: number, day: any) => sum + day.withdrawn, 0),
+        waitlisted: filteredDailyStats.reduce((sum: number, day: any) => sum + day.waitlisted, 0),
+        notEligible: filteredDailyStats.reduce((sum: number, day: any) => sum + day.notEligible, 0),
+        promoted: filteredDailyStats.reduce((sum: number, day: any) => sum + day.promoted, 0),
+        lateralTransfer: filteredDailyStats.reduce((sum: number, day: any) => sum + day.lateralTransfer, 0),
+        blacklisted: filteredDailyStats.reduce((sum: number, day: any) => sum + day.blacklisted, 0),
     }), [filteredDailyStats]);
 
     const formatSafeTime = (dateStr?: string) => {
@@ -162,9 +259,37 @@ export function WorkbenchTab({ user }: { user: User }) {
                 i.applicant_name.toLowerCase().includes(modalSearch.toLowerCase()) || 
                 i.position_title.toLowerCase().includes(modalSearch.toLowerCase());
             const matchesAccount = modalAccountFilter === 'ALL' || i.department === modalAccountFilter;
-            return matchesSearch && matchesAccount;
-        });
-    }, [selectedDayStats, modalSearch, modalAccountFilter]);
+            
+            const raw = (i.raw_status || i.status || '').toUpperCase();
+            
+            let matchesStatus = modalStatusFilter === 'ALL';
+            if (!matchesStatus) {
+                if (modalStatusFilter === 'ENDORSED_PASSED') {
+                    matchesStatus = ['PASSED', 'ENDORSED'].includes(i.status);
+                } else if (modalStatusFilter === 'FAILED') {
+                    matchesStatus = i.status === 'FAILED';
+                } else if (modalStatusFilter === 'SCREENED') {
+                    matchesStatus = i.status === 'SCREENED' || (!['PASSED', 'ENDORSED', 'FAILED'].includes(i.status));
+                } else if (modalStatusFilter === 'NO_SHOW') {
+                    matchesStatus = raw.includes('NO SHOW') || raw.includes('NOSHOW');
+                } else if (modalStatusFilter === 'WITHDRAWN') {
+                    matchesStatus = raw === 'WITHDRAWN';
+                } else if (modalStatusFilter === 'WAITLISTED') {
+                    matchesStatus = raw === 'WAITLISTED';
+                } else if (modalStatusFilter === 'NOT_ELIGIBLE') {
+                    matchesStatus = raw === 'NOT_ELIGIBLE_FOR_REHIRE' || raw.includes('NOT ELIGIBLE');
+                } else if (modalStatusFilter === 'PROMOTED') {
+                    matchesStatus = raw === 'PROMOTED';
+                } else if (modalStatusFilter === 'LATERAL_TRANSFER') {
+                    matchesStatus = raw === 'LATERAL_TRANSFER' || raw.includes('LATERAL');
+                } else if (modalStatusFilter === 'BLACKLISTED') {
+                    matchesStatus = raw === 'BLACKLISTED';
+                }
+            }
+
+            return matchesSearch && matchesAccount && matchesStatus;
+        }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }, [selectedDayStats, modalSearch, modalAccountFilter, modalStatusFilter]);
 
     const filteredInterviews = useMemo(() => {
         return allInterviews.filter((i: InterviewRecord) => {
@@ -176,7 +301,9 @@ export function WorkbenchTab({ user }: { user: User }) {
 
     // Generate accurate Month/Year options for dropdown
     const getMonthOptions = () => {
-        const options: { value: string; label: string }[] = [];
+        const options: { value: string; label: string }[] = [
+            { value: 'ALL', label: 'ALL TIME' }
+        ];
         const currentYear = new Date().getFullYear();
         for (let year = currentYear - 1; year <= currentYear + 1; year++) {
             for (let month = 0; month < 12; month++) {
@@ -219,13 +346,21 @@ export function WorkbenchTab({ user }: { user: User }) {
                 
                 <div className="flex items-center gap-4">
                     <div className="flex items-center bg-surface-100/80 rounded-lg p-1 border border-surface-200">
-                        <button onClick={() => setViewMode('calendar')} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-widest transition-all", viewMode === 'calendar' ? "bg-white text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-900")}>
+                        <button 
+                            onClick={() => { if (currentMonth) setViewMode('calendar'); }} 
+                            disabled={!currentMonth}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-widest transition-all", 
+                                !currentMonth && "opacity-40 cursor-not-allowed",
+                                viewMode === 'calendar' ? "bg-white dark:bg-slate-900 text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-900"
+                            )}
+                        >
                             <Calendar size={14} /> Calendar
                         </button>
-                        <button onClick={() => setViewMode('list')} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-widest transition-all", viewMode === 'list' ? "bg-white text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-900")}>
+                        <button onClick={() => setViewMode('list')} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-widest transition-all", viewMode === 'list' ? "bg-white dark:bg-slate-900 text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-900")}>
                             <List size={14} /> List
                         </button>
-                        <button onClick={() => setViewMode('graph')} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-widest transition-all", viewMode === 'graph' ? "bg-white text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-900")}>
+                        <button onClick={() => setViewMode('graph')} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-widest transition-all", viewMode === 'graph' ? "bg-white dark:bg-slate-900 text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-900")}>
                             <BarChart2 size={14} /> Graph
                         </button>
                     </div>
@@ -233,22 +368,43 @@ export function WorkbenchTab({ user }: { user: User }) {
             </div>
 
             {/* Performance Snapshot Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                    { label: 'Endorsed', val: totalStats.endorsed, color: 'text-[#5c2d91]', bg: 'bg-[#5c2d91]/10', border: 'border-[#5c2d91]/20', icon: Users },
-                    { label: 'Failed', val: totalStats.failed, color: 'text-[#d83b01]', bg: 'bg-[#d83b01]/10', border: 'border-[#d83b01]/20', icon: AlertCircle },
-                    { label: 'Applicants Screened', val: totalStats.total, color: 'text-[#0078d4]', bg: 'bg-[#0078d4]/10', border: 'border-[#0078d4]/20', icon: Search },
-                ].map(({ label, val, color, bg, border, icon: Icon }) => (
-                    <div key={label} className={cn("border rounded-[2px] p-5 relative overflow-hidden group transition-all hover:bg-white", bg, border)}>
-                        <div className="absolute top-0 right-0 p-3 opacity-[0.05] group-hover:scale-110 transition-transform"><Icon size={48} /></div>
-                        <p className="text-[9px] font-black text-[#605e5c] uppercase tracking-[0.2em] mb-3">{label}</p>
-                        <p className={cn("text-4xl font-black tracking-tighter leading-none", color)}>{val}</p>
-                    </div>
-                ))}
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {[
+                        { label: 'Screened', val: totalStats.total, color: 'text-[#0078d4]', bg: 'bg-[#0078d4]/10', border: 'border-[#0078d4]/20', icon: Search },
+                        { label: 'Init. Pass', val: totalStats.endorsedOver, color: 'text-[#107c10]', bg: 'bg-[#107c10]/10', border: 'border-[#107c10]/20', icon: CheckCircle },
+                        { label: 'End. Ops', val: totalStats.endorsedOps, color: 'text-[#0078d4]', bg: 'bg-[#0078d4]/10', border: 'border-[#0078d4]/20', icon: CheckCircle },
+                        { label: 'Dropped', val: totalStats.failed, color: 'text-[#d83b01]', bg: 'bg-[#d83b01]/10', border: 'border-[#d83b01]/20', icon: AlertCircle },
+                    ].map(({ label, val, color, bg, border, icon: Icon }) => (
+                        <div key={label} className={cn("border rounded-[2px] p-5 relative overflow-hidden group transition-all hover:bg-white dark:bg-slate-900", bg, border)}>
+                            <div className="absolute top-0 right-0 p-3 opacity-[0.05] group-hover:scale-110 transition-transform"><Icon size={48} /></div>
+                            <p className="text-[9px] font-black text-[#605e5c] dark:text-slate-400 uppercase tracking-[0.2em] mb-3">{label}</p>
+                            <p className={cn("text-4xl font-black tracking-tighter leading-none", color)}>{val}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Tagging metrics grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 bg-slate-50 dark:bg-slate-800 p-3 border border-slate-200 dark:border-slate-800 rounded-sm">
+                    {[
+                        { label: 'No Show', val: totalStats.noShow, color: 'text-amber-700' },
+                        { label: 'Withdrawn', val: totalStats.withdrawn, color: 'text-slate-650' },
+                        { label: 'Waitlisted', val: totalStats.waitlisted, color: 'text-indigo-600' },
+                        { label: 'Not Eligible for Rehire', val: totalStats.notEligible, color: 'text-rose-700' },
+                        { label: 'Promoted', val: totalStats.promoted, color: 'text-emerald-700' },
+                        { label: 'Lateral Transfer', val: totalStats.lateralTransfer, color: 'text-sky-700' },
+                        { label: 'Blacklisted', val: totalStats.blacklisted, color: 'text-red-800' }
+                    ].map(tag => (
+                        <div key={tag.label} className="bg-white dark:bg-slate-900 border border-slate-150 p-2.5 rounded-sm text-center shadow-xs">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-1 leading-none">{tag.label}</p>
+                            <p className={cn("text-lg font-black leading-none mt-1", tag.color)}>{tag.val}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Unified Filter Bar */}
-            <div className="bg-white border-y border-surface-200 px-6 py-4 -mx-6 sm:mx-0 sm:rounded-lg sm:border shadow-sm">
+            <div className="bg-white dark:bg-slate-900 border-y border-surface-200 px-6 py-4 -mx-6 sm:mx-0 sm:rounded-lg sm:border shadow-sm">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-3">
@@ -256,7 +412,7 @@ export function WorkbenchTab({ user }: { user: User }) {
                             <div className="flex flex-col">
                                 <span className="text-[9px] font-black text-surface-400 uppercase tracking-widest leading-none mb-1">Period Selection</span>
                                 <select 
-                                    value={`${currentMonth.getFullYear()}-${currentMonth.getMonth()}`}
+                                    value={currentMonth ? `${currentMonth.getFullYear()}-${currentMonth.getMonth()}` : 'ALL'}
                                     onChange={(e) => handleMonthChange(e.target.value)}
                                     className="text-xs font-black text-surface-800 uppercase tracking-tight bg-transparent border-none focus:ring-0 p-0 cursor-pointer min-w-[120px]"
                                 >
@@ -313,7 +469,7 @@ export function WorkbenchTab({ user }: { user: User }) {
 
             {/* View Content Area */}
             {viewMode === 'calendar' && (
-                <div className="bg-white border border-surface-200 rounded-lg overflow-hidden animate-fade-in shadow-sm">
+                <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-lg overflow-hidden animate-fade-in shadow-sm">
                     <div className="grid grid-cols-7 gap-px bg-surface-200">
                         {weekDays.map(day => (<div key={day} className="bg-surface-50 p-3 text-center"><span className="text-[10px] font-black text-surface-400 uppercase tracking-widest">{day}</span></div>))}
                     </div>
@@ -323,12 +479,12 @@ export function WorkbenchTab({ user }: { user: User }) {
                             const isToday = new Date().toDateString() === new Date(day.fullDate).toDateString();
                             return (
                                 <button key={`${day.fullDate}-${index}`} onClick={() => handleDateSelect(day.fullDate)} onMouseEnter={(e) => { setHoveredDate(day.fullDate); setTooltipPosition({ x: e.clientX, y: e.clientY }); }} onMouseLeave={() => setHoveredDate(null)}
-                                    className={cn("bg-white p-3 min-h-[100px] text-left relative hover:bg-surface-50 transition-all", !day.isCurrentMonth && "opacity-30", isToday && "bg-surface-50")}>
-                                    <div className={cn("text-[10px] font-black mb-2 px-1.5 py-0.5 inline-block rounded-sm", isToday ? "bg-primary-600 text-white" : "text-[#323130]")}>{day.date}</div>
+                                    className={cn("bg-white dark:bg-slate-900 p-3 min-h-[100px] text-left relative hover:bg-surface-50 transition-all", !day.isCurrentMonth && "opacity-30", isToday && "bg-surface-50")}>
+                                    <div className={cn("text-[10px] font-black mb-2 px-1.5 py-0.5 inline-block rounded-sm", isToday ? "bg-primary-600 text-white" : "text-[#323130] dark:text-slate-300")}>{day.date}</div>
                                     {stats && stats.total_count > 0 && (
                                         <div className="space-y-1.5">
                                             {[{ count: stats.endorsed_count, color: 'bg-[#5c2d91]' }, { count: stats.failed_count, color: 'bg-[#d83b01]' }, { count: stats.total_count, color: 'bg-[#0078d4]' }].map((m, i) => m.count > 0 && (
-                                                <div key={i} className="flex items-center gap-1.5"><div className={cn("w-1 h-3 rounded-[0.5px]", m.color)} /><span className="text-[9px] font-bold text-[#605e5c]">{m.count}</span></div>
+                                                <div key={i} className="flex items-center gap-1.5"><div className={cn("w-1 h-3 rounded-[0.5px]", m.color)} /><span className="text-[9px] font-bold text-[#605e5c] dark:text-slate-400">{m.count}</span></div>
                                             ))}
                                         </div>
                                     )}
@@ -340,7 +496,7 @@ export function WorkbenchTab({ user }: { user: User }) {
             )}
 
             {viewMode === 'list' && (
-                <div className="bg-white border border-surface-200 rounded-lg overflow-hidden animate-fade-in shadow-sm">
+                <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-lg overflow-hidden animate-fade-in shadow-sm">
                     <div className="divide-y divide-surface-100">
                         {loadingInterviews ? (
                             <div className="p-20 text-center flex flex-col items-center justify-center">
@@ -377,7 +533,7 @@ export function WorkbenchTab({ user }: { user: User }) {
 
             {viewMode === 'graph' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
-                    <div className="bg-white border border-surface-200 rounded-sm p-8 shadow-sm min-h-[450px] relative">
+                    <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-sm p-8 shadow-sm min-h-[450px] relative">
                         <div className="flex items-center justify-between mb-10 pb-4 border-b border-surface-100">
                             <h4 className="text-[10px] font-black text-surface-900 uppercase tracking-widest">Monthly Screening Trend</h4>
                             <div className="flex items-center gap-4 text-[9px] font-black uppercase text-surface-400">
@@ -407,7 +563,7 @@ export function WorkbenchTab({ user }: { user: User }) {
                             </ResponsiveContainer>
                         </div>
                     </div>
-                    <div className="bg-white border border-surface-200 rounded-sm p-8 shadow-sm min-h-[450px] relative">
+                    <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-sm p-8 shadow-sm min-h-[450px] relative">
                         <div className="flex items-center justify-between mb-10 pb-4 border-b border-surface-100"><h4 className="text-[10px] font-black text-surface-900 uppercase tracking-widest">Efficiency Distribution</h4><span className="px-3 py-1 bg-surface-50 text-[9px] font-black uppercase border border-surface-200 rounded-sm">Current Month</span></div>
                         <div className="h-[280px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
@@ -443,13 +599,37 @@ export function WorkbenchTab({ user }: { user: User }) {
                 );
             })()}
 
-            <Modal open={showDayModal} onClose={() => setShowDayModal(false)} title={`Ledger Entry: ${formatDate(selectedDayStats?.date || '')}`} size="lg">
+            <Modal open={showDayModal} onClose={() => setShowDayModal(false)} title={`Ledger Entry: ${formatDate(selectedDayStats?.date || '')}`} size="xl">
                 {selectedDayStats && (
                     <div className="space-y-8 animate-fade-in">
-                        <div className="grid grid-cols-3 gap-3">
-                            {[{ label: 'Endorsed', count: selectedDayStats.endorsed_count, color: 'text-[#5c2d91]', bg: 'bg-[#5c2d91]/5' }, { label: 'Failed', count: selectedDayStats.failed_count, color: 'text-[#d83b01]', bg: 'bg-[#d83b01]/5' }, { label: 'Applicants Screened', count: selectedDayStats.total_count, color: 'text-[#0078d4]', bg: 'bg-[#0078d4]/5' }].map(m => (
-                                <div key={m.label} className={cn("p-4 border border-[#edebe9] rounded-sm text-center", m.bg)}><p className="text-[8px] font-black text-[#a19f9d] uppercase tracking-widest mb-1">{m.label}</p><p className={cn("text-xl font-black", m.color)}>{m.count}</p></div>
-                            ))}
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {[
+                                    { label: 'Screened', count: selectedDayStats.total_count, color: 'text-[#0078d4]', bg: 'bg-[#0078d4]/5' }, 
+                                    { label: 'Failed', count: selectedDayStats.failed_count, color: 'text-[#d83b01]', bg: 'bg-[#d83b01]/5' }, 
+                                    { label: 'Endorsed to OV-Er (Passed)', count: (selectedDayStats.endorsed_count || 0) + (selectedDayStats.passed_count || 0), color: 'text-[#107c10]', bg: 'bg-[#107c10]/5' }
+                                ].map(m => (
+                                    <div key={m.label} className={cn("p-4 border border-[#edebe9] dark:border-slate-800 rounded-sm text-center", m.bg)}><p className="text-[8px] font-black text-[#a19f9d] uppercase tracking-widest mb-1">{m.label}</p><p className={cn("text-xl font-black", m.color)}>{m.count}</p></div>
+                                ))}
+                            </div>
+
+                            {/* Tagging metrics grid for the selected day */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 bg-slate-50 dark:bg-slate-800 p-3 border border-slate-200 dark:border-slate-800 rounded-sm">
+                                {[
+                                    { label: 'No Show', val: (selectedDayStats as any).noShow || 0, color: 'text-amber-700' },
+                                    { label: 'Withdrawn', val: (selectedDayStats as any).withdrawn || 0, color: 'text-slate-650' },
+                                    { label: 'Waitlisted', val: (selectedDayStats as any).waitlisted || 0, color: 'text-indigo-600' },
+                                    { label: 'Not Eligible for Rehire', val: (selectedDayStats as any).notEligible || 0, color: 'text-rose-700' },
+                                    { label: 'Promoted', val: (selectedDayStats as any).promoted || 0, color: 'text-emerald-700' },
+                                    { label: 'Lateral Transfer', val: (selectedDayStats as any).lateralTransfer || 0, color: 'text-sky-700' },
+                                    { label: 'Blacklisted', val: (selectedDayStats as any).blacklisted || 0, color: 'text-red-800' }
+                                ].map(tag => (
+                                    <div key={tag.label} className="bg-white dark:bg-slate-900 border border-slate-150 p-2 text-center shadow-xs">
+                                        <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider mb-0.5 leading-none">{tag.label}</p>
+                                        <p className={cn("text-sm font-black leading-none mt-1", tag.color)}>{tag.val}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         <div className="p-6 bg-surface-50 border border-surface-200 rounded-sm">
                             <h4 className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em] mb-4">Account Distribution</h4>
@@ -463,23 +643,33 @@ export function WorkbenchTab({ user }: { user: User }) {
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-surface-100 pb-4">
                                 <h4 className="text-[10px] font-black text-surface-900 uppercase tracking-widest">Interview logs</h4>
                                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                                    <div className="relative flex-1 sm:w-64"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" /><input type="text" placeholder="Search..." value={modalSearch} onChange={e => setModalSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white border border-surface-200 rounded-sm text-xs font-bold focus:border-primary-600 focus:outline-none" /></div>
-                                    <div className="relative w-full sm:w-48"><Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" /><select value={modalAccountFilter} onChange={e => setModalAccountFilter(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white border border-surface-200 rounded-sm text-[10px] font-black uppercase tracking-widest focus:border-primary-600 focus:outline-none appearance-none cursor-pointer"><option value="ALL">All accounts</option>{Object.keys(accountDistribution).map(acc => (<option key={acc} value={acc}>{acc}</option>))}</select></div>
+                                    <div className="relative flex-1 sm:w-64"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" /><input type="text" placeholder="Search..." value={modalSearch} onChange={e => setModalSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm text-xs font-bold focus:border-primary-600 focus:outline-none" /></div>
+                                    <div className="relative w-full sm:w-36"><Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" /><select value={modalStatusFilter} onChange={e => setModalStatusFilter(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm text-[10px] font-black uppercase tracking-widest focus:border-primary-600 focus:outline-none appearance-none cursor-pointer"><option value="ALL">All Status</option><option value="SCREENED">Screened</option><option value="FAILED">Failed</option><option value="ENDORSED_PASSED">Endorsed to OV-Er</option><option value="NO_SHOW">No Show</option><option value="WITHDRAWN">Withdrawn</option><option value="WAITLISTED">Waitlisted</option><option value="NOT_ELIGIBLE">Not Eligible for Rehire</option><option value="PROMOTED">Promoted</option><option value="LATERAL_TRANSFER">Lateral Transfer</option><option value="BLACKLISTED">Blacklisted</option></select></div>
+                                    <div className="relative w-full sm:w-48"><Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" /><select value={modalAccountFilter} onChange={e => setModalAccountFilter(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm text-[10px] font-black uppercase tracking-widest focus:border-primary-600 focus:outline-none appearance-none cursor-pointer"><option value="ALL">All accounts</option>{Object.keys(accountDistribution).map(acc => (<option key={acc} value={acc}>{acc}</option>))}</select></div>
                                 </div>
                             </div>
                             <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                                {filteredModalLogs.map(interview => (
-                                    <div key={interview.id} className="flex items-center justify-between p-4 border border-surface-100 rounded-sm hover:bg-surface-50 transition-colors group">
-                                        <div className="flex items-center gap-4">
-                                            <div className={cn("w-1 h-6 rounded-sm", interview.status === 'PASSED' ? 'bg-[#107c10]' : interview.status === 'ENDORSED' ? 'bg-[#5c2d91]' : interview.status === 'FAILED' ? 'bg-[#d83b01]' : 'bg-[#0078d4]')} />
-                                            <div>
-                                                <p className="text-[11px] font-black text-surface-900 uppercase group-hover:text-primary-600 transition-colors">{interview.applicant_name}</p>
-                                                <p className="text-[10px] font-black text-primary-600/70 uppercase tracking-widest">{interview.department}</p>
+                                {filteredModalLogs.map(interview => {
+                                    const badge = getBadgeStyles(interview.status, interview.raw_status);
+                                    const indicatorColor = interview.status === 'PASSED' ? 'bg-[#107c10]' : interview.status === 'ENDORSED' ? 'bg-[#5c2d91]' : interview.status === 'FAILED' ? 'bg-[#d83b01]' : 'bg-[#0078d4]';
+                                    return (
+                                        <div key={interview.id} className="flex items-center justify-between p-4 border border-surface-100 rounded-sm hover:bg-surface-50 transition-colors group">
+                                            <div className="flex items-center gap-4">
+                                                <div className={cn("w-1 h-6 rounded-sm", indicatorColor)} />
+                                                <div>
+                                                    <p className="text-[11px] font-black text-surface-900 uppercase group-hover:text-primary-600 transition-colors">{interview.applicant_name}</p>
+                                                    <p className="text-[10px] font-black text-primary-600/70 uppercase tracking-widest">{interview.department}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right flex items-center gap-4">
+                                                <span className={cn("px-2 py-0.5 text-[8px] font-black uppercase border rounded-sm", badge.className)}>
+                                                    {badge.text}
+                                                </span>
+                                                <p className="text-[9px] font-black text-surface-400 uppercase">{formatSafeTime(interview.created_at)}</p>
                                             </div>
                                         </div>
-                                        <div className="text-right flex items-center gap-4"><span className={cn("px-2 py-0.5 text-[8px] font-black uppercase border rounded-sm", interview.status === 'PASSED' ? 'bg-[#107c10]/10 text-[#107c10] border-[#107c10]/20' : interview.status === 'ENDORSED' ? 'bg-[#5c2d91]/10 text-[#5c2d91] border-[#5c2d91]/20' : interview.status === 'FAILED' ? 'bg-[#d83b01]/10 text-[#d83b01] border-[#d83b01]/20' : 'bg-[#0078d4]/10 text-[#0078d4] border-[#0078d4]/20')}>{interview.status}</span><p className="text-[9px] font-black text-surface-400 uppercase">{formatSafeTime(interview.created_at)}</p></div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

@@ -7,7 +7,7 @@ import type { User } from '@/types/user';
 import type { Application, Position } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { useActiveAccountStore, parseAccounts } from '@/store/activeAccountStore';
-import { checkValidatorAssignment } from '../dashboardUtils';
+import { checkValidatorAssignment, isMatchingAccount } from '../dashboardUtils';
 import {
     type Outcome,
     type Range,
@@ -22,6 +22,30 @@ import {
     getCityFromAddress
 } from './types';
 
+export function getTrueAccounts(a: any): string[] {
+    const meta = a.metadata || {};
+    const pis = a.pis || meta.pis || {};
+
+    const sources = [
+        a.department,
+        a.endorsement_account,
+        meta.final_account || pis.final_account,
+        meta.target_account || pis.target_account,
+        a.initial_account_assignment || meta.initial_account_assignment || pis.initial_account_assignment
+    ].filter(Boolean);
+
+    const combinedStr = sources.join(', ');
+    let accounts = combinedStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+    accounts = accounts.filter(acc => acc.toLowerCase() !== 'on-site' && acc.toLowerCase() !== 'on-call' && acc.toLowerCase() !== 'onsite' && acc.toLowerCase() !== 'oncall');
+
+    if (accounts.length === 0) accounts = ['Unassigned'];
+    return Array.from(new Set(accounts));
+}
+
+export function getTrueAccount(a: any): string {
+    return getTrueAccounts(a)[0] || 'Unassigned';
+}
+
 // ── Return type ─────────────────────────────────────────────────────────────
 export interface AccountAnalysisData {
     // Loading state
@@ -32,9 +56,17 @@ export interface AccountAnalysisData {
     setRange: (r: Range) => void;
     selectedDept: string;
     setSelectedDept: (d: string) => void;
+    selectedLob: string;
+    setSelectedLob: (l: string) => void;
+    selectedValidator: string;
+    setSelectedValidator: (v: string) => void;
     selectedQuotaId: string;
     setSelectedQuotaId: (id: string) => void;
+    viewScope: 'MY' | 'TEAM';
+    setViewScope: (v: 'MY' | 'TEAM') => void;
     availableDepts: string[];
+    availableLobs: string[];
+    availableValidators: string[];
     quotaHistory: HiringQuotaHistory[];
     selectedQuotaItem: HiringQuotaHistory | null;
     authUser: User | null;
@@ -71,7 +103,7 @@ export interface AccountAnalysisData {
     drilldown: DrilldownState | null;
     setDrilldown: (d: DrilldownState | null) => void;
     drilldownCandidates: DrilldownCandidate[];
-    
+
     // Team stats
     teamStats: {
         member: User;
@@ -82,10 +114,29 @@ export interface AccountAnalysisData {
         passRate: number;
         apps: Application[];
     }[];
+
+    // Ops Val Analysis
+    opsValAnalysis?: {
+        passed: number;
+        failed: number;
+        pending: number;
+        noShow: number;
+        totalEvaluated: number;
+        passRate: number;
+        validatorBreakdown: Array<{
+            name: string;
+            passed: number;
+            failed: number;
+            pending: number;
+            noShow: number;
+            totalEvaluated: number;
+            passRate: number;
+        }>;
+    };
 }
 
 // ── Hook ────────────────────────────────────────────────────────────────────
-export function useAccountAnalysisData(): AccountAnalysisData {
+export function useAccountAnalysisData(defaultAccount?: string): AccountAnalysisData {
     const [applications, setApplications] = useState<Application[]>([]);
     const [statusHistory, setStatusHistory] = useState<any[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
@@ -95,11 +146,55 @@ export function useAccountAnalysisData(): AccountAnalysisData {
     const [selectedQuotaId, setSelectedQuotaId] = useState<string>('ACTIVE');
     const [loading, setLoading] = useState(true);
     const [range, setRange] = useState<Range>('30d');
-    const [selectedDept, setSelectedDept] = useState<string>('ALL');
+    const [selectedDept, setSelectedDept] = useState<string>(defaultAccount || 'ALL');
+    const [selectedLob, setSelectedLob] = useState<string>('ALL');
+    const [selectedValidator, setSelectedValidator] = useState<string>('ALL');
     const { user: authUser } = useAuthStore();
+    const [viewScope, setViewScope] = useState<'MY' | 'TEAM'>('TEAM');
+
+    // Available filter option lists
+    const availableDepts = useMemo(() => {
+        const set = new Set<string>();
+        departments.forEach(d => { if (d.name) set.add(d.name.toUpperCase()); });
+        positions.forEach(p => { if (p.department) set.add(p.department.toUpperCase()); });
+        applications.forEach(a => {
+            getTrueAccounts(a).forEach(acc => {
+                if (acc && acc !== 'Unassigned') set.add(acc.toUpperCase());
+            });
+        });
+        return Array.from(set).sort();
+    }, [departments, positions, applications]);
+
+    const availableLobs = useMemo(() => {
+        const set = new Set<string>();
+        positions.forEach(p => { if (p.title) set.add(p.title.toUpperCase()); });
+        applications.forEach(a => {
+            const appLob = ((a as any).metadata?.custom_lob || a.position_title || '').trim().toUpperCase();
+            if (appLob) set.add(appLob);
+        });
+        return Array.from(set).sort();
+    }, [positions, applications]);
+
+    const availableValidators = useMemo(() => {
+        const set = new Set<string>();
+        users.forEach(u => {
+            if (u.full_name && (u.role?.includes('validator') || u.role?.includes('guest') || u.role?.includes('admin') || u.role?.includes('interviewer') || u.department)) {
+                set.add(u.full_name);
+            }
+        });
+        applications.forEach(a => {
+            const metadata = a.metadata || {};
+            const vName = (a.assigned_ops_validator_name || metadata.assigned_ops_validator_name || metadata.active_ops_validator_name || (a as any).pis?.ops_validator_name || '').trim();
+            if (vName && vName.toLowerCase() !== 'unassigned') {
+                set.add(vName);
+            }
+        });
+        return Array.from(set).sort();
+    }, [users, applications]);
 
     // Drilldown state
     const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
+    const { activeAccount } = useActiveAccountStore();
 
     // ── Data fetching ───────────────────────────────────────────────────────
     useEffect(() => {
@@ -117,8 +212,15 @@ export function useAccountAnalysisData(): AccountAnalysisData {
                 setDepartments(depts);
                 setPositions(pos);
                 setUsers(fetchedUsers);
+
+                const resolved = parseAccounts(activeAccount);
+                if (resolved && resolved.length > 0) {
+                    setSelectedDept(resolved[0]);
+                } else if (depts.length > 0) {
+                    setSelectedDept(depts[0].name);
+                }
             } catch (err) {
-                console.error('Failed to load analysis metrics:', err);
+                console.error('Failed to load analysis data:', err);
             } finally {
                 setLoading(false);
             }
@@ -126,7 +228,6 @@ export function useAccountAnalysisData(): AccountAnalysisData {
         void load();
     }, []);
 
-    const { activeAccount } = useActiveAccountStore();
     const accounts = parseAccounts(authUser?.department);
     const hasMultipleAccounts = accounts.length > 1;
     const resolvedActiveAccount = (activeAccount && accounts.map(a => a.toUpperCase()).includes(activeAccount.toUpperCase()))
@@ -139,6 +240,11 @@ export function useAccountAnalysisData(): AccountAnalysisData {
             setSelectedDept(resolvedActiveAccount.toUpperCase());
         }
     }, [resolvedActiveAccount]);
+
+    // Reset LOB when Dept changes
+    useEffect(() => {
+        setSelectedLob('ALL');
+    }, [selectedDept]);
 
     // Load quota history
     useEffect(() => {
@@ -160,15 +266,37 @@ export function useAccountAnalysisData(): AccountAnalysisData {
     const scopedApps = useMemo(() => {
         let list = applications;
         if (authUser?.role !== 'admin') {
-            list = applications.filter(a => {
-                const isFailedForActiveAccount = a.metadata?.failed_accounts?.some(
-                    (f: string) => f.trim().toLowerCase() === selectedDept.trim().toLowerCase()
-                );
-                return checkValidatorAssignment(a, authUser) || isFailedForActiveAccount;
-            });
+            if (viewScope === 'MY') {
+                const isActuallyAssignedValidator = (a: Application) => {
+                    if (!authUser) return false;
+                    const metadata = a.metadata || {};
+                    const assignedId = String(a.assigned_ops_validator_id || metadata.assigned_ops_validator_id || '').trim();
+                    const assignedName = String(a.assigned_ops_validator_name || metadata.assigned_ops_validator_name || (a as any).pis?.ops_validator_name || '').trim().toLowerCase();
+                    const validatorEmail = String((a as any).pis?.ops_validator_email || metadata.ops_validator_email || '').trim().toLowerCase();
+
+                    const userEmail = String(authUser.email || '').trim().toLowerCase();
+                    const userName = String(authUser.full_name || '').trim().toLowerCase();
+                    const userId = String(authUser.id || (authUser as any).uuid || '').trim();
+
+                    const matchesId = userId && assignedId === userId;
+                    const matchesEmail = userEmail && validatorEmail === userEmail;
+                    const matchesName = userName && assignedName.includes(userName);
+
+                    return Boolean(matchesId || matchesEmail || matchesName);
+                };
+
+                list = applications.filter(a => {
+                    const isFailedForActiveAccount = a.metadata?.failed_accounts?.some(
+                        (f: string) => f.trim().toLowerCase() === selectedDept.trim().toLowerCase()
+                    );
+                    return isActuallyAssignedValidator(a) || isFailedForActiveAccount;
+                });
+            } else {
+                list = applications;
+            }
         }
         return list;
-    }, [applications, authUser, selectedDept]);
+    }, [applications, authUser, selectedDept, viewScope]);
 
     const selectedQuotaItem = useMemo(() => {
         if (selectedQuotaId === 'ACTIVE') return null;
@@ -182,7 +310,7 @@ export function useAccountAnalysisData(): AccountAnalysisData {
         return Date.now() - opt.days * 24 * 60 * 60 * 1000;
     }, [range]);
 
-    // Apply active filters (range, department)
+    // Apply active filters (range, department matching with priority logic & scheduled filter)
     const filteredApps = useMemo(() => {
         return scopedApps.filter(a => {
             const ts = new Date(a.applied_at || (a as any).created_at || 0).getTime();
@@ -195,19 +323,60 @@ export function useAccountAnalysisData(): AccountAnalysisData {
                 if (rangeMs !== null && (isNaN(ts) || ts < rangeMs)) return false;
             }
             if (selectedDept !== 'ALL') {
-                const appDept = (a.department || '').trim().toUpperCase();
-                const depts = appDept.split(',').map(s => s.trim());
-                if (!depts.includes(selectedDept.toUpperCase())) return false;
+                if (!isMatchingAccount(a, selectedDept)) return false;
             }
+            if (selectedLob !== 'ALL') {
+                const appLob = ((a as any).metadata?.custom_lob || a.position_title || '').trim().toUpperCase();
+                if (appLob !== selectedLob.toUpperCase()) return false;
+            }
+            if (selectedValidator !== 'ALL') {
+                const metadata = a.metadata || {};
+                const vName = (a.assigned_ops_validator_name || metadata.assigned_ops_validator_name || metadata.active_ops_validator_name || (a as any).pis?.ops_validator_name || '').trim();
+                const vId = String(a.assigned_ops_validator_id || metadata.assigned_ops_validator_id || '').trim();
+                const matches = vName.toLowerCase().includes(selectedValidator.toLowerCase()) || vId === selectedValidator;
+                if (!matches) return false;
+            }
+
+            const statusUpper = String(a.current_status || '').toUpperCase();
+
+            // Check if active pending: if active pending status, require endorsement_meeting_date and validator
+            const isActivePending = [
+                'FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED', 'INTERVIEW_IN_PROGRESS', 'ENDORSED', 'ACCOUNT_ASSIGNMENT'
+            ].includes(statusUpper) || (statusUpper === 'QUEUE_ASSIGNED' && a.queue_type === 'FINAL');
+
+            if (isActivePending) {
+                const hasMeetingDate = !!a.endorsement_meeting_date;
+                const hasValidator = !!(a.assigned_ops_validator_id || a.assigned_ops_validator_name || a.metadata?.assigned_ops_validator_id || a.metadata?.assigned_ops_validator_name);
+                if (!hasMeetingDate || !hasValidator) return false;
+            }
+
+            // Exclude initial stages; only include endorsed/scheduled for final interview and beyond
+            const appHistory = statusHistory.filter(h => h.application_id === a.id);
+            const reachedFinal = appHistory.some(h =>
+                ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.to_status) ||
+                ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.from_status)
+            );
+            const isCurrentlyFinalOrLater = [
+                'FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED', 'CLIENT_ASSESSMENT',
+                'CLIENT_INTERVIEW', 'FOR_PAN', 'PASSED', 'HIRED', 'HIRED_PROCESSED',
+                'CONDITIONAL', 'FOR JOB OFFER', 'FOR_JOB_OFFER', 'ACCEPTED OFFER', 'ACCEPTED_OFFER',
+                'SENT_JO_AND_BGC', 'FAILED', 'REJECTED', 'NO_SHOW'
+            ].includes(a.current_status || '');
+            const isConfirmed = a.metadata?.endorsement_confirmed === true || a.metadata?.endorsement_confirmed === 'true';
+
+            if (!reachedFinal && !isCurrentlyFinalOrLater && !isConfirmed) {
+                return false;
+            }
+
             return true;
         });
-    }, [scopedApps, rangeMs, selectedDept, selectedQuotaItem]);
+    }, [scopedApps, rangeMs, selectedDept, selectedLob, selectedValidator, selectedQuotaItem, statusHistory]);
 
     // ── Core counts ─────────────────────────────────────────────────────────
     const counts = useMemo(() => {
         let passed = 0, failed = 0, pending = 0;
         for (const a of filteredApps) {
-            const o = classify(a.current_status);
+            const o = classify(a.current_status, a);
             if (o === 'PASSED') passed++;
             else if (o === 'FAILED') failed++;
             else pending++;
@@ -361,8 +530,8 @@ export function useAccountAnalysisData(): AccountAnalysisData {
             const isCurrentlyFinal = a.current_status === 'FINAL_INTERVIEW' || a.current_status === 'FINAL_INTERVIEW_SCHEDULED';
             const finalResult = (a as any).final_interview_result || a.pis?.final_interview_result;
             const hasFinalResult = finalResult !== undefined && finalResult !== null && finalResult !== '';
-            const hadFinalInHistory = sortedHistory.some(h => 
-                ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.from_status) || 
+            const hadFinalInHistory = sortedHistory.some(h =>
+                ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.from_status) ||
                 ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.to_status)
             );
             const isPostFinal = ['CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'PASSED', 'HIRED', 'HIRED_PROCESSED', 'FOR_JOB_OFFER', 'For Job Offer'].includes(a.current_status || '');
@@ -470,13 +639,13 @@ export function useAccountAnalysisData(): AccountAnalysisData {
 
         const targetDeptName = activeDeptName.trim().toLowerCase();
         const internalPos = positions.find(p =>
-            p.department?.trim().toLowerCase() === targetDeptName &&
+            p.department?.trim()?.toLowerCase() === targetDeptName &&
             (p.qualifications?.startsWith('ACCOUNT_INTERNAL_QUOTA') || (p.title || '').includes('[INTERNAL]'))
         );
         const targetQuota = internalPos ? Number(internalPos.hiring_quota) : 10;
 
         const hiredCount = applications.filter(a =>
-            (a.department || '').split(',').map(s => s.trim().toUpperCase()).includes(activeDeptName.toUpperCase()) &&
+            getTrueAccounts(a).map(s => s.toUpperCase()).includes(activeDeptName.toUpperCase()) &&
             ['HIRED', 'HIRED_PROCESSED', 'PASSED'].includes(a.current_status || '')
         ).length;
 
@@ -488,17 +657,17 @@ export function useAccountAnalysisData(): AccountAnalysisData {
         };
     }, [selectedDept, authUser, departments, applications, selectedQuotaItem, positions]);
 
-    // ── Demographics: Gender ────────────────────────────────────────────────
+    // ── Demographics: Sex ────────────────────────────────────────────────
     const genderDemographics = useMemo(() => {
         const groups: Record<string, { total: number; passed: number; failed: number }> = {};
         for (const a of filteredApps) {
-            const rawGender = ((a as any).gender || a.pis?.gender || 'Unspecified').trim();
-            const gender = rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase();
-            if (!groups[gender]) groups[gender] = { total: 0, passed: 0, failed: 0 };
-            groups[gender].total++;
+            const rawGender = ((a as any).sex || a.pis?.sex || 'Unspecified').trim();
+            const sex = rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase();
+            if (!groups[sex]) groups[sex] = { total: 0, passed: 0, failed: 0 };
+            groups[sex].total++;
             const o = classify(a.current_status);
-            if (o === 'PASSED') groups[gender].passed++;
-            else if (o === 'FAILED') groups[gender].failed++;
+            if (o === 'PASSED') groups[sex].passed++;
+            else if (o === 'FAILED') groups[sex].failed++;
         }
         return Object.entries(groups).map(([label, metrics]) => {
             const concluded = metrics.passed + metrics.failed;
@@ -541,14 +710,7 @@ export function useAccountAnalysisData(): AccountAnalysisData {
         }).sort((a, b) => b.total - a.total);
     }, [filteredApps]);
 
-    // ── Available departments ───────────────────────────────────────────────
-    const availableDepts = useMemo(() => {
-        const set = new Set<string>();
-        for (const a of applications) {
-            if (a.department) set.add(a.department.toUpperCase());
-        }
-        return Array.from(set).sort();
-    }, [applications]);
+
 
     // ── Insights: Final Interview ───────────────────────────────────────────
     const finalInsights = useMemo(() => {
@@ -714,7 +876,7 @@ export function useAccountAnalysisData(): AccountAnalysisData {
         return list;
     }, [waitingTimes]);
 
-    // ── Insights: Gender ────────────────────────────────────────────────────
+    // ── Insights: Sex ────────────────────────────────────────────────────
     const genderInsights = useMemo(() => {
         const list: Insight[] = [];
         const valid = genderDemographics.filter(g => g.total > 0);
@@ -876,8 +1038,8 @@ export function useAccountAnalysisData(): AccountAnalysisData {
                 const isCurrentlyFinal = a.current_status === 'FINAL_INTERVIEW' || a.current_status === 'FINAL_INTERVIEW_SCHEDULED';
                 const finalResult = (a as any).final_interview_result || a.pis?.final_interview_result;
                 const hasFinalResult = finalResult !== undefined && finalResult !== null && finalResult !== '';
-                const hadFinalInHistory = sortedHistory.some(h => 
-                    ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.from_status) || 
+                const hadFinalInHistory = sortedHistory.some(h =>
+                    ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.from_status) ||
                     ['FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED'].includes(h.to_status)
                 );
                 const isPostFinal = ['CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'PASSED', 'HIRED', 'HIRED_PROCESSED', 'FOR_JOB_OFFER', 'For Job Offer'].includes(a.current_status || '');
@@ -927,31 +1089,215 @@ export function useAccountAnalysisData(): AccountAnalysisData {
 
             return { application: a, hasStage, outcome };
         })
-        .filter(item => {
-            if (!item.hasStage) return false;
-            if (drilldown.dateLabel) {
-                const appDate = item.application.applied_at?.substring(0, 10) || new Date((item.application as any).created_at || item.application.updated_at || 0).toISOString().substring(0, 10);
-                const d = new Date(appDate);
-                const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-                if (label !== drilldown.dateLabel) return false;
-            }
-            return drilldown.filter === 'ALL' || !drilldown.filter || item.outcome === drilldown.filter;
-        })
-        .map(item => ({
-            ...item.application,
-            stageOutcome: item.outcome
-        }));
+            .filter(item => {
+                if (!item.hasStage) return false;
+                if (drilldown.dateLabel) {
+                    const appDate = item.application.applied_at?.substring(0, 10) || new Date((item.application as any).created_at || item.application.updated_at || 0).toISOString().substring(0, 10);
+                    const d = new Date(appDate);
+                    const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    if (label !== drilldown.dateLabel) return false;
+                }
+                return drilldown.filter === 'ALL' || !drilldown.filter || item.outcome === drilldown.filter;
+            })
+            .map(item => ({
+                ...item.application,
+                stageOutcome: item.outcome
+            }));
     }, [drilldown, filteredApps, statusHistory]);
+
+    // ── Computed Ops Val Analysis ──────────────────────────────────────────
+    const opsValAnalysis = useMemo(() => {
+        const targetAcc = (selectedDept === 'ALL' ? 'ABBOTT' : selectedDept).toUpperCase();
+
+        const isAssignedValidatorBelongingToAccount = (app: any, targetAccount: string) => {
+            const metadata = app.metadata || {};
+            const assignedId = app.assigned_ops_validator_id || metadata.assigned_ops_validator_id || metadata.active_ops_validator_id;
+            const assignedName = (app.assigned_ops_validator_name || metadata.assigned_ops_validator_name || metadata.active_ops_validator_name || '').trim().toLowerCase();
+
+            if (!assignedName || assignedName === 'unassigned' || assignedName === 'none') {
+                return false;
+            }
+
+            let normAccount = targetAccount.trim().toLowerCase();
+            if (normAccount === 'abbott' || normAccount === 'abbot') normAccount = 'abbot';
+            if (!normAccount) return false;
+
+            if (users.length > 0) {
+                const matchingUsers = users.filter(u => {
+                    if (assignedId && String(u.id) === String(assignedId)) return true;
+                    const uName = (u.full_name || '').trim().toLowerCase();
+                    return uName && assignedName.split(',').some((n: string) => {
+                        const clean = n.trim().toLowerCase();
+                        return clean && (uName.includes(clean) || clean.includes(uName));
+                    });
+                });
+
+                if (matchingUsers.length > 0) {
+                    return matchingUsers.some(u => {
+                        const uDepts = (u.department || '').split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean);
+                        return uDepts.some((ud: string) => {
+                            let cleanUd = ud;
+                            if (cleanUd === 'abbott' || cleanUd === 'abbot') cleanUd = 'abbot';
+                            return cleanUd === normAccount || cleanUd.includes(normAccount) || normAccount.includes(cleanUd);
+                        });
+                    });
+                }
+            }
+
+            const appAccs = getTrueAccounts(app).map(s => s.toUpperCase());
+            return appAccs.some(acc => acc.includes('ABBOT'));
+        };
+
+        const isCandidateEndorsedToOpsVal = (a: any) => {
+            const metadata = a.metadata || {};
+            const pis = a.pis || metadata.pis || {};
+
+            const meetingDate = (a.endorsement_meeting_date || metadata.endorsement_meeting_date || pis.endorsement_meeting_date || '').trim();
+            const isScheduled = Boolean(meetingDate && meetingDate !== '—' && meetingDate !== 'Pending' && meetingDate !== '');
+
+            if (!isScheduled) return false;
+
+            return isAssignedValidatorBelongingToAccount(a, targetAcc);
+        };
+
+        const isCandidateNoShow = (a: any) => {
+            const rawStatus = String(a.final_verdict || a.current_status || '').toUpperCase().trim().replace(/_/g, ' ');
+            const specStatus = String((a as any).final_specific_status || a.pis?.final_specific_status || a.metadata?.final_specific_status || a.metadata?.['Specific Status'] || '').toUpperCase().trim();
+            const ovStatus = String(a.metadata?.ops_validator_status || a.pis?.ops_validator_status || (a as any).ops_validator_status || '').toUpperCase().trim();
+            const overallStatus = String(a.overall_status || '').toUpperCase().trim();
+
+            return (
+                rawStatus.includes('NO SHOW') ||
+                specStatus.includes('NO SHOW') ||
+                ovStatus.includes('NO SHOW') ||
+                overallStatus.includes('NO SHOW')
+            );
+        };
+
+        const getOpsValSessionStatus = (a: any) => {
+            if (isCandidateNoShow(a)) return 'NO_SHOW';
+
+            const metadata = a.metadata || {};
+            const ovStatus = String(metadata.ops_validator_status || a.pis?.ops_validator_status || (a as any).ops_validator_status || '').toUpperCase().trim();
+            const fiResult = String(metadata.final_interview_result || a.pis?.final_interview_result || '').toUpperCase().trim();
+            const specStatus = String((a as any).final_specific_status || a.pis?.final_specific_status || metadata.final_specific_status || '').toUpperCase().trim();
+            const verdictStr = String(a.final_verdict || '').toUpperCase().trim();
+
+            const isExplicitPassed = (
+                ovStatus === 'PASSED' ||
+                fiResult === 'PASSED' ||
+                specStatus.includes('OV - PASSED') ||
+                specStatus.includes('OPS VALIDATOR PASSED') ||
+                verdictStr === 'PASSED'
+            );
+            if (isExplicitPassed) return 'PASSED';
+
+            const isExplicitFailed = (
+                ovStatus === 'FAILED' ||
+                fiResult === 'FAILED' ||
+                specStatus.includes('OV - FAILED') ||
+                specStatus.includes('OPS VALIDATOR FAILED') ||
+                verdictStr === 'FAILED'
+            );
+            if (isExplicitFailed) return 'FAILED';
+
+            const isScheduledSession = Boolean(
+                a.current_status === 'FINAL_INTERVIEW_SCHEDULED' ||
+                a.recruiter_s_scheduling_status === 'SCHEDULED' ||
+                (a.endorsement_meeting_date && a.endorsement_meeting_date !== '—') ||
+                a.assigned_ops_validator_name ||
+                a.assigned_ops_validator_id
+            );
+            if (isScheduledSession) {
+                return 'PENDING';
+            }
+
+            const currentStatus = String(a.current_status || '').toUpperCase().trim();
+            if (['PASSED', 'FOR_JOB_OFFER', 'FOR JOB OFFER', 'HIRED', 'HIRED_PROCESSED', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'CONTRACT SENT', 'FOR PAN', 'FOR_PAN'].includes(currentStatus)) {
+                return 'PASSED';
+            }
+            if (['FAILED', 'REJECTED', 'DISQUALIFIED', 'WITHDRAWN'].includes(currentStatus)) {
+                return 'FAILED';
+            }
+
+            return 'PENDING';
+        };
+
+        let passed = 0;
+        let failed = 0;
+        let pending = 0;
+        let noShow = 0;
+
+        const validatorMap = new Map<string, { name: string, passed: number, failed: number, pending: number, noShow: number }>();
+
+        applications.forEach(a => {
+            const noShowFlag = isCandidateNoShow(a);
+            const isAssignedVal = isAssignedValidatorBelongingToAccount(a, targetAcc);
+            const isMatchingAcc = getTrueAccounts(a).map(s => s.toUpperCase()).some(acc => acc.includes('ABBOT'));
+
+            if (noShowFlag && (isMatchingAcc || isAssignedVal)) {
+                noShow++;
+                const metadata = a.metadata || {};
+                const assignedName = (a.assigned_ops_validator_name || metadata.assigned_ops_validator_name || metadata.active_ops_validator_name || '').trim();
+                if (assignedName && assignedName.toLowerCase() !== 'unassigned') {
+                    const existing = validatorMap.get(assignedName) || { name: assignedName, passed: 0, failed: 0, pending: 0, noShow: 0 };
+                    existing.noShow++;
+                    validatorMap.set(assignedName, existing);
+                }
+                return;
+            }
+
+            const isEndorsed = isCandidateEndorsedToOpsVal(a);
+            if (!isEndorsed) return;
+
+            const status = getOpsValSessionStatus(a);
+            const metadata = a.metadata || {};
+            const assignedName = (a.assigned_ops_validator_name || metadata.assigned_ops_validator_name || metadata.active_ops_validator_name || '').trim();
+
+            if (status === 'PASSED') passed++;
+            else if (status === 'FAILED') failed++;
+            else pending++;
+
+            if (assignedName && assignedName.toLowerCase() !== 'unassigned') {
+                const existing = validatorMap.get(assignedName) || { name: assignedName, passed: 0, failed: 0, pending: 0, noShow: 0 };
+                if (status === 'PASSED') existing.passed++;
+                else if (status === 'FAILED') existing.failed++;
+                else existing.pending++;
+                validatorMap.set(assignedName, existing);
+            }
+        });
+
+        const concludedCount = passed + failed;
+        const totalEvaluated = passed + failed + pending + noShow;
+        const passRate = concludedCount > 0 ? Math.round((passed / concludedCount) * 100) : 0;
+
+        const validatorBreakdown = Array.from(validatorMap.values()).map(v => {
+            const evalCount = v.passed + v.failed;
+            const totalCount = v.passed + v.failed + v.pending + v.noShow;
+            const rate = evalCount > 0 ? Math.round((v.passed / evalCount) * 100) : 0;
+            return { ...v, totalEvaluated: totalCount, passRate: rate };
+        }).sort((a, b) => (b.passed + b.failed + b.pending + b.noShow) - (a.passed + a.failed + a.pending + a.noShow));
+
+        return {
+            passed,
+            failed,
+            pending,
+            noShow,
+            totalEvaluated,
+            passRate,
+            validatorBreakdown
+        };
+    }, [applications, users, selectedDept]);
 
     // ── Computed Team stats ─────────────────────────────────────────────────
     const teamStats = useMemo(() => {
         const deptUsers = selectedDept === 'ALL'
             ? users
-            : users.filter(u => (u.department || '').split(',').map(s => s.trim().toUpperCase()).includes(selectedDept.toUpperCase()));
+            : users.filter(u => getTrueAccounts(u).map(s => s.toUpperCase()).includes(selectedDept.toUpperCase()));
 
         const deptApps = selectedDept === 'ALL'
-            ? applications
-            : applications.filter(a => (a.department || '').split(',').map(s => s.trim().toUpperCase()).includes(selectedDept.toUpperCase()));
+            ? filteredApps
+            : filteredApps.filter(a => getTrueAccounts(a).map(s => s.toUpperCase()).includes(selectedDept.toUpperCase()));
 
         return deptUsers.map(member => {
             const memberApps: Application[] = deptApps.filter(a =>
@@ -1005,9 +1351,19 @@ export function useAccountAnalysisData(): AccountAnalysisData {
     return {
         loading,
         range, setRange,
-        selectedDept, setSelectedDept,
-        selectedQuotaId, setSelectedQuotaId,
+        selectedDept,
+        setSelectedDept,
+        selectedLob,
+        setSelectedLob,
+        selectedValidator,
+        setSelectedValidator,
+        selectedQuotaId,
+        setSelectedQuotaId,
+        viewScope,
+        setViewScope,
         availableDepts,
+        availableLobs,
+        availableValidators,
         quotaHistory,
         selectedQuotaItem,
         authUser,
@@ -1028,6 +1384,7 @@ export function useAccountAnalysisData(): AccountAnalysisData {
         addressInsights,
         drilldown, setDrilldown,
         drilldownCandidates,
-        teamStats
+        teamStats,
+        opsValAnalysis
     };
 }

@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Keyboard, Search, CheckCircle, XCircle, Award, Percent, Hourglass, ArrowUpDown, BarChart3, Layers, FileText } from 'lucide-react';
-import { cn } from '@/utils/formatters';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { Keyboard, Search, CheckCircle, XCircle, Award, Percent, Hourglass, ArrowUpDown, BarChart3, Layers, FileText, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { cn, toManilaDateParts, toManilaDateString } from '@/utils/formatters';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ApplicationService } from '@/services/ApplicationService';
 import { apiClient } from '@/utils/apiClient';
 import { socketService } from '@/services/socketService';
 import type { Application } from '@/types/application';
 import { useToast } from '@/components/common/useToast';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { AdvancedDateFilter, DateFilterState } from '@/components/common/AdvancedDateFilter';
+import { InitialInterviewTab } from './components/tests-tracker-tabs/InitialInterviewTab';
+import { ScheduledCandidatesTab } from './components/tests-tracker-tabs/ScheduledCandidatesTab';
+import { OpsValInterviewTab } from './components/tests-tracker-tabs/OpsValInterviewTab';
 
 interface TypingTestSettings {
     minWpm: number;
@@ -15,32 +21,207 @@ interface TypingTestSettings {
 
 const SPRING = { type: 'spring' as const, stiffness: 500, damping: 18, mass: 0.6 };
 
-export function TestsTrackerView() {
-    const { error: toastError } = useToast();
-    const [activeMainTab, setActiveMainTab] = useState<'typing' | 'assessment'>('typing');
-    const [applications, setApplications] = useState<Application[]>([]);
-    
-    // Typing test settings
-    const [typingSettings, setTypingSettings] = useState<TypingTestSettings>({ minWpm: 40, minAccuracy: 95 });
-    // Assessment settings
-    const [minPassingScore, setMinPassingScore] = useState<number>(80);
+function getJobPosition(c: any): string {
+    return (c.position_applied_for || c.job_position || c.title || c.pis?.position_applied_for || c.pis?.custom_lob || c.metadata?.job_position || 'Unassigned').trim();
+}
 
+function checkAdvancedDateMatch(dateStr: any, filter: DateFilterState): boolean {
+    if (!filter || filter.type === 'ALL') return true;
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (filter.type === 'TODAY') {
+        const startOfTomorrow = new Date(startOfToday);
+        startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+        return d >= startOfToday && d < startOfTomorrow;
+    }
+
+    if (filter.type === 'WEEK') {
+        const dayOfWeek = startOfToday.getDay();
+        const startOfWeek = new Date(startOfToday);
+        startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(endOfWeek.getDate() + 7);
+        return d >= startOfWeek && d < endOfWeek;
+    }
+
+    if (filter.type === 'MONTH') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        return d >= startOfMonth && d < endOfMonth;
+    }
+
+    if (filter.type === 'CUSTOM') {
+        if (filter.start && filter.end) {
+            const startD = new Date(filter.start + 'T00:00:00');
+            const endD = new Date(filter.end + 'T23:59:59');
+            return d >= startD && d <= endD;
+        }
+    }
+
+    return true;
+}
+
+interface SingleDateFilterPopoverProps {
+    labelPrefix: string;
+    value: DateFilterState;
+    onChange: (val: DateFilterState) => void;
+    width?: string;
+}
+
+function SingleDateFilterPopover({ labelPrefix, value, onChange, width = "w-[145px]" }: SingleDateFilterPopoverProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Element;
+            if (dropdownRef.current && !dropdownRef.current.contains(target as Node)) {
+                if (target.closest && target.closest('.filter-dropdown-container')) {
+                    return;
+                }
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const getLabel = () => {
+        let dateStr = 'All';
+        switch (value.type) {
+            case 'TODAY': dateStr = 'Today'; break;
+            case 'WEEK': dateStr = 'This Week'; break;
+            case 'MONTH': dateStr = 'This Month'; break;
+            case 'CUSTOM': {
+                if (value.start && value.end && value.start === value.end) {
+                    dateStr = value.start;
+                } else if (value.start && value.end) {
+                    dateStr = `${value.start}...`;
+                } else {
+                    dateStr = 'Custom';
+                }
+                break;
+            }
+            case 'ALL': dateStr = 'All'; break;
+            default: dateStr = 'All'; break;
+        }
+        return `${labelPrefix}: ${dateStr}`;
+    };
+
+    const isActive = value.type !== 'ALL';
+
+    return (
+        <div className={cn("relative filter-dropdown-container", width)} ref={dropdownRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className={cn(
+                    "w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-none text-[12px] font-semibold text-[#323130] dark:text-slate-300 focus:outline-none hover:bg-[#f3f2f1] transition-all flex items-center justify-between gap-1 cursor-pointer min-h-[32px] shadow-none truncate",
+                    isActive && "border-[#323130] text-[#323130] dark:text-slate-300 bg-[#f3f2f1] font-bold"
+                )}
+            >
+                <div className="flex items-center gap-1.5 truncate">
+                    <Calendar size={11} className={cn(isActive ? "text-[#323130] dark:text-slate-300" : "text-[#605e5c] dark:text-slate-400")} />
+                    <span className="truncate">{getLabel()}</span>
+                </div>
+                <ChevronDown size={11} className={cn("transition-transform duration-200 shrink-0", isOpen && "rotate-180 text-[#323130] dark:text-slate-300")} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 mt-1 z-[100] shadow-xl rounded-none bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 p-1">
+                    <AdvancedDateFilter
+                        hideTrigger={true}
+                        value={value}
+                        onChange={(newState) => {
+                            onChange(newState);
+                        }}
+                        onSelectComplete={() => setIsOpen(false)}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
+export function TestsTrackerView() {
+    const { success: toastSuccess, error: toastError } = useToast();
     const [loading, setLoading] = useState(true);
+    const [minPassingScore, setMinPassingScore] = useState<number>(80);
+    const [activeMainTab, setActiveMainTab] = useState<'typing' | 'assessment' | 'initial' | 'scheduled' | 'ops_val'>('typing');
+    const [applications, setApplications] = useState<Application[]>([]);
+    const [activeMajorTab, setActiveMajorTab] = useState<'all' | 'onsite' | 'oncall'>('all');
+
+    const getCandidateAssessmentType = useCallback((c: Application) => {
+        const score = String(c.assessment_score || '').toUpperCase().trim();
+        if (['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(score)) {
+            return 'speech_x';
+        }
+        if (c.pis?.personality_test || (c as any).personality_test) {
+            return 'personality';
+        }
+        if (c.pis?.critical_thinking_score || (c as any).critical_thinking_score) {
+            return 'critical_thinking';
+        }
+        if (['HIGH', 'MODERATE', 'LOW'].includes(score)) {
+            return 'leadership';
+        }
+        return 'speech_x';
+    }, []);
+
+    const getCandidateAssessmentTypeLabel = useCallback((type: string) => {
+        switch (type) {
+            case 'speech_x': return 'Speech X (CEFR)';
+            case 'leadership': return 'Leadership Assessment';
+            case 'personality': return 'Personality Map';
+            case 'critical_thinking': return 'Critical Thinking Assessment';
+            default: return 'Speech X (CEFR)';
+        }
+    }, []);
+
+    const isCandidateOnCall = useCallback((app: Application) => {
+        const positionTitle = (app.position_title || '').toLowerCase();
+        const interviewMode = String(app.metadata?.interview_mode || '').toLowerCase();
+        const preferredSetup = String(app.pis?.preferred_setup || '').toLowerCase();
+        return positionTitle.includes('[on-call]') ||
+            positionTitle.includes('[on call]') ||
+            interviewMode === 'on-call' ||
+            interviewMode === 'online' ||
+            preferredSetup === 'on-call' ||
+            preferredSetup === 'online';
+    }, []);
+
+    const filteredApplications = useMemo(() => {
+        if (activeMajorTab === 'all') return applications;
+        return applications.filter(app => {
+            const onCall = isCandidateOnCall(app);
+            if (activeMajorTab === 'oncall') return onCall;
+            return !onCall; // onsite
+        });
+    }, [applications, activeMajorTab, isCandidateOnCall]);
     
-    // Filters for Typing Test tab
-    const [typingSearch, setTypingSearch] = useState('');
-    const [typingStatusFilter, setTypingStatusFilter] = useState<'ALL' | 'PASSED' | 'FAILED'>('ALL');
-    const [typingDateFilter, setTypingDateFilter] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
-    const [typingAccountFilter, setTypingAccountFilter] = useState<string>('ALL');
+    const [typingSettings, setTypingSettings] = useState<TypingTestSettings>({ minWpm: 40, minAccuracy: 95 });
+
+    // ==========================================
+    // GLOBAL FILTERS (Apply to all tabs)
+    // ==========================================
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [globalStatusFilter, setGlobalStatusFilter] = useState<'ALL' | 'PASSED' | 'FAILED'>('ALL');
+    const [globalTestTypeFilter, setGlobalTestTypeFilter] = useState<string>('ALL');
+    const [globalAccountFilter, setGlobalAccountFilter] = useState<string>('ALL');
+    const [globalPositionFilter, setGlobalPositionFilter] = useState<string>('ALL');
+    const [globalRecruiterFilter, setGlobalRecruiterFilter] = useState<string>('ALL');
+
+    const [globalAppliedDate, setGlobalAppliedDate] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [globalTrainingDate, setGlobalTrainingDate] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [globalInterviewDate, setGlobalInterviewDate] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+
     const [typingSortField, setTypingSortField] = useState<keyof Application | 'status'>('typing_test_completed_at');
     const [typingSortDirection, setTypingSortDirection] = useState<'asc' | 'desc'>('desc');
-
-    // Filters for Assessment Tracker tab
-    const [assessmentSearch, setAssessmentSearch] = useState('');
-    const [assessmentStatusFilter, setAssessmentStatusFilter] = useState<'ALL' | 'PASSED' | 'FAILED'>('ALL');
-    const [assessmentTypeFilter, setAssessmentTypeFilter] = useState<'ALL' | 'NUMERIC' | 'CEFR'>('ALL');
-    const [assessmentDateFilter, setAssessmentDateFilter] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
-    const [assessmentAccountFilter, setAssessmentAccountFilter] = useState<string>('ALL');
     const [assessmentSortField, setAssessmentSortField] = useState<keyof Application | 'status'>('updated_at');
     const [assessmentSortDirection, setAssessmentSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -71,13 +252,19 @@ export function TestsTrackerView() {
         loadData();
 
         const socket = socketService.getSocket();
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
         const handleUpdate = () => {
-            console.log('[Socket] Applications updated, refreshing tests tracker...');
-            loadData(true);
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                console.log('[Socket] Applications updated, refreshing tests tracker...');
+                loadData(true);
+            }, 1200);
         };
 
         socket.on('applications:updated', handleUpdate);
         return () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
             socket.off('applications:updated', handleUpdate);
         };
     }, [loadData]);
@@ -86,8 +273,8 @@ export function TestsTrackerView() {
     // TYPING TEST DATA DERIVATIONS
     // ==========================================
     const candidatesWithTypingTest = useMemo(() => {
-        return applications.filter(app => app.typing_test_wpm !== undefined && app.typing_test_wpm !== null);
-    }, [applications]);
+        return filteredApplications.filter(app => app.typing_test_wpm !== undefined && app.typing_test_wpm !== null);
+    }, [filteredApplications]);
 
     const evaluatedTypingCandidates = useMemo(() => {
         return candidatesWithTypingTest.map(app => {
@@ -101,40 +288,77 @@ export function TestsTrackerView() {
         });
     }, [candidatesWithTypingTest, typingSettings]);
 
-    const typingAccounts = useMemo(() => {
+    // Derive global filter options from all applications
+    const globalAccounts = useMemo(() => {
         const set = new Set<string>();
-        evaluatedTypingCandidates.forEach(c => {
+        applications.forEach(c => {
             if (c.department) set.add(c.department.trim());
         });
         return Array.from(set).sort();
-    }, [evaluatedTypingCandidates]);
+    }, [applications]);
+    const [allRecruiters, setAllRecruiters] = useState<string[]>([]);
+    useEffect(() => {
+        import('./utils/tableHelpers').then(() => {});
+        import('./components/tableUtils').then(mod => {
+            mod.loadRecruiterOptions().then(recs => {
+                if (recs && recs.length > 0) setAllRecruiters(recs);
+            });
+        });
+    }, []);
+
+    const globalRecruiters = useMemo(() => {
+        const set = new Set<string>(allRecruiters);
+        applications.forEach(c => {
+            const name = (c.assigned_recruiter_name || c.interviewer_name || (c as any).metadata?.assigned_recruiter_name || '').trim();
+            if (name) set.add(name);
+        });
+        return Array.from(set).sort();
+    }, [applications, allRecruiters]);
+
+    const globalPositions = useMemo(() => {
+        const set = new Set<string>();
+        applications.forEach(c => {
+            if (globalAccountFilter === 'ALL' || (c.department || '').trim() === globalAccountFilter) {
+                const pos = getJobPosition(c);
+                if (pos && pos !== 'Unassigned') set.add(pos);
+            }
+        });
+        return Array.from(set).sort();
+    }, [applications, globalAccountFilter]);
+
+    // Apply Global Filters to the root array so ALL tabs inherit them
+    const globallyFilteredApplications = useMemo(() => {
+        let result = filteredApplications;
+        
+        if (globalAccountFilter !== 'ALL') {
+            result = result.filter(c => (c.department || '').trim() === globalAccountFilter);
+        }
+        if (globalPositionFilter !== 'ALL') {
+            result = result.filter(c => getJobPosition(c) === globalPositionFilter);
+        }
+        if (globalRecruiterFilter !== 'ALL') {
+            result = result.filter(c => {
+                const rec = (c.assigned_recruiter_name || c.interviewer_name || (c as any).metadata?.assigned_recruiter_name || 'Unassigned').trim();
+                return rec === globalRecruiterFilter;
+            });
+        }
+        if (globalTestTypeFilter !== 'ALL') {
+            result = result.filter(c => getCandidateAssessmentType(c) === globalTestTypeFilter);
+        }
+        
+        result = result.filter(c => checkAdvancedDateMatch(c.applied_at || c.created_at, globalAppliedDate));
+        result = result.filter(c => checkAdvancedDateMatch(c.master_training_start_date || (c as any).pis?.master_training_start_date || (c as any).pis?.training_start_date || c.hired_at, globalTrainingDate));
+        result = result.filter(c => checkAdvancedDateMatch(c.updated_at || c.typing_test_completed_at || (c as any).pis?.interview_completed_at || c.applied_at, globalInterviewDate));
+        
+        return result;
+    }, [filteredApplications, globalAccountFilter, globalPositionFilter, globalRecruiterFilter, globalTestTypeFilter, globalAppliedDate, globalTrainingDate, globalInterviewDate, getCandidateAssessmentType]);
 
     const timeFilteredTypingCandidates = useMemo(() => {
-        let result = evaluatedTypingCandidates;
-        if (typingAccountFilter !== 'ALL') {
-            result = result.filter(c => (c.department || '').trim() === typingAccountFilter);
-        }
-        if (typingDateFilter === 'ALL') return result;
-        const now = new Date();
-        return result.filter(c => {
-            if (!c.typing_test_completed_at) return false;
-            const date = new Date(c.typing_test_completed_at);
-            if (isNaN(date.getTime())) return false;
-
-            if (typingDateFilter === 'TODAY') {
-                return date.toDateString() === now.toDateString();
-            } else if (typingDateFilter === 'WEEK') {
-                const startOfWeek = new Date(now);
-                const day = startOfWeek.getDay() || 7;
-                if (day !== 1) startOfWeek.setHours(-24 * (day - 1));
-                startOfWeek.setHours(0, 0, 0, 0);
-                return date >= startOfWeek;
-            } else if (typingDateFilter === 'MONTH') {
-                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-            }
-            return true;
-        });
-    }, [evaluatedTypingCandidates, typingDateFilter, typingAccountFilter]);
+        // Since globallyFilteredApplications already applies dates/account/position/recruiter/test_type,
+        // we just need to intersect it with evaluatedTypingCandidates.
+        const globalIds = new Set(globallyFilteredApplications.map(app => app.id));
+        return evaluatedTypingCandidates.filter(app => globalIds.has(app.id));
+    }, [evaluatedTypingCandidates, globallyFilteredApplications]);
 
     const typingStats = useMemo(() => {
         const total = timeFilteredTypingCandidates.length;
@@ -175,19 +399,20 @@ export function TestsTrackerView() {
     const sortedAndFilteredTyping = useMemo(() => {
         let result = [...timeFilteredTypingCandidates];
 
-        if (typingStatusFilter === 'PASSED') {
+        if (globalStatusFilter === 'PASSED') {
             result = result.filter(c => c.passed);
-        } else if (typingStatusFilter === 'FAILED') {
+        } else if (globalStatusFilter === 'FAILED') {
             result = result.filter(c => !c.passed);
         }
 
-        if (typingSearch) {
-            const q = typingSearch.toLowerCase();
+        if (globalSearch) {
+            const q = globalSearch.toLowerCase();
             result = result.filter(c =>
                 c.applicant_name.toLowerCase().includes(q) ||
                 c.applicant_email.toLowerCase().includes(q) ||
                 (c.position_title || '').toLowerCase().includes(q) ||
-                (c.department || '').toLowerCase().includes(q)
+                (c.department || '').toLowerCase().includes(q) ||
+                (c.assigned_recruiter_name || c.interviewer_name || '').toLowerCase().includes(q)
             );
         }
 
@@ -198,6 +423,9 @@ export function TestsTrackerView() {
             if (typingSortField === 'status') {
                 valA = a.passed ? 1 : 0;
                 valB = b.passed ? 1 : 0;
+            } else if (typingSortField === 'assigned_recruiter_name') {
+                valA = a.assigned_recruiter_name || a.interviewer_name || '';
+                valB = b.assigned_recruiter_name || b.interviewer_name || '';
             } else {
                 valA = a[typingSortField];
                 valB = b[typingSortField];
@@ -216,7 +444,7 @@ export function TestsTrackerView() {
         });
 
         return result;
-    }, [timeFilteredTypingCandidates, typingSearch, typingStatusFilter, typingSortField, typingSortDirection]);
+    }, [timeFilteredTypingCandidates, globalSearch, globalStatusFilter, typingSortField, typingSortDirection]);
 
     const handleSortTyping = (field: keyof Application | 'status') => {
         if (typingSortField === field) {
@@ -231,8 +459,8 @@ export function TestsTrackerView() {
     // ASSESSMENT DATA DERIVATIONS
     // ==========================================
     const candidatesWithAssessment = useMemo(() => {
-        return applications.filter(app => app.assessment_score !== undefined && app.assessment_score !== null);
-    }, [applications]);
+        return filteredApplications.filter(app => app.assessment_score !== undefined && app.assessment_score !== null && String(app.assessment_score).trim() !== '');
+    }, [filteredApplications]);
 
     const evaluatedAssessmentCandidates = useMemo(() => {
         return candidatesWithAssessment.map(app => {
@@ -259,11 +487,7 @@ export function TestsTrackerView() {
                     isPassed = parsed >= minPassingScore;
                 } else {
                     const upper = String(rawScore).toUpperCase().trim();
-                    if (upper.includes('A1') || upper.includes('A2') || upper.includes('B1') || upper.includes('B2') || upper.includes('C1') || upper.includes('C2')) {
-                        isCEFR = true;
-                        cefrVal = upper.match(/[ABC][12]/)?.[0] || 'B1';
-                        isPassed = ['B2', 'C1', 'C2'].includes(cefrVal);
-                    }
+                    isPassed = upper === 'PASS' || upper === 'PASSED';
                 }
             }
 
@@ -277,41 +501,10 @@ export function TestsTrackerView() {
         });
     }, [candidatesWithAssessment, minPassingScore]);
 
-    const assessmentAccounts = useMemo(() => {
-        const set = new Set<string>();
-        evaluatedAssessmentCandidates.forEach(c => {
-            if (c.department) set.add(c.department.trim());
-        });
-        return Array.from(set).sort();
-    }, [evaluatedAssessmentCandidates]);
-
     const timeFilteredAssessmentCandidates = useMemo(() => {
-        let result = evaluatedAssessmentCandidates;
-        if (assessmentAccountFilter !== 'ALL') {
-            result = result.filter(c => (c.department || '').trim() === assessmentAccountFilter);
-        }
-        if (assessmentDateFilter === 'ALL') return result;
-        const now = new Date();
-        return result.filter(c => {
-            const dateStr = c.updated_at || c.applied_at;
-            if (!dateStr) return false;
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return false;
-
-            if (assessmentDateFilter === 'TODAY') {
-                return date.toDateString() === now.toDateString();
-            } else if (assessmentDateFilter === 'WEEK') {
-                const startOfWeek = new Date(now);
-                const day = startOfWeek.getDay() || 7;
-                if (day !== 1) startOfWeek.setHours(-24 * (day - 1));
-                startOfWeek.setHours(0, 0, 0, 0);
-                return date >= startOfWeek;
-            } else if (assessmentDateFilter === 'MONTH') {
-                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-            }
-            return true;
-        });
-    }, [evaluatedAssessmentCandidates, assessmentDateFilter, assessmentAccountFilter]);
+        const globalIds = new Set(globallyFilteredApplications.map(app => app.id));
+        return evaluatedAssessmentCandidates.filter(app => globalIds.has(app.id));
+    }, [evaluatedAssessmentCandidates, globallyFilteredApplications]);
 
     const assessmentStats = useMemo(() => {
         const total = timeFilteredAssessmentCandidates.length;
@@ -369,25 +562,20 @@ export function TestsTrackerView() {
     const sortedAndFilteredAssessment = useMemo(() => {
         let result = [...timeFilteredAssessmentCandidates];
 
-        if (assessmentStatusFilter === 'PASSED') {
+        if (globalStatusFilter === 'PASSED') {
             result = result.filter(c => c.passed);
-        } else if (assessmentStatusFilter === 'FAILED') {
+        } else if (globalStatusFilter === 'FAILED') {
             result = result.filter(c => !c.passed);
         }
-
-        if (assessmentTypeFilter === 'NUMERIC') {
-            result = result.filter(c => !c.isCEFR);
-        } else if (assessmentTypeFilter === 'CEFR') {
-            result = result.filter(c => c.isCEFR);
-        }
-
-        if (assessmentSearch) {
-            const q = assessmentSearch.toLowerCase();
+        
+        if (globalSearch) {
+            const q = globalSearch.toLowerCase();
             result = result.filter(c =>
                 c.applicant_name.toLowerCase().includes(q) ||
                 c.applicant_email.toLowerCase().includes(q) ||
                 (c.position_title || '').toLowerCase().includes(q) ||
-                (c.department || '').toLowerCase().includes(q)
+                (c.department || '').toLowerCase().includes(q) ||
+                (c.assigned_recruiter_name || c.interviewer_name || '').toLowerCase().includes(q)
             );
         }
 
@@ -398,6 +586,9 @@ export function TestsTrackerView() {
             if (assessmentSortField === 'status') {
                 valA = a.passed ? 1 : 0;
                 valB = b.passed ? 1 : 0;
+            } else if (assessmentSortField === 'assigned_recruiter_name') {
+                valA = a.assigned_recruiter_name || a.interviewer_name || '';
+                valB = b.assigned_recruiter_name || b.interviewer_name || '';
             } else if (assessmentSortField === 'assessment_score') {
                 valA = a.isCEFR ? a.cefrVal : a.scoreVal;
                 valB = b.isCEFR ? b.cefrVal : b.scoreVal;
@@ -419,7 +610,7 @@ export function TestsTrackerView() {
         });
 
         return result;
-    }, [timeFilteredAssessmentCandidates, assessmentSearch, assessmentStatusFilter, assessmentTypeFilter, assessmentSortField, assessmentSortDirection]);
+    }, [timeFilteredAssessmentCandidates, globalSearch, globalStatusFilter, assessmentSortField, assessmentSortDirection]);
 
     const handleSortAssessment = (field: keyof Application | 'status') => {
         if (assessmentSortField === field) {
@@ -431,170 +622,214 @@ export function TestsTrackerView() {
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-32 gap-4">
-                <div className="w-8 h-8 border-2 border-[#04154D] border-t-transparent rounded-full animate-spin" />
-                <p className="text-[12px] font-medium text-surface-400 tracking-[-0.005em]">Loading Tests Tracker...</p>
-            </div>
-        );
+        return <LoadingScreen message="LOADING TESTS TRACKER..." />;
     }
 
     return (
         <div className="flex flex-col h-full animate-fade-in relative bg-surface-50/50">
             {/* Header */}
-            <div className="flex flex-col border-b border-slate-200/60 shrink-0 bg-white">
-                <div className="relative px-6 pt-5 pb-3 flex flex-col items-center justify-center border-b border-surface-100">
-                    <div className="flex items-center gap-2.5">
-                        <Layers size={17} className="text-[#605e5c] self-center" />
-                        <h1
-                            className="text-[30px] leading-none text-surface-900 tracking-[-0.02em]"
-                            style={{ fontFamily: 'var(--font-family-display)', fontWeight: 500, fontStyle: 'italic' }}
-                        >
+            <div className="flex flex-col shrink-0 bg-white dark:bg-slate-900">
+                <div className="relative px-6 pt-5 pb-4 flex flex-col items-center justify-center bg-[#faf9f8]">
+                    <div className="flex items-center gap-2">
+                        <Layers size={20} className="text-[#323130] dark:text-slate-300 self-center" />
+                        <h1 className="text-[28px] leading-none text-[#323130] dark:text-slate-300 font-semibold tracking-tight">
                             Tests Tracker
                         </h1>
                     </div>
+                    {/* Major Tabs Switcher */}
+                    <div className="inline-flex p-0.5 bg-[#edebe9] dark:bg-slate-800 mt-4 border border-[#e1dfdd] rounded-none shadow-sm">
+                        <button
+                            type="button"
+                            onClick={() => setActiveMajorTab('all')}
+                            className={cn(
+                                "px-5 py-1.5 text-[12px] font-semibold transition-none uppercase tracking-wide cursor-pointer rounded-none",
+                                activeMajorTab === 'all'
+                                    ? "bg-white dark:bg-slate-900 text-[#323130] dark:text-slate-300 shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-[#edebe9] dark:border-slate-800"
+                                    : "text-[#605e5c] dark:text-slate-400 hover:text-[#323130] dark:text-slate-300 hover:bg-[#e1dfdd] border border-transparent"
+                            )}
+                        >
+                            All
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveMajorTab('onsite')}
+                            className={cn(
+                                "px-5 py-1.5 text-[12px] font-semibold transition-none uppercase tracking-wide cursor-pointer rounded-none",
+                                activeMajorTab === 'onsite'
+                                    ? "bg-white dark:bg-slate-900 text-[#323130] dark:text-slate-300 shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-[#edebe9] dark:border-slate-800"
+                                    : "text-[#605e5c] dark:text-slate-400 hover:text-[#323130] dark:text-slate-300 hover:bg-[#e1dfdd] border border-transparent"
+                            )}
+                        >
+                            On-Site
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveMajorTab('oncall')}
+                            className={cn(
+                                "px-5 py-1.5 text-[12px] font-semibold transition-none uppercase tracking-wide cursor-pointer rounded-none",
+                                activeMajorTab === 'oncall'
+                                    ? "bg-white dark:bg-slate-900 text-[#323130] dark:text-slate-300 shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-[#edebe9] dark:border-slate-800"
+                                    : "text-[#605e5c] dark:text-slate-400 hover:text-[#323130] dark:text-slate-300 hover:bg-[#e1dfdd] border border-transparent"
+                            )}
+                        >
+                            On-Call / Online
+                        </button>
+                    </div>
                     <div className="flex items-center gap-2.5 mt-3">
-                        <div className="flex items-center gap-1.5 px-2.5 h-7 bg-slate-50 border border-slate-200/60 rounded-lg shadow-sm">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Tested</span>
-                            <span className="text-[12px] font-extrabold text-slate-900 tabular-nums leading-none">
+                        <div className="flex items-center gap-2 px-3 h-8 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 shadow-sm rounded-none">
+                            <span className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-widest">Total Tested</span>
+                            <span className="text-[14px] font-bold text-[#0078d4] tabular-nums leading-none">
                                 {activeMainTab === 'typing' ? typingStats.total.toLocaleString() : assessmentStats.total.toLocaleString()}
                             </span>
-                            <span className="text-[9px] font-medium text-slate-400 leading-none">candidates</span>
+                            <span className="text-[10px] font-semibold text-[#605e5c] dark:text-slate-400 leading-none uppercase">Candidates</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Main Tabs switcher */}
-                <div className="flex items-center justify-center gap-9 px-6">
+                <div className="flex items-center justify-center gap-4 px-6 border-b border-[#edebe9] dark:border-slate-800 bg-[#faf9f8]">
                     <button
                         onClick={() => setActiveMainTab('typing')}
                         className={cn(
-                            "group flex items-center gap-2.5 px-1 py-4 text-[14px] font-medium transition-colors whitespace-nowrap relative cursor-pointer",
-                            activeMainTab === 'typing' ? "text-surface-900" : "text-surface-500 hover:text-surface-800"
+                            "group flex items-center gap-2 px-4 py-3 text-[14px] font-semibold transition-none whitespace-nowrap relative cursor-pointer rounded-none border-b-[3px]",
+                            activeMainTab === 'typing' ? "text-[#0078d4] border-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 border-transparent hover:text-[#323130] dark:text-slate-300 hover:bg-[#f3f2f1]"
                         )}
                     >
-                        <Keyboard size={15} className="shrink-0 transition-colors text-surface-400 group-hover:text-surface-600" />
+                        <Keyboard size={16} className={cn("shrink-0", activeMainTab === 'typing' ? "text-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 group-hover:text-[#323130] dark:text-slate-300")} />
                         <span>Typing Test Tracker</span>
-                        {activeMainTab === 'typing' && (
-                            <motion.span
-                                layoutId="tests-tracker-tab-underline"
-                                className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-emerald-500"
-                                transition={SPRING}
-                            />
-                        )}
                     </button>
+                    
                     <button
                         onClick={() => setActiveMainTab('assessment')}
                         className={cn(
-                            "group flex items-center gap-2.5 px-1 py-4 text-[14px] font-medium transition-colors whitespace-nowrap relative cursor-pointer",
-                            activeMainTab === 'assessment' ? "text-surface-900" : "text-surface-500 hover:text-surface-800"
+                            "group flex items-center gap-2 px-4 py-3 text-[14px] font-semibold transition-none whitespace-nowrap relative cursor-pointer rounded-none border-b-[3px]",
+                            activeMainTab === 'assessment' ? "text-[#0078d4] border-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 border-transparent hover:text-[#323130] dark:text-slate-300 hover:bg-[#f3f2f1]"
                         )}
                     >
-                        <FileText size={15} className="shrink-0 transition-colors text-surface-400 group-hover:text-surface-600" />
+                        <FileText size={16} className={cn("shrink-0", activeMainTab === 'assessment' ? "text-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 group-hover:text-[#323130] dark:text-slate-300")} />
                         <span>Assessment Tracker</span>
-                        {activeMainTab === 'assessment' && (
-                            <motion.span
-                                layoutId="tests-tracker-tab-underline"
-                                className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500"
-                                transition={SPRING}
-                            />
+                    </button>
+
+                    <button
+                        onClick={() => setActiveMainTab('initial')}
+                        className={cn(
+                            "group flex items-center gap-2 px-4 py-3 text-[14px] font-semibold transition-none whitespace-nowrap relative cursor-pointer rounded-none border-b-[3px]",
+                            activeMainTab === 'initial' ? "text-[#0078d4] border-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 border-transparent hover:text-[#323130] dark:text-slate-300 hover:bg-[#f3f2f1]"
                         )}
+                    >
+                        <Search size={16} className={cn("shrink-0", activeMainTab === 'initial' ? "text-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 group-hover:text-[#323130] dark:text-slate-300")} />
+                        <span>Initial Interview</span>
+                    </button>
+
+                    <button
+                        onClick={() => setActiveMainTab('scheduled')}
+                        className={cn(
+                            "group flex items-center gap-2 px-4 py-3 text-[14px] font-semibold transition-none whitespace-nowrap relative cursor-pointer rounded-none border-b-[3px]",
+                            activeMainTab === 'scheduled' ? "text-[#0078d4] border-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 border-transparent hover:text-[#323130] dark:text-slate-300 hover:bg-[#f3f2f1]"
+                        )}
+                    >
+                        <Calendar size={16} className={cn("shrink-0", activeMainTab === 'scheduled' ? "text-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 group-hover:text-[#323130] dark:text-slate-300")} />
+                        <span>Scheduled Candidates</span>
+                    </button>
+
+                    <button
+                        onClick={() => setActiveMainTab('ops_val')}
+                        className={cn(
+                            "group flex items-center gap-2 px-4 py-3 text-[14px] font-semibold transition-none whitespace-nowrap relative cursor-pointer rounded-none border-b-[3px]",
+                            activeMainTab === 'ops_val' ? "text-[#0078d4] border-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 border-transparent hover:text-[#323130] dark:text-slate-300 hover:bg-[#f3f2f1]"
+                        )}
+                    >
+                        <Layers size={16} className={cn("shrink-0", activeMainTab === 'ops_val' ? "text-[#0078d4]" : "text-[#605e5c] dark:text-slate-400 group-hover:text-[#323130] dark:text-slate-300")} />
+                        <span>Ops Val Interview</span>
                     </button>
                 </div>
             </div>
 
             {/* Centralized Filters Toolbar */}
-            <div className="flex items-center justify-center gap-4 py-3 bg-white border-b border-slate-200/60 px-6 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-                {activeMainTab === 'typing' ? (
-                    <>
-                        {/* Date Filter */}
-                        <select
-                            value={typingDateFilter}
-                            onChange={e => setTypingDateFilter(e.target.value as any)}
-                            className="bg-white border border-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold text-slate-700 outline-none focus:border-emerald-500 transition-colors cursor-pointer min-w-[130px] shadow-sm"
-                        >
-                            <option value="ALL">All Dates</option>
-                            <option value="TODAY">Today</option>
-                            <option value="WEEK">This Week</option>
-                            <option value="MONTH">This Month</option>
-                        </select>
+            <div className="flex items-center justify-center gap-2.5 py-3 bg-white dark:bg-slate-900 border-b border-[#edebe9] dark:border-slate-800 px-6 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex-wrap">
+                {/* 3 Date Filters */}
+                <SingleDateFilterPopover
+                    labelPrefix="Applied Date"
+                    value={globalAppliedDate}
+                    onChange={setGlobalAppliedDate}
+                />
+                <SingleDateFilterPopover
+                    labelPrefix="Training Start"
+                    value={globalTrainingDate}
+                    onChange={setGlobalTrainingDate}
+                />
+                <SingleDateFilterPopover
+                    labelPrefix="Interview Date"
+                    value={globalInterviewDate}
+                    onChange={setGlobalInterviewDate}
+                />
 
-                        {/* Status Filter */}
-                        <select
-                            value={typingStatusFilter}
-                            onChange={e => setTypingStatusFilter(e.target.value as any)}
-                            className="bg-white border border-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold text-slate-700 outline-none focus:border-emerald-500 transition-colors cursor-pointer min-w-[130px] shadow-sm"
-                        >
-                            <option value="ALL">All Status</option>
-                            <option value="PASSED">Passed</option>
-                            <option value="FAILED">Failed</option>
-                        </select>
+                {/* Status Filter */}
+                <select
+                    value={globalStatusFilter}
+                    onChange={e => setGlobalStatusFilter(e.target.value as any)}
+                    className="bg-white dark:bg-slate-900 border border-[#8a8886] dark:border-slate-700 text-[12px] px-2.5 py-1.5 rounded-none font-semibold text-[#323130] dark:text-slate-300 outline-none focus:border-[#0078d4] transition-colors cursor-pointer w-[120px] shadow-none shrink-0"
+                >
+                    <option value="ALL">All Status</option>
+                    <option value="PASSED">Passed</option>
+                    <option value="FAILED">Failed</option>
+                </select>
 
-                        {/* Account Filter */}
-                        <select
-                            value={typingAccountFilter}
-                            onChange={e => setTypingAccountFilter(e.target.value)}
-                            className="bg-white border border-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold text-slate-700 outline-none focus:border-emerald-500 transition-colors cursor-pointer min-w-[160px] shadow-sm text-left"
-                        >
-                            <option value="ALL">All Accounts</option>
-                            {typingAccounts.map(dept => (
-                                <option key={dept} value={dept}>{dept}</option>
-                            ))}
-                        </select>
-                    </>
-                ) : (
-                    <>
-                        {/* Date Filter */}
-                        <select
-                            value={assessmentDateFilter}
-                            onChange={e => setAssessmentDateFilter(e.target.value as any)}
-                            className="bg-white border border-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold text-slate-700 outline-none focus:border-purple-500 transition-colors cursor-pointer min-w-[130px] shadow-sm"
-                        >
-                            <option value="ALL">All Dates</option>
-                            <option value="TODAY">Today</option>
-                            <option value="WEEK">This Week</option>
-                            <option value="MONTH">This Month</option>
-                        </select>
+                {/* Assessment Type Filter */}
+                <select
+                    value={globalTestTypeFilter}
+                    onChange={e => setGlobalTestTypeFilter(e.target.value)}
+                    className="bg-white dark:bg-slate-900 border border-[#8a8886] dark:border-slate-700 text-[12px] px-2.5 py-1.5 rounded-none font-semibold text-[#323130] dark:text-slate-300 outline-none focus:border-[#0078d4] transition-colors cursor-pointer w-[170px] shadow-none shrink-0 truncate"
+                >
+                    <option value="ALL">All Assessment Types</option>
+                    <option value="speech_x">Speech X (CEFR)</option>
+                    <option value="leadership">Leadership Assessment</option>
+                    <option value="personality">Personality Map</option>
+                    <option value="critical_thinking">Critical Thinking Assessment</option>
+                </select>
 
-                        {/* Status Filter */}
-                        <select
-                            value={assessmentStatusFilter}
-                            onChange={e => setAssessmentStatusFilter(e.target.value as any)}
-                            className="bg-white border border-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold text-slate-700 outline-none focus:border-purple-500 transition-colors cursor-pointer min-w-[130px] shadow-sm"
-                        >
-                            <option value="ALL">All Status</option>
-                            <option value="PASSED">Passed</option>
-                            <option value="FAILED">Failed</option>
-                        </select>
+                {/* Account Filter */}
+                <select
+                    value={globalAccountFilter}
+                    onChange={e => {
+                        setGlobalAccountFilter(e.target.value);
+                        setGlobalPositionFilter('ALL');
+                    }}
+                    className="bg-white dark:bg-slate-900 border border-[#8a8886] dark:border-slate-700 text-[12px] px-2.5 py-1.5 rounded-none font-semibold text-[#323130] dark:text-slate-300 outline-none focus:border-[#0078d4] transition-colors cursor-pointer w-[135px] shadow-none text-left truncate shrink-0"
+                >
+                    <option value="ALL">All Accounts</option>
+                    {globalAccounts.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                </select>
 
-                        {/* Type Filter */}
-                        <select
-                            value={assessmentTypeFilter}
-                            onChange={e => setAssessmentTypeFilter(e.target.value as any)}
-                            className="bg-white border border-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold text-slate-700 outline-none focus:border-purple-500 transition-colors cursor-pointer min-w-[135px] shadow-sm"
-                        >
-                            <option value="ALL">All Types</option>
-                            <option value="NUMERIC">Numeric Only</option>
-                            <option value="CEFR">CEFR Grades</option>
-                        </select>
+                {/* Job Position Filter */}
+                <select
+                    value={globalPositionFilter}
+                    onChange={e => setGlobalPositionFilter(e.target.value)}
+                    className="bg-white dark:bg-slate-900 border border-[#8a8886] dark:border-slate-700 text-[12px] px-2.5 py-1.5 rounded-none font-semibold text-[#323130] dark:text-slate-300 outline-none focus:border-[#0078d4] transition-colors cursor-pointer w-[145px] shadow-none text-left truncate shrink-0"
+                >
+                    <option value="ALL">All Job Positions</option>
+                    {globalPositions.map(pos => (
+                        <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                </select>
 
-                        {/* Account Filter */}
-                        <select
-                            value={assessmentAccountFilter}
-                            onChange={e => setAssessmentAccountFilter(e.target.value)}
-                            className="bg-white border border-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold text-slate-700 outline-none focus:border-purple-500 transition-colors cursor-pointer min-w-[160px] shadow-sm text-left"
-                        >
-                            <option value="ALL">All Accounts</option>
-                            {assessmentAccounts.map(dept => (
-                                <option key={dept} value={dept}>{dept}</option>
-                            ))}
-                        </select>
-                    </>
-                )}
+                {/* Recruiter Filter */}
+                <select
+                    value={globalRecruiterFilter}
+                    onChange={e => setGlobalRecruiterFilter(e.target.value)}
+                    className="bg-white dark:bg-slate-900 border border-[#8a8886] dark:border-slate-700 text-[12px] px-2.5 py-1.5 rounded-none font-semibold text-[#323130] dark:text-slate-300 outline-none focus:border-[#0078d4] transition-colors cursor-pointer w-[140px] shadow-none text-left truncate shrink-0"
+                >
+                    <option value="ALL">All Recruiters</option>
+                    {globalRecruiters.map(rec => (
+                        <option key={rec} value={rec}>{rec}</option>
+                    ))}
+                </select>
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/20">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50 dark:bg-slate-800/20">
                 
                 {/* ==========================================
                     TYPING TEST TRACKER TAB CONTENT
@@ -604,15 +839,15 @@ export function TestsTrackerView() {
                         {/* Stats Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             {[
-                                { title: 'Total Tested', value: typingStats.total, subtitle: 'Completed assessments', color: 'border-slate-200/60 text-slate-800 hover:shadow-[0_0_25px_rgba(100,116,139,0.12)]', icon: Keyboard, bg: 'bg-slate-50 border border-slate-200/50' },
-                                { title: 'Passed', value: typingStats.passed, subtitle: `Speed ≥ ${typingSettings.minWpm} WPM`, color: 'border-emerald-200/40 text-emerald-600 bg-emerald-50/40 hover:shadow-[0_0_25px_rgba(16,185,129,0.12)]', icon: CheckCircle, bg: 'bg-emerald-50/50 border border-emerald-200/40' },
+                                { title: 'Total Tested', value: typingStats.total, subtitle: 'Completed assessments', color: 'border-slate-200 dark:border-slate-800/60 text-slate-800 dark:text-slate-200 hover:shadow-[0_0_25px_rgba(100,116,139,0.12)]', icon: Keyboard, bg: 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/50' },
+                                { title: 'Passed', value: typingStats.passed, subtitle: `Speed ≥ ${typingSettings.minWpm} WPM`, color: 'border-emerald-200/40 text-emerald-600 bg-emerald-50/40 hover:shadow-[0_0_25px_rgba(10,185,129,0.12)]', icon: CheckCircle, bg: 'bg-emerald-50/50 border border-emerald-200/40' },
                                 { title: 'Failed', value: typingStats.failed, subtitle: `Speed < ${typingSettings.minWpm} WPM`, color: 'border-rose-200/40 text-rose-600 bg-rose-50/40 hover:shadow-[0_0_25px_rgba(244,63,94,0.12)]', icon: XCircle, bg: 'bg-rose-50/50 border border-rose-200/40' },
                                 { title: 'Pass Rate', value: `${typingStats.passRate}%`, subtitle: 'Overall average rate', color: 'border-violet-200/40 text-violet-600 bg-violet-50/40 hover:shadow-[0_0_25px_rgba(139,92,246,0.12)]', icon: Award, bg: 'bg-violet-50/50 border border-violet-200/40' }
                             ].map((stat, i) => (
-                                <div key={i} className="bg-white p-6 rounded-xl border border-slate-200/60 flex items-center justify-between group transition-all duration-300">
+                                <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800/60 flex items-center justify-between group transition-all duration-300">
                                     <div>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.title}</p>
-                                        <h4 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-2 font-sans tabular-nums">{stat.value}</h4>
+                                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.title}</p>
+                                        <h4 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 font-sans tabular-nums">{stat.value}</h4>
                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">{stat.subtitle}</p>
                                     </div>
                                     <div className={cn("p-2.5 rounded-xl transition-all group-hover:scale-110", stat.bg)}>
@@ -625,9 +860,9 @@ export function TestsTrackerView() {
                         {/* Distributions & settings */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Speed Distributions */}
-                            <div className="bg-white border border-slate-200/60 rounded-xl p-6 space-y-4">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-xl p-6 space-y-4">
                                 <div className="flex items-center justify-between pb-2 border-b border-slate-150">
-                                    <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Speed Distribution (WPM)</h3>
+                                    <h3 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Speed Distribution (WPM)</h3>
                                     <span className="text-[10px] font-bold text-slate-400">Avg: {typingStats.avgWpm} WPM</span>
                                 </div>
                                 <div className="space-y-3">
@@ -644,7 +879,7 @@ export function TestsTrackerView() {
                                                     <span>{item.label}</span>
                                                     <span className="tabular-nums font-bold">{item.count} ({percent}%)</span>
                                                 </div>
-                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                                <div className="w-full bg-slate-100 dark:bg-slate-800/50 h-2 rounded-full overflow-hidden">
                                                     <div className={`${item.color} h-full rounded-full`} style={{ width: `${percent}%` }} />
                                                 </div>
                                             </div>
@@ -654,9 +889,9 @@ export function TestsTrackerView() {
                             </div>
 
                             {/* Accuracy Distributions */}
-                            <div className="bg-white border border-slate-200/60 rounded-xl p-6 space-y-4">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-xl p-6 space-y-4">
                                 <div className="flex items-center justify-between pb-2 border-b border-slate-150">
-                                    <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Accuracy Distribution (%)</h3>
+                                    <h3 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Accuracy Distribution (%)</h3>
                                     <span className="text-[10px] font-bold text-slate-400">Avg: {typingStats.avgAcc}%</span>
                                 </div>
                                 <div className="space-y-3">
@@ -673,7 +908,7 @@ export function TestsTrackerView() {
                                                     <span>{item.label}</span>
                                                     <span className="tabular-nums font-bold">{item.count} ({percent}%)</span>
                                                 </div>
-                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                                <div className="w-full bg-slate-100 dark:bg-slate-800/50 h-2 rounded-full overflow-hidden">
                                                     <div className={`${item.color} h-full rounded-full`} style={{ width: `${percent}%` }} />
                                                 </div>
                                             </div>
@@ -686,7 +921,16 @@ export function TestsTrackerView() {
                             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between text-white relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
                                 <div className="space-y-3 z-10">
-                                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-800">Passing Thresholds</h3>
+                                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                                        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Passing Thresholds</h3>
+                                        <Link
+                                            to="/recruiter/settings/typing-test"
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg transition-colors border border-slate-700/60"
+                                        >
+                                            <Settings size={12} className="text-slate-400" />
+                                            Settings
+                                        </Link>
+                                    </div>
                                     <p className="text-[11px] text-slate-400 leading-relaxed">
                                         Candidates must satisfy both criteria below in their typing test to pass automatically:
                                     </p>
@@ -707,44 +951,48 @@ export function TestsTrackerView() {
                         </div>
 
                         {/* List Section */}
-                        <div className="bg-white border border-slate-200/60 rounded-xl flex flex-col overflow-hidden">
-                            <div className="p-4 border-b border-slate-200 bg-slate-50/30 flex items-center justify-end">
-                                <div className="relative w-72">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-xl flex flex-col overflow-hidden">
+                            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-end">
+                                <div className="relative w-72 shrink-0">
                                     <input
                                         type="text"
                                         placeholder="Search candidates, roles, accounts..."
-                                        value={typingSearch}
-                                        onChange={e => setTypingSearch(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 pl-8 pr-4 py-1.5 rounded-lg text-xs outline-none focus:border-black transition-colors"
+                                        value={globalSearch}
+                                        onChange={e => setGlobalSearch(e.target.value)}
+                                        className="w-full bg-white dark:bg-slate-900 border border-[#8a8886] dark:border-slate-700 pl-8 pr-4 py-1.5 rounded-none text-[13px] outline-none focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] transition-colors"
                                     />
-                                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#605e5c] dark:text-slate-400" />
                                 </div>
                             </div>
 
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs border-collapse">
                                     <thead>
-                                        <tr className="bg-slate-50/50 text-slate-400 font-bold border-b border-slate-200 select-none text-[9px] uppercase tracking-widest">
-                                            <th onClick={() => handleSortTyping('applicant_name')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors">
+                                        <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800 select-none text-[9px] uppercase tracking-widest">
+                                            <th className="px-5 py-3 w-12 text-center">#</th>
+                                            <th onClick={() => handleSortTyping('applicant_name')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
                                                 <div className="flex items-center gap-1">Candidate <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortTyping('position_title')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors">
+                                            <th onClick={() => handleSortTyping('position_title')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
                                                 <div className="flex items-center gap-1">Position <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortTyping('department')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors">
+                                            <th onClick={() => handleSortTyping('department')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
                                                 <div className="flex items-center gap-1">Account / Department <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortTyping('typing_test_wpm')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-right">
+                                            <th onClick={() => handleSortTyping('assigned_recruiter_name')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
+                                                <div className="flex items-center gap-1">Assigned Recruiter <ArrowUpDown size={10} /></div>
+                                            </th>
+                                            <th onClick={() => handleSortTyping('typing_test_wpm')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-right">
                                                 <div className="flex items-center gap-1 justify-end">Speed (WPM) <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortTyping('typing_test_accuracy')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-right">
+                                            <th onClick={() => handleSortTyping('typing_test_accuracy')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-right">
                                                 <div className="flex items-center gap-1 justify-end">Accuracy <ArrowUpDown size={10} /></div>
                                             </th>
                                             <th className="px-5 py-3 text-right">Duration</th>
-                                            <th onClick={() => handleSortTyping('typing_test_completed_at')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-right">
+                                            <th onClick={() => handleSortTyping('typing_test_completed_at')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-right">
                                                 <div className="flex items-center gap-1 justify-end">Completed Date <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortTyping('status')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-center">
+                                            <th onClick={() => handleSortTyping('status')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-center">
                                                 <div className="flex items-center gap-1 justify-center">Status <ArrowUpDown size={10} /></div>
                                             </th>
                                         </tr>
@@ -752,37 +1000,46 @@ export function TestsTrackerView() {
                                     <tbody className="divide-y divide-slate-100">
                                         {sortedAndFilteredTyping.length === 0 ? (
                                             <tr>
-                                                <td colSpan={8} className="py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                                                <td colSpan={10} className="py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-wider">
                                                     No candidate records match active filters.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            sortedAndFilteredTyping.map(c => (
-                                                <tr key={c.id} className="hover:bg-slate-50/40 transition-colors">
+                                            sortedAndFilteredTyping.map((c, index) => (
+                                                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800/40 transition-colors">
+                                                    <td className="px-5 py-3.5 text-center font-semibold text-slate-400 text-[10px]">
+                                                        {index + 1}
+                                                    </td>
                                                     <td className="px-5 py-3.5">
-                                                        <div className="font-bold text-slate-800 text-[12px]">{c.applicant_name}</div>
+                                                        <div className="font-bold text-slate-800 dark:text-slate-200 text-[12px]">{c.applicant_name}</div>
                                                         <div className="text-[10px] text-slate-400 font-medium">{c.applicant_email}</div>
                                                     </td>
                                                     <td className="px-5 py-3.5 font-bold text-slate-600">{c.position_title || 'N/A'}</td>
                                                     <td className="px-5 py-3.5">
-                                                        <span className="px-2 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[9px] rounded-lg">
+                                                        <span className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 font-bold uppercase tracking-wider text-[9px] rounded-lg">
                                                             {c.department || 'GENERAL'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700">
+                                                    <td className="px-5 py-3.5">
+                                                        <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[150px] block">
+                                                            {c.assigned_recruiter_name || c.interviewer_name || c.metadata?.assigned_recruiter_name || 'Unassigned'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700 dark:text-slate-300">
                                                         {c.typing_test_wpm} <span className="text-[9px] font-bold text-slate-400">WPM</span>
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700">
+                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700 dark:text-slate-300">
                                                         {c.typing_test_accuracy}%
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-right font-semibold tabular-nums text-slate-500">
+                                                    <td className="px-5 py-3.5 text-right font-semibold tabular-nums text-slate-500 dark:text-slate-400">
                                                         {c.typing_test_duration_seconds ? `${c.typing_test_duration_seconds}s` : '---'}
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-right font-medium text-slate-500 tabular-nums">
+                                                    <td className="px-5 py-3.5 text-right font-medium text-slate-500 dark:text-slate-400 tabular-nums">
                                                         {c.typing_test_completed_at ? new Date(c.typing_test_completed_at).toLocaleDateString('en-US', {
                                                             month: 'short',
                                                             day: '2-digit',
-                                                            year: 'numeric'
+                                                            year: 'numeric',
+                                                            timeZone: 'Asia/Manila'
                                                         }) : '---'}
                                                     </td>
                                                     <td className="px-5 py-3.5 text-center">
@@ -812,15 +1069,15 @@ export function TestsTrackerView() {
                         {/* Stats Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             {[
-                                { title: 'Assessed Candidates', value: assessmentStats.total, subtitle: 'Completed test exams', color: 'border-slate-200/60 text-slate-800', icon: FileText, bg: 'bg-slate-50 border border-slate-200/50' },
+                                { title: 'Assessed Candidates', value: assessmentStats.total, subtitle: 'Completed test exams', color: 'border-slate-200 dark:border-slate-800/60 text-slate-800 dark:text-slate-200', icon: FileText, bg: 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/50' },
                                 { title: 'Pass Rate', value: `${assessmentStats.passRate}%`, subtitle: `Passing threshold: ≥${minPassingScore}%`, color: 'border-violet-200/40 text-violet-600 bg-violet-50/40', icon: Award, bg: 'bg-violet-50/50 border border-violet-200/40' },
                                 { title: 'Passed', value: assessmentStats.passed, subtitle: 'Qualified candidates', color: 'border-emerald-200/40 text-emerald-600 bg-emerald-50/40', icon: CheckCircle, bg: 'bg-emerald-50/50 border border-emerald-200/40' },
                                 { title: 'Failed / Pending', value: assessmentStats.failed, subtitle: 'Unqualified candidates', color: 'border-rose-200/40 text-rose-600 bg-rose-50/40', icon: XCircle, bg: 'bg-rose-50/50 border border-rose-200/40' }
                             ].map((stat, i) => (
-                                <div key={i} className="bg-white p-6 rounded-xl border border-slate-200/60 flex items-center justify-between group transition-all duration-300">
+                                <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800/60 flex items-center justify-between group transition-all duration-300">
                                     <div>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.title}</p>
-                                        <h4 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-2 font-sans tabular-nums">{stat.value}</h4>
+                                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.title}</p>
+                                        <h4 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 font-sans tabular-nums">{stat.value}</h4>
                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">{stat.subtitle}</p>
                                     </div>
                                     <div className={cn("p-2.5 rounded-xl transition-all group-hover:scale-110", stat.bg)}>
@@ -833,9 +1090,9 @@ export function TestsTrackerView() {
                         {/* Distributions */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Numeric distribution */}
-                            <div className="bg-white border border-slate-200/60 rounded-xl p-6 space-y-4">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-xl p-6 space-y-4">
                                 <div className="flex items-center justify-between pb-2 border-b border-slate-150">
-                                    <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Numeric Score Distribution</h3>
+                                    <h3 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Numeric Score Distribution</h3>
                                     <span className="text-[10px] font-bold text-slate-400">Avg: {assessmentStats.avgNumericScore}%</span>
                                 </div>
                                 <div className="space-y-3">
@@ -852,7 +1109,7 @@ export function TestsTrackerView() {
                                                     <span>{item.label}</span>
                                                     <span className="tabular-nums font-bold">{item.count} ({percent}%)</span>
                                                 </div>
-                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                                <div className="w-full bg-slate-100 dark:bg-slate-800/50 h-2 rounded-full overflow-hidden">
                                                     <div className={`${item.color} h-full rounded-full`} style={{ width: `${percent}%` }} />
                                                 </div>
                                             </div>
@@ -862,9 +1119,9 @@ export function TestsTrackerView() {
                             </div>
 
                             {/* CEFR Grade Distribution */}
-                            <div className="bg-white border border-slate-200/60 rounded-xl p-6 space-y-4">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-xl p-6 space-y-4">
                                 <div className="flex items-center justify-between pb-2 border-b border-slate-150">
-                                    <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Language Proficiency (CEFR)</h3>
+                                    <h3 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Language Proficiency (CEFR)</h3>
                                     <span className="text-[10px] font-bold text-slate-400">Total: {assessmentStats.totalCEFR}</span>
                                 </div>
                                 <div className="space-y-2.5">
@@ -878,12 +1135,12 @@ export function TestsTrackerView() {
                                     ].map((item, idx) => {
                                         const percent = assessmentStats.totalCEFR > 0 ? Math.round((item.count / assessmentStats.totalCEFR) * 100) : 0;
                                         return (
-                                            <div key={idx} className="flex items-center justify-between text-[11px] font-medium text-slate-700">
+                                            <div key={idx} className="flex items-center justify-between text-[11px] font-medium text-slate-700 dark:text-slate-300">
                                                 <span className="w-24 shrink-0 font-bold">{item.label}</span>
-                                                <div className="flex-1 bg-slate-100 h-1.5 rounded-full overflow-hidden mx-3">
+                                                <div className="flex-1 bg-slate-100 dark:bg-slate-800/50 h-1.5 rounded-full overflow-hidden mx-3">
                                                     <div className={`${item.color} h-full rounded-full`} style={{ width: `${percent}%` }} />
                                                 </div>
-                                                <span className="w-12 text-right font-black tabular-nums text-slate-500">{item.count}</span>
+                                                <span className="w-12 text-right font-black tabular-nums text-slate-500 dark:text-slate-400">{item.count}</span>
                                             </div>
                                         );
                                     })}
@@ -906,7 +1163,7 @@ export function TestsTrackerView() {
                                             <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${assessmentStats.passRate}%` }} />
                                             <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${100 - assessmentStats.passRate}%` }} />
                                         </div>
-                                        <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">
+                                        <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mt-1">
                                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {assessmentStats.passed} Passed</span>
                                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> {assessmentStats.failed} Failed</span>
                                         </div>
@@ -919,7 +1176,7 @@ export function TestsTrackerView() {
                                             <span className="text-xl font-extrabold text-sky-400 mt-1 tabular-nums">
                                                 {assessmentStats.avgNumericScore}%
                                             </span>
-                                            <span className="text-[9px] text-slate-500 font-bold uppercase mt-1">
+                                            <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">
                                                 Avg Score ({assessmentStats.passedNumeric}/{assessmentStats.totalNumeric} Pass)
                                             </span>
                                         </div>
@@ -928,7 +1185,7 @@ export function TestsTrackerView() {
                                             <span className="text-xl font-extrabold text-purple-400 mt-1 tabular-nums">
                                                 {assessmentStats.cefrPassRate}%
                                             </span>
-                                            <span className="text-[9px] text-slate-500 font-bold uppercase mt-1">
+                                            <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">
                                                 Pass Rate ({assessmentStats.passedCEFR}/{assessmentStats.totalCEFR} Pass)
                                             </span>
                                         </div>
@@ -942,43 +1199,50 @@ export function TestsTrackerView() {
                         </div>
 
                         {/* List Section */}
-                        <div className="bg-white border border-slate-200/60 rounded-xl flex flex-col overflow-hidden">
-                            <div className="p-4 border-b border-slate-200 bg-slate-50/30 flex items-center justify-end">
-                                <div className="relative w-72">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-xl flex flex-col overflow-hidden">
+                            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-end">
+                                <div className="relative w-72 shrink-0">
                                     <input
                                         type="text"
                                         placeholder="Search candidates, roles, accounts..."
-                                        value={assessmentSearch}
-                                        onChange={e => setAssessmentSearch(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 pl-8 pr-4 py-1.5 rounded-lg text-xs outline-none focus:border-black transition-colors"
+                                        value={globalSearch}
+                                        onChange={e => setGlobalSearch(e.target.value)}
+                                        className="w-full bg-white dark:bg-slate-900 border border-[#8a8886] dark:border-slate-700 pl-8 pr-4 py-1.5 rounded-none text-[13px] outline-none focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4] transition-colors"
                                     />
-                                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#605e5c] dark:text-slate-400" />
                                 </div>
                             </div>
 
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs border-collapse">
                                     <thead>
-                                        <tr className="bg-slate-50/50 text-slate-400 font-bold border-b border-slate-200 select-none text-[9px] uppercase tracking-widest">
-                                            <th onClick={() => handleSortAssessment('applicant_name')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors">
+                                        <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800 select-none text-[9px] uppercase tracking-widest">
+                                            <th className="px-5 py-3 w-12 text-center">#</th>
+                                            <th onClick={() => handleSortAssessment('applicant_name')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
                                                 <div className="flex items-center gap-1">Candidate <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortAssessment('position_title')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors">
+                                            <th onClick={() => handleSortAssessment('position_title')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
                                                 <div className="flex items-center gap-1">Position <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortAssessment('department')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors">
+                                            <th onClick={() => handleSortAssessment('department')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
                                                 <div className="flex items-center gap-1">Account / Department <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortAssessment('assessment_score')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-right">
+                                            <th onClick={() => handleSortAssessment('assigned_recruiter_name')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
+                                                <div className="flex items-center gap-1">Assigned Recruiter <ArrowUpDown size={10} /></div>
+                                            </th>
+                                            <th className="px-5 py-3 select-none">
+                                                <div className="flex items-center gap-1">Test Type</div>
+                                            </th>
+                                            <th onClick={() => handleSortAssessment('assessment_score')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-right">
                                                 <div className="flex items-center gap-1 justify-end">Assessment Score <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortAssessment('client_assessment_score')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-right">
+                                            <th onClick={() => handleSortAssessment('client_assessment_score')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-right">
                                                 <div className="flex items-center gap-1 justify-end">Client Assessment <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortAssessment('updated_at')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-right">
+                                            <th onClick={() => handleSortAssessment('updated_at')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-right">
                                                 <div className="flex items-center gap-1 justify-end">Last Updated <ArrowUpDown size={10} /></div>
                                             </th>
-                                            <th onClick={() => handleSortAssessment('status')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors text-center">
+                                            <th onClick={() => handleSortAssessment('status')} className="px-5 py-3 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors text-center">
                                                 <div className="flex items-center gap-1 justify-center">Evaluation <ArrowUpDown size={10} /></div>
                                             </th>
                                         </tr>
@@ -986,24 +1250,45 @@ export function TestsTrackerView() {
                                     <tbody className="divide-y divide-slate-100">
                                         {sortedAndFilteredAssessment.length === 0 ? (
                                             <tr>
-                                                <td colSpan={7} className="py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                                                <td colSpan={10} className="py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-wider">
                                                     No assessment records match active filters.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            sortedAndFilteredAssessment.map(c => (
-                                                <tr key={c.id} className="hover:bg-slate-50/40 transition-colors">
+                                            sortedAndFilteredAssessment.map((c, index) => (
+                                                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800/40 transition-colors">
+                                                    <td className="px-5 py-3.5 text-center font-semibold text-slate-400 text-[10px]">
+                                                        {index + 1}
+                                                    </td>
                                                     <td className="px-5 py-3.5">
-                                                        <div className="font-bold text-slate-800 text-[12px]">{c.applicant_name}</div>
+                                                        <div className="font-bold text-slate-800 dark:text-slate-200 text-[12px]">{c.applicant_name}</div>
                                                         <div className="text-[10px] text-slate-400 font-medium">{c.applicant_email}</div>
                                                     </td>
                                                     <td className="px-5 py-3.5 font-bold text-slate-600">{c.position_title || 'N/A'}</td>
                                                     <td className="px-5 py-3.5">
-                                                        <span className="px-2 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[9px] rounded-lg">
+                                                        <span className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 font-bold uppercase tracking-wider text-[9px] rounded-lg">
                                                             {c.department || 'GENERAL'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700">
+                                                    <td className="px-5 py-3.5">
+                                                        <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[150px] block">
+                                                            {c.assigned_recruiter_name || c.interviewer_name || c.metadata?.assigned_recruiter_name || 'Unassigned'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${
+                                                            (() => {
+                                                                const type = getCandidateAssessmentType(c);
+                                                                if (type === 'speech_x') return 'bg-purple-50 text-purple-700 border-purple-200';
+                                                                if (type === 'leadership') return 'bg-amber-50 text-amber-700 border-amber-200';
+                                                                if (type === 'personality') return 'bg-emerald-50 text-emerald-750 border-emerald-200';
+                                                                return 'bg-blue-50 text-blue-700 border-blue-200';
+                                                            })()
+                                                        }`}>
+                                                            {getCandidateAssessmentTypeLabel(getCandidateAssessmentType(c))}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700 dark:text-slate-300">
                                                         {c.isCEFR ? (
                                                             <span className="px-2 py-0.5 bg-violet-50 text-violet-700 font-bold text-[10px] border border-violet-200 rounded">
                                                                 {c.cefrVal} (CEFR)
@@ -1012,18 +1297,19 @@ export function TestsTrackerView() {
                                                             <span>{c.scoreVal}%</span>
                                                         )}
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700">
+                                                    <td className="px-5 py-3.5 text-right font-black tabular-nums text-slate-700 dark:text-slate-300">
                                                         {c.client_assessment_score !== undefined && c.client_assessment_score !== null ? (
                                                             <span>{c.client_assessment_score}%</span>
                                                         ) : (
                                                             <span className="text-slate-350">---</span>
                                                         )}
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-right font-medium text-slate-500 tabular-nums">
+                                                    <td className="px-5 py-3.5 text-right font-medium text-slate-500 dark:text-slate-400 tabular-nums">
                                                         {c.updated_at ? new Date(c.updated_at).toLocaleDateString('en-US', {
                                                             month: 'short',
                                                             day: '2-digit',
-                                                            year: 'numeric'
+                                                            year: 'numeric',
+                                                            timeZone: 'Asia/Manila'
                                                         }) : '---'}
                                                     </td>
                                                     <td className="px-5 py-3.5 text-center">
@@ -1045,6 +1331,9 @@ export function TestsTrackerView() {
                     </>
                 )}
 
+                {activeMainTab === 'initial' && <InitialInterviewTab applications={globallyFilteredApplications} statusFilter={globalStatusFilter} />}
+                {activeMainTab === 'scheduled' && <ScheduledCandidatesTab applications={globallyFilteredApplications} />}
+                {activeMainTab === 'ops_val' && <OpsValInterviewTab applications={globallyFilteredApplications} statusFilter={globalStatusFilter} />}
             </div>
         </div>
     );

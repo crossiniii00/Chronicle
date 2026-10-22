@@ -1,10 +1,11 @@
-export type QueueStatus = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED' | 'SERVED' | 'DELETED';
+export type QueueStatus = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED' | 'SERVED' | 'DELETED' | 'DRAFT' | 'RESCHEDULED';
 
 export interface QueueEntry {
     id: string;
     application_id: string;
     applicant_name: string;
     queue_number: number;
+    queue_prefix?: string;
     queue_date: string;
     status: QueueStatus;
     queue_type: 'INITIAL' | 'FINAL';
@@ -23,6 +24,7 @@ export interface QueueCallout {
     id: string;
     application_id: string;
     queue_number: number;
+    queue_prefix?: string;
     applicant_name: string;
     room: string;
     timestamp: string;

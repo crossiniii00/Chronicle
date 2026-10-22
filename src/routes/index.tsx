@@ -31,15 +31,15 @@ const ManagementView = lazyRetry(() => import('@/pages/recruiter/tracker/Managem
 const InterviewReportsView = lazyRetry(() => import('@/pages/recruiter/tracker/InterviewReportsView').then(mod => ({ default: mod.InterviewReportsView })));
 const MasterlistView = lazyRetry(() => import('@/pages/recruiter/tracker/MasterlistView').then(mod => ({ default: mod.MasterlistView })));
 const InactiveView = lazyRetry(() => import('@/pages/recruiter/tracker/InactiveView').then(mod => ({ default: mod.InactiveView })));
-const HiringReportsView = lazyRetry(() => import('@/pages/recruiter/tracker/HiringReportsView').then(mod => ({ default: mod.HiringReportsView })));
+
 const TestsTrackerView = lazyRetry(() => import('@/pages/recruiter/tracker/TestsTrackerView').then(mod => ({ default: mod.TestsTrackerView })));
 
-const EndorsedView = lazyRetry(() => import('@/pages/recruiter/tracker/EndorsedView').then(mod => ({ default: mod.EndorsedView })));
+const PromotionView = lazyRetry(() => import('@/pages/recruiter/tracker/PromotionView').then(mod => ({ default: mod.PromotionView })));
 const SchedulingView = lazyRetry(() => import('@/pages/recruiter/SchedulingView').then(mod => ({ default: mod.SchedulingView })));
 
 const MHRTView = lazyRetry(() => import('@/pages/recruiter/mhrt/MHRTView').then(mod => ({ default: mod.MHRTView })));
 const H2RCreationView = lazyRetry(() => import('@/pages/recruiter/mhrt/H2RCreationView').then(mod => ({ default: mod.H2RCreationView })));
-const SalaryTab = lazyRetry(() => import('@/pages/recruiter/mhrt/SalaryTab').then(mod => ({ default: mod.SalaryTab })));
+
 const AccountsTab = lazyRetry(() => import('@/pages/recruiter/mhrt/AccountsTab').then(mod => ({ default: mod.AccountsTab })));
 const H2RCreationTab = lazyRetry(() => import('@/pages/recruiter/mhrt/H2RCreationTab').then(mod => ({ default: mod.H2RCreationTab })));
 const DirectoryTab = lazyRetry(() => import('@/pages/recruiter/mhrt/DirectoryTab').then(mod => ({ default: mod.DirectoryTab })));
@@ -51,9 +51,6 @@ const FinalInterviewDashboard = lazyRetry(() => import('@/pages/guest/FinalInter
 const InterviewDesk = lazyRetry(() => import('@/pages/guest/InterviewDesk').then(mod => ({ default: mod.InterviewDesk })));
 const FinalInterviewHistory = lazyRetry(() => import('@/pages/guest/EvaluationHistory').then(mod => ({ default: mod.InterviewRegistryHistory })));
 const FinalInterviewAnalysis = lazyRetry(() => import('@/pages/guest/AccountAnalysis').then(mod => ({ default: mod.AccountAnalysis })));
-
-// Forums
-const ForumsView = lazyRetry(() => import('@/pages/common/forums/ForumsView').then(mod => ({ default: mod.ForumsView })));
 const GuestNotifications = lazyRetry(() => import('@/pages/guest/Notifications').then(mod => ({ default: mod.GuestNotifications })));
 const GuestProfile = lazyRetry(() => import('@/pages/guest/Profile').then(mod => ({ default: mod.GuestProfile })));
 const GuestTeam = lazyRetry(() => import('@/pages/guest/Team').then(mod => ({ default: mod.GuestTeam })));
@@ -75,7 +72,10 @@ const AccountManagement = lazyRetry(() => import('@/pages/admin/AccountManagemen
 const ProjectRSettings = lazyRetry(() => import('@/pages/admin/ProjectRSettings').then(mod => ({ default: mod.ProjectRSettings })));
 const EmailTemplatesTab = lazyRetry(() => import('@/pages/admin/ProjectRSettings/EmailTemplatesTab').then(mod => ({ default: mod.EmailTemplatesTab })));
 const TypingTestTab = lazyRetry(() => import('@/pages/admin/ProjectRSettings/TypingTestTab').then(mod => ({ default: mod.TypingTestTab })));
+const TypingMonitoringTab = lazyRetry(() => import('@/pages/admin/ProjectRSettings/TypingMonitoringTab').then(mod => ({ default: mod.TypingMonitoringTab })));
 const AISettingsTab = lazyRetry(() => import('@/pages/admin/ProjectRSettings/AISettingsTab').then(mod => ({ default: mod.AISettingsTab })));
+const NotificationSettingsTab = lazyRetry(() => import('@/pages/admin/ProjectRSettings/NotificationSettingsTab').then(mod => ({ default: mod.NotificationSettingsTab })));
+const QuickSettingsView = lazyRetry(() => import('@/pages/admin/QuickSettingsView').then(mod => ({ default: mod.QuickSettingsView })));
 
 // Loading component
 const PageLoader = () => (
@@ -157,7 +157,7 @@ export function AppRoutes() {
             <Route path="/recruiter" element={<ProtectedRoute><RoleRoute allowedRoles={['recruiter_s', 'recruiter_a', 'recruiter_jc', 'recruiter_sy', 'recruiter_interviewer']}><RecruiterLayout /></RoleRoute></ProtectedRoute>}>
                 <Route index element={<Navigate to="/recruiter/dashboard" replace />} />
                 <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><RecruiterDashboard /></Suspense>} />
-                <Route path="forums" element={<Suspense fallback={<PageLoader />}><ForumsView /></Suspense>} />
+                <Route path="calendar" element={<Suspense fallback={<PageLoader />}><FinalInterviewSchedules /></Suspense>} />
 
                 {/* New Nested Tracker */}
                 <Route path="tracker">
@@ -165,9 +165,9 @@ export function AppRoutes() {
                     <Route path="management/*" element={<Suspense fallback={<PageLoader />}><ManagementView /></Suspense>} />
                     <Route path="interview-form" element={<Suspense fallback={<PageLoader />}><InterviewReportsView /></Suspense>} />
                     <Route path="masterlist" element={<Suspense fallback={<PageLoader />}><MasterlistView /></Suspense>} />
-                    <Route path="endorsed" element={<Suspense fallback={<PageLoader />}><EndorsedView /></Suspense>} />
+                    <Route path="promotion" element={<Suspense fallback={<PageLoader />}><PromotionView /></Suspense>} />
                     <Route path="inactive" element={<Suspense fallback={<PageLoader />}><InactiveView /></Suspense>} />
-                    <Route path="reports" element={<Suspense fallback={<PageLoader />}><HiringReportsView /></Suspense>} />
+
                     <Route path="typing-test-tracker" element={<Suspense fallback={<PageLoader />}><TestsTrackerView /></Suspense>} />
                     <Route path="scheduling" element={<Suspense fallback={<PageLoader />}><SchedulingView /></Suspense>} />
                 </Route>
@@ -186,6 +186,8 @@ export function AppRoutes() {
                 <Route path="queue" element={<Navigate to="/recruiter/interview/queue" replace />} />
                 <Route path="reports" element={<Suspense fallback={<PageLoader />}><RecruiterReports /></Suspense>} />
                 <Route path="audit" element={<Suspense fallback={<PageLoader />}><RecruiterAudit /></Suspense>} />
+                <Route path="employee-tracker" element={<Suspense fallback={<PageLoader />}><EmployeeTracker /></Suspense>} />
+                <Route path="analysis" element={<Suspense fallback={<PageLoader />}><FinalInterviewAnalysis /></Suspense>} />
                 <Route path="notifications" element={<Suspense fallback={<PageLoader />}><RecruiterNotifications /></Suspense>} />
                 <Route path="profile" element={<Suspense fallback={<PageLoader />}><RecruiterProfile /></Suspense>} />
                 <Route path="applicants/*" element={<Suspense fallback={<PageLoader />}><ApplicantManagement /></Suspense>} />
@@ -193,8 +195,7 @@ export function AppRoutes() {
 
                 {/* MHRT Section */}
                 <Route path="mhrt" element={<Suspense fallback={<PageLoader />}><MHRTView /></Suspense>}>
-                    <Route index element={<Navigate to="salary" replace />} />
-                    <Route path="salary" element={<Suspense fallback={<PageLoader />}><SalaryTab /></Suspense>} />
+                    <Route index element={<Navigate to="accounts" replace />} />
                     <Route path="accounts" element={<Suspense fallback={<PageLoader />}><AccountsTab /></Suspense>} />
                     <Route path="directory" element={<Suspense fallback={<PageLoader />}><DirectoryTab /></Suspense>} />
 
@@ -209,13 +210,21 @@ export function AppRoutes() {
 
                 {/* Decentralized Settings for Recruiter */}
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><ProjectRSettings /></Suspense>}>
-                    <Route index element={<Navigate to="job-postings" replace />} />
-                    <Route path="job-postings" element={<Suspense fallback={<PageLoader />}><PositionManagement hideHeader={true} /></Suspense>} />
+                    <Route index element={<Navigate to="questions" replace />} />
                     <Route path="questions" element={<Suspense fallback={<PageLoader />}><InterviewQuestions /></Suspense>} />
                     <Route path="typing-test" element={<Suspense fallback={<PageLoader />}><TypingTestTab /></Suspense>} />
-                    <Route path="accounts" element={<Suspense fallback={<PageLoader />}><AccountManagement hideHeader={true} /></Suspense>} />
+                    <Route path="typing-monitoring" element={<Suspense fallback={<PageLoader />}><TypingMonitoringTab /></Suspense>} />
                     <Route path="email-templates" element={<Suspense fallback={<PageLoader />}><EmailTemplatesTab /></Suspense>} />
                     <Route path="ai" element={<Suspense fallback={<PageLoader />}><AISettingsTab /></Suspense>} />
+                    <Route path="notifications" element={<Suspense fallback={<PageLoader />}><NotificationSettingsTab /></Suspense>} />
+                    <Route path="users" element={<Suspense fallback={<PageLoader />}><UserManagement /></Suspense>} />
+                </Route>
+                <Route path="quick-settings" element={<Suspense fallback={<PageLoader />}><QuickSettingsView /></Suspense>} />
+                {/* Hiring Section for Recruiter */}
+                <Route path="hiring">
+                    <Route index element={<Navigate to="job-postings" replace />} />
+                    <Route path="job-postings" element={<Suspense fallback={<PageLoader />}><PositionManagement /></Suspense>} />
+                    <Route path="accounts" element={<Suspense fallback={<PageLoader />}><AccountManagement /></Suspense>} />
                 </Route>
             </Route>
 
@@ -223,7 +232,6 @@ export function AppRoutes() {
                 <Route index element={<Navigate to="/final-interview/dashboard" replace />} />
                 <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><FinalInterviewDashboard /></Suspense>} />
                 <Route path="desk" element={<Suspense fallback={<PageLoader />}><InterviewDesk /></Suspense>} />
-                <Route path="forums" element={<Suspense fallback={<PageLoader />}><ForumsView /></Suspense>} />
                 <Route path="history" element={<Suspense fallback={<PageLoader />}><FinalInterviewHistory /></Suspense>} />
                 <Route path="analysis" element={<Suspense fallback={<PageLoader />}><FinalInterviewAnalysis /></Suspense>} />
                 <Route path="schedules" element={<Suspense fallback={<PageLoader />}><FinalInterviewSchedules /></Suspense>} />
@@ -235,25 +243,28 @@ export function AppRoutes() {
             <Route path="/admin" element={<ProtectedRoute><RoleRoute allowedRoles={['admin', 'super_admin']}><AdminLayout /></RoleRoute></ProtectedRoute>}>
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
-                <Route path="forums" element={<Suspense fallback={<PageLoader />}><ForumsView /></Suspense>} />
                 <Route path="calendar" element={<Suspense fallback={<PageLoader />}><FinalInterviewSchedules /></Suspense>} />
-                <Route path="users" element={<Suspense fallback={<PageLoader />}><UserManagement /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><ProjectRSettings /></Suspense>}>
-                    <Route index element={<Navigate to="job-postings" replace />} />
-                    <Route path="job-postings" element={<Suspense fallback={<PageLoader />}><PositionManagement hideHeader={true} /></Suspense>} />
+                    <Route index element={<Navigate to="questions" replace />} />
                     <Route path="questions" element={<Suspense fallback={<PageLoader />}><InterviewQuestions /></Suspense>} />
                     <Route path="typing-test" element={<Suspense fallback={<PageLoader />}><TypingTestTab /></Suspense>} />
-                    <Route path="accounts" element={<Suspense fallback={<PageLoader />}><AccountManagement hideHeader={true} /></Suspense>} />
+                    <Route path="typing-monitoring" element={<Suspense fallback={<PageLoader />}><TypingMonitoringTab /></Suspense>} />
                     <Route path="email-templates" element={<Suspense fallback={<PageLoader />}><EmailTemplatesTab /></Suspense>} />
                     <Route path="ai" element={<Suspense fallback={<PageLoader />}><AISettingsTab /></Suspense>} />
+                    <Route path="notifications" element={<Suspense fallback={<PageLoader />}><NotificationSettingsTab /></Suspense>} />
+                    <Route path="users" element={<Suspense fallback={<PageLoader />}><UserManagement /></Suspense>} />
+                    <Route path="queue-settings" element={<Suspense fallback={<PageLoader />}><QueueSettings /></Suspense>} />
+                    <Route path="backup" element={<Suspense fallback={<PageLoader />}><BackupRestore /></Suspense>} />
                 </Route>
+                <Route path="quick-settings" element={<Suspense fallback={<PageLoader />}><QuickSettingsView /></Suspense>} />
                 <Route path="tracker">
                     <Route index element={<Navigate to="management" replace />} />
                     <Route path="management/*" element={<Suspense fallback={<PageLoader />}><ManagementView /></Suspense>} />
                     <Route path="interview-form" element={<Suspense fallback={<PageLoader />}><InterviewReportsView /></Suspense>} />
                     <Route path="masterlist" element={<Suspense fallback={<PageLoader />}><MasterlistView /></Suspense>} />
+                    <Route path="promotion" element={<Suspense fallback={<PageLoader />}><PromotionView /></Suspense>} />
                     <Route path="inactive" element={<Suspense fallback={<PageLoader />}><InactiveView /></Suspense>} />
-                    <Route path="reports" element={<Suspense fallback={<PageLoader />}><HiringReportsView /></Suspense>} />
+
                     <Route path="typing-test-tracker" element={<Suspense fallback={<PageLoader />}><TestsTrackerView /></Suspense>} />
                     <Route path="scheduling" element={<Suspense fallback={<PageLoader />}><SchedulingView /></Suspense>} />
                 </Route>
@@ -273,8 +284,7 @@ export function AppRoutes() {
 
                 {/* MHRT Section for Admin */}
                 <Route path="mhrt" element={<Suspense fallback={<PageLoader />}><MHRTView /></Suspense>}>
-                    <Route index element={<Navigate to="salary" replace />} />
-                    <Route path="salary" element={<Suspense fallback={<PageLoader />}><SalaryTab /></Suspense>} />
+                    <Route index element={<Navigate to="accounts" replace />} />
                     <Route path="accounts" element={<Suspense fallback={<PageLoader />}><AccountsTab /></Suspense>} />
                     <Route path="directory" element={<Suspense fallback={<PageLoader />}><DirectoryTab /></Suspense>} />
 
@@ -287,13 +297,19 @@ export function AppRoutes() {
                     </Route>
                 </Route>
                 <Route path="applicants/*" element={<Suspense fallback={<PageLoader />}><ApplicantManagement /></Suspense>} />
-                <Route path="queue-settings" element={<Suspense fallback={<PageLoader />}><QueueSettings /></Suspense>} />
                 <Route path="employee-tracker" element={<Suspense fallback={<PageLoader />}><EmployeeTracker /></Suspense>} />
                 <Route path="reports" element={<Suspense fallback={<PageLoader />}><AdminReports /></Suspense>} />
+                <Route path="analysis" element={<Suspense fallback={<PageLoader />}><FinalInterviewAnalysis /></Suspense>} />
                 <Route path="audit" element={<Suspense fallback={<PageLoader />}><AdminAuditLogs /></Suspense>} />
-                <Route path="backup" element={<Suspense fallback={<PageLoader />}><BackupRestore /></Suspense>} />
                 <Route path="notifications" element={<Suspense fallback={<PageLoader />}><AdminNotifications /></Suspense>} />
                 <Route path="profile" element={<Suspense fallback={<PageLoader />}><AdminProfile /></Suspense>} />
+
+                {/* Hiring Section for Admin */}
+                <Route path="hiring">
+                    <Route index element={<Navigate to="job-postings" replace />} />
+                    <Route path="job-postings" element={<Suspense fallback={<PageLoader />}><PositionManagement /></Suspense>} />
+                    <Route path="accounts" element={<Suspense fallback={<PageLoader />}><AccountManagement /></Suspense>} />
+                </Route>
             </Route>
 
             <Route path="*" element={
@@ -308,3 +324,4 @@ export function AppRoutes() {
         </Routes>
     );
 }
+

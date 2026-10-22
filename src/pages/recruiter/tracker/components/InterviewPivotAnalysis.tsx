@@ -86,8 +86,8 @@ export function InterviewPivotAnalysis({ data }: PivotAnalysisProps) {
                 'DOORDASH': 'DOORDASH',
                 'ENER': 'ENERCARE',
                 'ENERCARE': 'ENERCARE',
-                'EXACT': 'EXACT SCIENCES',
-                'EXACT SCIENCES': 'EXACT SCIENCES',
+                'EXACT': 'ABBOTT',
+                'ABBOTT': 'ABBOTT',
                 'OONI': 'OONI',
                 'PURO': 'PUROLATOR',
                 'PUROLATOR': 'PUROLATOR',
@@ -115,7 +115,7 @@ export function InterviewPivotAnalysis({ data }: PivotAnalysisProps) {
                 }
             }
 
-            if (account === 'EXACT SCIENCE') account = 'EXACT SCIENCES';
+            if (account === 'ABBOTT') account = 'ABBOTT';
             if (account.includes('PUROLATOR')) account = 'PUROLATOR';
             
             stats.byAccount[account] = (stats.byAccount[account] || 0) + 1;
@@ -254,7 +254,7 @@ export function InterviewPivotAnalysis({ data }: PivotAnalysisProps) {
         const total = Object.values(stats).reduce((a, b) => a + b, 0);
 
         return (
-            <div className="bg-white border border-[#edebe9] rounded-none shadow-sm flex flex-col overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none shadow-sm flex flex-col overflow-hidden">
                 <div className={cn("px-4 py-3 text-white flex items-center justify-between", color)}>
                     <div className="flex items-center gap-2">
                         <Icon size={16} />
@@ -270,7 +270,7 @@ export function InterviewPivotAnalysis({ data }: PivotAnalysisProps) {
                         const pct = ((count / total) * 100).toFixed(0);
                         return (
                             <div key={label} className="space-y-1">
-                                <div className="flex justify-between items-center text-[10px] font-bold text-[#323130] uppercase">
+                                <div className="flex justify-between items-center text-[10px] font-bold text-[#323130] dark:text-slate-300 uppercase">
                                     <span className="truncate pr-4">{label.replace(/_/g, ' ')}</span>
                                     <span>{count}</span>
                                 </div>
@@ -302,7 +302,7 @@ export function InterviewPivotAnalysis({ data }: PivotAnalysisProps) {
                     </div>
                     <div className="text-4xl font-black">{data.length}</div>
                     <div className="flex items-center gap-2 mt-2">
-                        <div className="px-2 py-0.5 bg-white/20 rounded-none text-[8px] font-black uppercase">
+                        <div className="px-2 py-0.5 bg-white/20 dark:bg-slate-900/20 rounded-none text-[8px] font-black uppercase">
                             {analysis.conversion.todayApplicants} New Today
                         </div>
                     </div>
@@ -429,7 +429,7 @@ export function InterviewPivotAnalysis({ data }: PivotAnalysisProps) {
 
 
             <div className="bg-[#f3f2f1] p-4 border-l-4 border-[#002060] rounded-none">
-                <p className="text-[10px] font-bold text-[#605e5c] uppercase tracking-widest leading-relaxed">
+                <p className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-widest leading-relaxed">
                     Analysis based on real-time data from the Interview Sheet. Statuses are grouped by outcome to provide a cleaner operational overview.
                 </p>
             </div>

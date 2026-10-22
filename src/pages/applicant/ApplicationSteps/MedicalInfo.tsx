@@ -34,9 +34,9 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
     };
 
     return (
-        <div 
+        <div
             className="min-h-screen w-full relative text-white pt-36 pb-16 px-4 overflow-x-hidden brand-gradient flex flex-col items-center justify-start"
-            style={{ 
+            style={{
                 fontFamily: "'Mulish', 'Segoe UI', 'Inter', sans-serif"
             }}
         >
@@ -49,13 +49,11 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
             {/* Premium Transparent Header */}
             <header className="fixed top-0 left-0 w-full z-[100] flex items-center justify-between px-6 md:px-10 py-5 bg-black/20 backdrop-blur-xl border-b border-white/10">
                 <div className="flex items-center gap-4 cursor-pointer group">
-                    <div className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
-                        <img src="/contactpoint-logo.png?v=2" alt="CP360" className="w-7 h-7 object-contain" />
+                    <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
+                        <img src="/contactpoint-logo.png?v=2" alt="ContactPoint 360" className="w-7 h-7 object-contain" />
                     </div>
                     <div className="flex flex-col text-left">
-                        <h1 className="text-white font-black text-[15px] tracking-[0.1em] uppercase leading-none">
-                            ContactPoint<span className="text-[#ef3e36]">360</span>
-                        </h1>
+                        <h1 className="text-white font-black text-[15px] tracking-[0.15em] uppercase leading-none">ContactPoint<span className="text-[#ef3e36]">360</span></h1>
                         <span className="text-white/60 font-black text-[9px] tracking-[0.3em] uppercase mt-1">
                             Talent Acquisition
                         </span>
@@ -63,14 +61,14 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
                 </div>
 
                 <div className="flex items-center gap-4 md:gap-6">
-                    <button 
-                        onClick={onBack} 
+                    <button
+                        onClick={onBack}
                         className="inline-flex items-center gap-2 text-white/70 hover:text-white text-xs font-black uppercase tracking-widest transition-colors"
                     >
                         <ArrowLeft size={14} />
                         <span className="hidden sm:inline">Back</span>
                     </button>
-                    <div className="h-4 w-[1px] bg-white/20" />
+                    <div className="h-4 w-[1px] bg-white/20 dark:bg-slate-900/20" />
                     <div className="text-[10px] font-black uppercase tracking-widest text-[#ef3e36] bg-[#ef3e36]/10 px-3.5 py-2 border border-[#ef3e36]/20 rounded-full">
                         Step 5 of 6: Medical Info
                     </div>
@@ -81,10 +79,10 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
 
 
                 {/* Form Card */}
-                <div className="w-full bg-white rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
+                <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
                     {/* Brand Top Border */}
                     <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#ef3e36]" />
-                    
+
                     <div className="flex items-center gap-3 mb-6 border-b border-surface-100 pb-4">
                         <Activity className="text-[#ef3e36]" size={28} />
                         <h2 className="text-3xl font-black text-surface-900 tracking-tight uppercase">
@@ -109,20 +107,18 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
                                 <button
                                     type="button"
                                     onClick={() => updateForm('has_medical_conditions', true)}
-                                    className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                        form.has_medical_conditions === true 
-                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20' 
-                                            : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                    }`}
+                                    className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.has_medical_conditions === true
+                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20'
+                                            : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                        }`}
                                 > YES </button>
                                 <button
                                     type="button"
                                     onClick={() => updateForm('has_medical_conditions', false)}
-                                    className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                        form.has_medical_conditions === false 
-                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20' 
-                                            : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                    }`}
+                                    className={`flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.has_medical_conditions === false
+                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20'
+                                            : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                        }`}
                                 > NO </button>
                             </div>
                         </div>
@@ -137,18 +133,16 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
                                             key={condition}
                                             type="button"
                                             onClick={() => toggleCondition(condition)}
-                                            className={`flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${
-                                                form.medical_conditions?.includes(condition) 
-                                                    ? 'bg-[#ef3e36]/5 border-[#ef3e36]/30 text-surface-900 shadow-sm font-bold' 
-                                                    : 'bg-white border-surface-200 text-surface-500 hover:border-surface-300'
-                                            }`}
+                                            className={`flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${form.medical_conditions?.includes(condition)
+                                                    ? 'bg-[#ef3e36]/5 border-[#ef3e36]/30 text-surface-900 shadow-sm font-bold'
+                                                    : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-500 hover:border-surface-300'
+                                                }`}
                                         >
-                                            <div className={`w-4 h-4 rounded-sm border flex items-center justify-center transition-all ${
-                                                form.medical_conditions?.includes(condition) 
-                                                    ? 'bg-[#ef3e36] border-[#ef3e36]' 
+                                            <div className={`w-4 h-4 rounded-sm border flex items-center justify-center transition-all ${form.medical_conditions?.includes(condition)
+                                                    ? 'bg-[#ef3e36] border-[#ef3e36]'
                                                     : 'border-surface-300'
-                                            }`}>
-                                                {form.medical_conditions?.includes(condition) && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                }`}>
+                                                {form.medical_conditions?.includes(condition) && <div className="w-1.5 h-1.5 bg-white dark:bg-slate-900 rounded-full" />}
                                             </div>
                                             <span className="text-xs font-bold uppercase tracking-tight">{condition}</span>
                                         </button>
@@ -167,18 +161,16 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
                                                 updateForm('medical_conditions', [...current, 'Custom Condition']);
                                             }
                                         }}
-                                        className={`flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${
-                                            (form.medical_conditions || []).some(c => !CONDITION_CHECKLIST.includes(c)) 
-                                                ? 'bg-[#ef3e36]/5 border-[#ef3e36]/30 text-surface-900 shadow-sm font-bold' 
-                                                : 'bg-white border-surface-200 text-surface-500 hover:border-surface-300'
-                                        }`}
+                                        className={`flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${(form.medical_conditions || []).some(c => !CONDITION_CHECKLIST.includes(c))
+                                                ? 'bg-[#ef3e36]/5 border-[#ef3e36]/30 text-surface-900 shadow-sm font-bold'
+                                                : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-500 hover:border-surface-300'
+                                            }`}
                                     >
-                                        <div className={`w-4 h-4 rounded-sm border flex items-center justify-center transition-all ${
-                                            (form.medical_conditions || []).some(c => !CONDITION_CHECKLIST.includes(c)) 
-                                                ? 'bg-[#ef3e36] border-[#ef3e36]' 
+                                        <div className={`w-4 h-4 rounded-sm border flex items-center justify-center transition-all ${(form.medical_conditions || []).some(c => !CONDITION_CHECKLIST.includes(c))
+                                                ? 'bg-[#ef3e36] border-[#ef3e36]'
                                                 : 'border-surface-300'
-                                        }`}>
-                                            {(form.medical_conditions || []).some(c => !CONDITION_CHECKLIST.includes(c)) && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                            }`}>
+                                            {(form.medical_conditions || []).some(c => !CONDITION_CHECKLIST.includes(c)) && <div className="w-1.5 h-1.5 bg-white dark:bg-slate-900 rounded-full" />}
                                         </div>
                                         <span className="text-xs font-bold uppercase tracking-tight">Other</span>
                                     </button>
@@ -189,7 +181,7 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
                                     <div className="pt-2 animate-fade-in">
                                         <label className="block space-y-1.5 text-left">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">Please specify your medical condition</span>
-                                            <input 
+                                            <input
                                                 type="text"
                                                 value={(form.medical_conditions || []).find(c => !CONDITION_CHECKLIST.includes(c)) === 'Custom Condition' ? '' : ((form.medical_conditions || []).find(c => !CONDITION_CHECKLIST.includes(c)) || '')}
                                                 onChange={(e) => {
@@ -203,7 +195,7 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
                                                     }
                                                 }}
                                                 placeholder="Type here..."
-                                                className="w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white text-surface-900 shadow-sm"
+                                                className="w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white dark:bg-slate-900 text-surface-900 shadow-sm"
                                             />
                                         </label>
                                     </div>
@@ -216,69 +208,63 @@ export function MedicalInfo({ form, updateForm, onBack, onNext }: MedicalInfoPro
                             <div className="space-y-4">
                                 <span className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">Alcohol Intake</span>
                                 <div className="flex gap-2">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => updateForm('drinks_alcohol', true)} 
-                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                            form.drinks_alcohol === true 
-                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md' 
-                                                : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                        }`}
+                                    <button
+                                        type="button"
+                                        onClick={() => updateForm('drinks_alcohol', true)}
+                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.drinks_alcohol === true
+                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                            }`}
                                     >YES</button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => updateForm('drinks_alcohol', false)} 
-                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                            form.drinks_alcohol === false 
-                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md' 
-                                                : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                        }`}
+                                    <button
+                                        type="button"
+                                        onClick={() => updateForm('drinks_alcohol', false)}
+                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.drinks_alcohol === false
+                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                            }`}
                                     >NO</button>
                                 </div>
                             </div>
                             <div className="space-y-4">
                                 <span className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">Smoker</span>
                                 <div className="flex gap-2">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => updateForm('smokes', true)} 
-                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                            form.smokes === true 
-                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md' 
-                                                : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                        }`}
+                                    <button
+                                        type="button"
+                                        onClick={() => updateForm('smokes', true)}
+                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.smokes === true
+                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                            }`}
                                     >YES</button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => updateForm('smokes', false)} 
-                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                            form.smokes === false 
-                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md' 
-                                                : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                        }`}
+                                    <button
+                                        type="button"
+                                        onClick={() => updateForm('smokes', false)}
+                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.smokes === false
+                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                            }`}
                                     >NO</button>
                                 </div>
                             </div>
                             <div className="space-y-4">
                                 <span className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">Pregnant</span>
                                 <div className="flex gap-2">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => updateForm('is_pregnant', true)} 
-                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                            form.is_pregnant === true 
-                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md' 
-                                                : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                        }`}
+                                    <button
+                                        type="button"
+                                        onClick={() => updateForm('is_pregnant', true)}
+                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.is_pregnant === true
+                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                            }`}
                                     >YES</button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => updateForm('is_pregnant', false)} 
-                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                            form.is_pregnant === false 
-                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md' 
-                                                : 'bg-white border-surface-200 text-surface-400 hover:bg-surface-50'
-                                        }`}
+                                    <button
+                                        type="button"
+                                        onClick={() => updateForm('is_pregnant', false)}
+                                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.is_pregnant === false
+                                                ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md'
+                                                : 'bg-white dark:bg-slate-900 border-surface-200 text-surface-400 hover:bg-surface-50'
+                                            }`}
                                     >NO</button>
                                 </div>
                             </div>

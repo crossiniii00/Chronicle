@@ -14,7 +14,8 @@ import {
     ChevronDown, MessageSquare
 } from 'lucide-react';
 import { cn } from '@/utils/formatters';
-import type { UserRole } from '@/types';
+import type { UserRole, User } from '@/types';
+import { UserService } from '@/services/UserService';
 import { EditRoleModal } from './EditRoleModal';
 import { AddRoleModal } from './AddRoleModal';
 import { ConfirmActionModal } from './ConfirmActionModal';
@@ -55,9 +56,10 @@ interface UserSettingsModalProps {
     open: boolean;
     onClose: () => void;
     onSaved?: () => void;
+    onEditUser?: (user: User) => void;
 }
 
-export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalProps) {
+export function UserSettingsModal({ open, onClose, onSaved, onEditUser }: UserSettingsModalProps) {
     const [permissions, setPermissions] = React.useState<PermissionsMap>(DEFAULT_PERMISSIONS);
     const [customLabels, setCustomLabels] = React.useState<Record<UserRole, string>>({ ...DEFAULT_LABELS });
     const [customDescriptions, setCustomDescriptions] = React.useState<Record<UserRole, string>>({ ...ROLE_DESCRIPTIONS });
@@ -73,6 +75,11 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
     const [editingRole, setEditingRole] = React.useState<UserRole | null>(null);
     const [deletingRole, setDeletingRole] = React.useState<UserRole | null>(null);
     const [restoringRole, setRestoringRole] = React.useState<UserRole | null>(null);
+
+    // View Users State
+    const [isViewUsersOpen, setIsViewUsersOpen] = React.useState(false);
+    const [usersInRole, setUsersInRole] = React.useState<User[]>([]);
+    const [isLoadingUsers, setIsLoadingUsers] = React.useState(false);
     const [showArchived, setShowArchived] = React.useState<boolean>(false);
     const [customRoleTypes, setCustomRoleTypes] = React.useState<Record<string, string>>({});
 
@@ -308,6 +315,19 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
         onSaved?.();
     };
 
+    const handleViewUsers = async () => {
+        setIsViewUsersOpen(true);
+        setIsLoadingUsers(true);
+        try {
+            const users = await UserService.getAll();
+            setUsersInRole(users.filter(u => u.role === selectedRole));
+        } catch (e) {
+            console.error('[UserSettingsModal] Error fetching users:', e);
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    };
+
     const applyEdit = (label: string, description: string, color: ColorKey) => {
         if (!editingRole) return;
         setCustomLabels(prev => ({ ...prev, [editingRole]: label }));
@@ -440,10 +460,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
                 className={cn(
-                    "relative border w-full max-w-[1100px] max-h-[92vh] flex flex-col overflow-hidden rounded-lg shadow-2xl transition-colors duration-300",
+                    "relative border w-full max-w-[1400px] max-h-[92vh] flex flex-col overflow-hidden rounded-none shadow-2xl transition-colors duration-300",
                     allMindMode
                         ? "bg-black border-emerald-500/30 text-emerald-400"
-                        : "bg-white border-neutral-200 text-neutral-800"
+                        : "bg-white dark:bg-slate-900 border-neutral-200 text-neutral-800"
                 )}
                 onClick={e => e.stopPropagation()}
             >
@@ -465,7 +485,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                     }
                                 }}
                                 className={cn(
-                                    "w-9 h-9 rounded-sm flex items-center justify-center shrink-0 transition-all duration-300 hover:scale-105 active:scale-95",
+                                    "w-9 h-9 rounded-none flex items-center justify-center shrink-0 transition-all duration-300 hover:scale-105 active:scale-95",
                                     allMindMode ? "bg-emerald-600 shadow-[0_0_10px_#10b981]" : "bg-surface-900"
                                 )}
                                 title="Toggle ALL MIND secret mode"
@@ -501,7 +521,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                         </button>
                     </div>
                 </div>
- 
+
                 <div className="flex flex-1 min-h-0 overflow-hidden">
                     <div className={cn(
                         "w-[270px] shrink-0 border-r flex flex-col transition-colors duration-300",
@@ -526,18 +546,18 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                         key={category.id}
                                         onClick={() => setSelectedCategory(category.id)}
                                         className={cn(
-                                            "relative w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-all text-left group",
+                                            "relative w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-all text-left group",
                                             allMindMode
                                                 ? isSelected
                                                     ? "bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 font-mono"
                                                     : "border border-transparent text-emerald-700 hover:bg-emerald-950/20 hover:text-emerald-500 font-mono"
                                                 : isSelected
-                                                    ? "bg-white border border-neutral-200/80 shadow-sm text-surface-900 font-semibold"
+                                                    ? "bg-white dark:bg-slate-900 border border-neutral-200/80 shadow-sm text-surface-900 font-semibold"
                                                     : "border border-transparent text-surface-600 hover:bg-neutral-100/60"
                                         )}
                                     >
                                         {isSelected && (
-                                            <div className={cn("absolute left-0 top-2 bottom-2 w-[3px] rounded-r", allMindMode ? "bg-emerald-500" : "bg-[#0078d4]")} />
+                                            <div className={cn("absolute left-0 top-2 bottom-2 w-[3px] rounded-none-r", allMindMode ? "bg-emerald-500" : "bg-[#0078d4]")} />
                                         )}
                                         <Icon size={14} className={cn(isSelected ? (allMindMode ? "text-emerald-400" : "text-[#0078d4]") : (allMindMode ? "text-emerald-800 group-hover:text-emerald-600" : "text-surface-400 group-hover:text-surface-600"))} strokeWidth={2} />
                                         <span className="text-[11.5px] tracking-[-0.005em]">{category.label}</span>
@@ -549,10 +569,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                             <button
                                 onClick={resetAll}
                                 className={cn(
-                                    "w-full flex items-center justify-center gap-1.5 px-3 h-7 text-[10.5px] font-semibold transition-all rounded-sm",
+                                    "w-full flex items-center justify-center gap-1.5 px-3 h-7 text-[10.5px] font-semibold transition-all rounded-none",
                                     allMindMode
                                         ? "bg-black border border-emerald-900 text-emerald-600 hover:border-emerald-500 hover:text-emerald-400 font-mono"
-                                        : "bg-white border border-surface-200 hover:border-surface-300 hover:bg-surface-50 text-surface-600"
+                                        : "bg-white dark:bg-slate-900 border border-surface-200 hover:border-surface-300 hover:bg-surface-50 text-surface-600"
                                 )}
                             >
                                 <RotateCcw size={11} strokeWidth={2.25} />
@@ -561,7 +581,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                         </div>
                     </div>
 
-                    <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden transition-colors duration-300", allMindMode ? "bg-[#0b0f19]" : "bg-white")}>
+                    <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden transition-colors duration-300", allMindMode ? "bg-[#0b0f19]" : "bg-white dark:bg-slate-900")}>
                         {allMindMode ? (
                             <div className="flex-1 overflow-y-auto px-6 py-5 custom-scrollbar">
                                 <AllMindOversight tab={selectedCategory} />
@@ -571,7 +591,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                 <div className={cn("px-6 pt-5 pb-4 border-b shrink-0 transition-colors duration-300", allMindMode ? "border-emerald-500/20 text-emerald-400" : "border-surface-200")}>
                                     <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={cn("w-10 h-10 rounded-sm flex items-center justify-center border", getAccent(selectedRole).bg, getAccent(selectedRole).border)}>
+                                            <div className={cn("w-10 h-10 rounded-none flex items-center justify-center border", getAccent(selectedRole).bg, getAccent(selectedRole).border)}>
                                                 {React.createElement(ROLE_ICON[selectedRole] || Users, { size: 18, className: getAccent(selectedRole).text, strokeWidth: 2.25 })}
                                             </div>
                                             <div className="min-w-0">
@@ -581,10 +601,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                         <button
                                                             onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
                                                             className={cn(
-                                                                "flex items-center gap-2 px-3 h-8 border rounded-md text-[12px] font-semibold focus:outline-none transition-all cursor-pointer select-none",
+                                                                "flex items-center gap-2 px-3 h-8 border rounded-none text-[12px] font-semibold focus:outline-none transition-all cursor-pointer select-none",
                                                                 allMindMode
                                                                     ? "bg-neutral-900 border-emerald-500/30 text-emerald-400 hover:border-emerald-500"
-                                                                    : "bg-white border border-neutral-200 text-surface-800 hover:border-[#0078d4]"
+                                                                    : "bg-white dark:bg-slate-900 border border-neutral-200 text-surface-800 hover:border-[#0078d4]"
                                                             )}
                                                         >
                                                             {React.createElement(ROLE_ICON[selectedRole] || Users, { size: 14, className: allMindMode ? "text-emerald-500" : "text-neutral-500" })}
@@ -600,8 +620,8 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                         animate={{ opacity: 1, y: 0 }}
                                                                         exit={{ opacity: 0, y: 4 }}
                                                                         className={cn(
-                                                                            "absolute left-0 mt-1 w-56 border rounded-md shadow-lg z-20 py-1 max-h-60 overflow-y-auto custom-scrollbar",
-                                                                            allMindMode ? "bg-[#0b0f19] border-emerald-500/30 text-emerald-400" : "bg-white border-neutral-200"
+                                                                            "absolute left-0 mt-1 w-56 border rounded-none shadow-lg z-20 py-1 max-h-60 overflow-y-auto custom-scrollbar",
+                                                                            allMindMode ? "bg-[#0b0f19] border-emerald-500/30 text-emerald-400" : "bg-white dark:bg-slate-900 border-neutral-200"
                                                                         )}
                                                                     >
                                                                         {activeRoles.map(role => {
@@ -636,10 +656,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                         </AnimatePresence>
                                                     </div>
                                                     {bulkMode && bulkSelected.has(selectedRole) && (
-                                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#0078d4] text-white rounded-sm">In bulk</span>
+                                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#0078d4] text-white rounded-none">In bulk</span>
                                                     )}
                                                     {(customRoles.includes(selectedRole) || (customLabels[selectedRole] && customLabels[selectedRole] !== DEFAULT_LABELS[selectedRole as UserRole])) && (
-                                                        <span className="px-1.5 py-0.5 text-[9px] font-semibold tracking-[-0.005em] bg-amber-50 text-amber-700 border border-amber-200 rounded-sm">Custom</span>
+                                                        <span className="px-1.5 py-0.5 text-[9px] font-semibold tracking-[-0.005em] bg-amber-50 text-amber-700 border border-amber-200 rounded-none">Custom</span>
                                                     )}
                                                 </div>
                                                 <p className="text-[11px] font-medium text-surface-500 tracking-[-0.005em] mt-1.5 max-w-[400px] truncate">
@@ -650,14 +670,14 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
 
                                         <div className="flex items-center gap-2">
                                             <label className={cn(
-                                                "flex items-center gap-1.5 px-2.5 h-8 rounded-md cursor-pointer transition-all border",
+                                                "flex items-center gap-1.5 px-2.5 h-8 rounded-none cursor-pointer transition-all border",
                                                 bulkMode
                                                     ? allMindMode
                                                         ? "bg-emerald-600 border-emerald-500 text-neutral-950 font-bold"
                                                         : "bg-[#0078d4] border-[#0078d4] text-white"
                                                     : allMindMode
                                                         ? "bg-neutral-900 border-emerald-500/30 text-emerald-500 hover:border-emerald-500"
-                                                        : "bg-white border-neutral-200 text-surface-600 hover:border-neutral-300"
+                                                        : "bg-white dark:bg-slate-900 border-neutral-200 text-surface-600 hover:border-neutral-300"
                                             )}>
                                                 <input
                                                     type="checkbox"
@@ -673,12 +693,26 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                             </label>
 
                                             <button
-                                                onClick={() => setIsAddRoleOpen(true)}
+                                                onClick={handleViewUsers}
                                                 className={cn(
-                                                    "flex items-center gap-1.5 px-2.5 h-8 rounded-md border text-[11px] font-semibold transition-all",
+                                                    "flex items-center gap-1.5 px-2.5 h-8 rounded-none border text-[11px] font-semibold transition-all",
                                                     allMindMode
                                                         ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 hover:text-emerald-400 bg-neutral-900"
-                                                        : "border-neutral-200 text-surface-600 hover:border-[#0078d4] hover:text-[#0078d4] bg-white"
+                                                        : "bg-white dark:bg-slate-900 border-neutral-200 text-surface-600 hover:border-neutral-300 hover:bg-surface-50"
+                                                )}
+                                                title={`View all users with ${getLabel(selectedRole)} role`}
+                                            >
+                                                <Users size={13} strokeWidth={2.25} />
+                                                <span className="hidden sm:inline tracking-[-0.005em]">View Users</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setIsAddRoleOpen(true)}
+                                                className={cn(
+                                                    "flex items-center gap-1.5 px-2.5 h-8 rounded-none border text-[11px] font-semibold transition-all",
+                                                    allMindMode
+                                                        ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 hover:text-emerald-400 bg-neutral-900"
+                                                        : "border-neutral-200 text-surface-600 hover:border-[#0078d4] hover:text-[#0078d4] bg-white dark:bg-slate-900"
                                                 )}
                                             >
                                                 <UserPlus size={13} strokeWidth={2.25} />
@@ -690,10 +724,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                     <button
                                                         onClick={() => setEditingRole(selectedRole)}
                                                         className={cn(
-                                                            "flex items-center gap-1.5 px-2.5 h-8 rounded-md border text-[11px] font-semibold transition-all",
+                                                            "flex items-center gap-1.5 px-2.5 h-8 rounded-none border text-[11px] font-semibold transition-all",
                                                             allMindMode
                                                                 ? "border-emerald-500/30 text-emerald-500 hover:border-emerald-500 hover:text-emerald-400 bg-neutral-900"
-                                                                : "border-neutral-200 text-surface-600 hover:border-[#0078d4] hover:text-[#0078d4] bg-white"
+                                                                : "border-neutral-200 text-surface-600 hover:border-[#0078d4] hover:text-[#0078d4] bg-white dark:bg-slate-900"
                                                         )}
                                                     >
                                                         <Pencil size={13} strokeWidth={2.25} />
@@ -703,10 +737,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                         <button
                                                             onClick={() => setDeletingRole(selectedRole)}
                                                             className={cn(
-                                                                "flex items-center gap-1.5 px-2.5 h-8 rounded-md border text-[11px] font-semibold transition-all",
+                                                                "flex items-center gap-1.5 px-2.5 h-8 rounded-none border text-[11px] font-semibold transition-all",
                                                                 allMindMode
                                                                     ? "border-emerald-500/30 text-emerald-500 hover:border-rose-500 hover:text-rose-400 bg-neutral-900"
-                                                                    : "border-neutral-200 text-surface-600 hover:border-rose-600 hover:text-rose-600 hover:bg-rose-50 bg-white"
+                                                                    : "border-neutral-200 text-surface-600 hover:border-rose-600 hover:text-rose-600 hover:bg-rose-50 bg-white dark:bg-slate-900"
                                                             )}
                                                             title={customRoles.includes(selectedRole) ? "Delete account type" : "Archive account type"}
                                                         >
@@ -720,37 +754,9 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                     </div>
 
                                     {/* Sub-tabs for Regular and Special settings */}
-                                    <div className="flex gap-2 border-b border-neutral-100 mb-4 pb-2 animate-in fade-in duration-200">
-                                        <button
-                                            type="button"
-                                            onClick={() => setSubTab('regular')}
-                                            className={cn(
-                                                "px-4 py-1.5 text-[12px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer select-none",
-                                                subTab === 'regular'
-                                                    ? "bg-[#0078d4] text-white shadow-sm"
-                                                    : "text-neutral-650 hover:bg-neutral-50 hover:text-neutral-900"
-                                            )}
-                                        >
-                                            <Sliders size={13} />
-                                            Regular Settings
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setSubTab('special')}
-                                            className={cn(
-                                                "px-4 py-1.5 text-[12px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer select-none",
-                                                subTab === 'special'
-                                                    ? "bg-[#0078d4] text-white shadow-sm"
-                                                    : "text-neutral-650 hover:bg-neutral-50 hover:text-neutral-900"
-                                            )}
-                                        >
-                                            <ShieldCheck size={13} />
-                                            Special Settings
-                                        </button>
-                                    </div>
 
                                     {bulkMode && (
-                                        <div className={cn("flex flex-wrap gap-1.5 mb-4 p-2 rounded-md transition-all border", allMindMode ? "bg-black border-emerald-500/20" : "bg-neutral-50 border-neutral-200")}>
+                                        <div className={cn("flex flex-wrap gap-1.5 mb-4 p-2 rounded-none transition-all border", allMindMode ? "bg-black border-emerald-500/20" : "bg-neutral-50 border-neutral-200")}>
                                             <span className={cn("text-[10px] font-semibold uppercase tracking-[-0.005em] w-full mb-1", allMindMode ? "text-emerald-600 font-mono" : "text-neutral-500")}>Apply changes to:</span>
                                             {activeRoles.map(role => {
                                                 const isChecked = bulkSelected.has(role);
@@ -759,14 +765,14 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                         key={role}
                                                         onClick={() => toggleBulkRole(role)}
                                                         className={cn(
-                                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all",
+                                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-none border text-[11px] font-semibold transition-all",
                                                             isChecked
                                                                 ? allMindMode
                                                                     ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-400 font-mono"
                                                                     : "bg-[#deecf9] border-[#0078d4]/30 text-[#0078d4]"
                                                                 : allMindMode
                                                                     ? "bg-neutral-900 border-emerald-950/20 text-emerald-700 hover:text-emerald-500 hover:bg-neutral-900"
-                                                                    : "bg-white border-neutral-200 text-surface-600 hover:bg-neutral-50"
+                                                                    : "bg-white dark:bg-slate-900 border-neutral-200 text-surface-600 hover:bg-neutral-50"
                                                         )}
                                                     >
                                                         {isChecked ? <CheckSquare size={11} /> : <Square size={11} />}
@@ -779,14 +785,14 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
 
                                     {subTab === 'regular' && (
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <div className={cn("flex items-center gap-1.5 px-2.5 h-7 rounded-sm border", allMindMode ? "bg-neutral-900 border-emerald-955 text-emerald-500" : "bg-surface-50 border-surface-200 text-surface-700")}>
+                                            <div className={cn("flex items-center gap-1.5 px-2.5 h-7 rounded-none border", allMindMode ? "bg-neutral-900 border-emerald-955 text-emerald-500" : "bg-surface-50 border-surface-200 text-surface-700")}>
                                                 <ShieldCheck size={11} className={allMindMode ? "text-emerald-500" : "text-surface-500"} strokeWidth={2.25} />
                                                 <span className="text-[10.5px] font-semibold tracking-[-0.005em] tabular-nums">
                                                     {currentRoleEnabled}/{totalModules} enabled
                                                 </span>
                                             </div>
                                             {bulkMode && (
-                                                <div className={cn("flex items-center gap-1.5 px-2.5 h-7 rounded-sm border", allMindMode ? "bg-emerald-955/40 border-emerald-805 text-emerald-400" : "bg-[#deecf9] border-[#0078d4]/30 rounded-sm")}>
+                                                <div className={cn("flex items-center gap-1.5 px-2.5 h-7 rounded-none border", allMindMode ? "bg-emerald-955/40 border-emerald-805 text-emerald-400" : "bg-[#deecf9] border-[#0078d4]/30 rounded-none")}>
                                                     <Layers size={11} className={allMindMode ? "text-emerald-400" : "text-[#0078d4]"} strokeWidth={2.25} />
                                                     <span className="text-[10.5px] font-semibold tracking-[-0.005em]">
                                                         Editing {bulkTargetsLabel}
@@ -802,10 +808,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                     value={search}
                                                     onChange={e => setSearch(e.target.value)}
                                                     className={cn(
-                                                        "w-full pl-7 pr-3 h-7 border rounded-sm text-[11px] font-medium placeholder-surface-400 focus:outline-none transition-all",
+                                                        "w-full pl-7 pr-3 h-7 border rounded-none text-[11px] font-medium placeholder-surface-400 focus:outline-none transition-all",
                                                         allMindMode
                                                             ? "bg-neutral-900 border-emerald-955 text-emerald-400 focus:border-emerald-500 placeholder-emerald-800 font-mono"
-                                                            : "bg-white border-surface-200 text-surface-700 focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/10"
+                                                            : "bg-white dark:bg-slate-900 border-surface-200 text-surface-700 focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/10"
                                                     )}
                                                 />
                                             </div>
@@ -813,7 +819,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                 onClick={enableAllForTarget}
                                                 disabled={bulkMode && bulkSelected.size === 0}
                                                 className={cn(
-                                                    "flex items-center gap-1.5 px-2.5 h-7 text-[10.5px] font-semibold transition-all rounded-sm disabled:opacity-40 disabled:cursor-not-allowed",
+                                                    "flex items-center gap-1.5 px-2.5 h-7 text-[10.5px] font-semibold transition-all rounded-none disabled:opacity-40 disabled:cursor-not-allowed",
                                                     allMindMode
                                                         ? "text-emerald-400 bg-[#07140b] border border-emerald-500/20 hover:bg-neutral-950/40 hover:border-emerald-500/40"
                                                         : "text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100"
@@ -826,7 +832,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                 onClick={disableAllForTarget}
                                                 disabled={bulkMode && bulkSelected.size === 0}
                                                 className={cn(
-                                                    "flex items-center gap-1.5 px-2.5 h-7 text-[10.5px] font-semibold transition-all rounded-sm disabled:opacity-40 disabled:cursor-not-allowed",
+                                                    "flex items-center gap-1.5 px-2.5 h-7 text-[10.5px] font-semibold transition-all rounded-none disabled:opacity-40 disabled:cursor-not-allowed",
                                                     allMindMode
                                                         ? "text-rose-400 bg-[#07140b] border border-emerald-500/20 hover:bg-neutral-950"
                                                         : "text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100"
@@ -838,10 +844,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                             <button
                                                 onClick={() => resetRole(selectedRole)}
                                                 className={cn(
-                                                    "flex items-center gap-1.5 px-2.5 h-7 text-[10.5px] font-semibold transition-all rounded-sm",
+                                                    "flex items-center gap-1.5 px-2.5 h-7 text-[10.5px] font-semibold transition-all rounded-none",
                                                     allMindMode
                                                         ? "text-emerald-500 bg-[#07140b] border border-emerald-500/20 hover:bg-neutral-950 font-mono"
-                                                        : "text-surface-700 bg-white border border-surface-200 hover:border-surface-300 hover:bg-surface-50"
+                                                        : "text-surface-700 bg-white dark:bg-slate-900 border border-surface-200 hover:border-surface-300 hover:bg-surface-50"
                                                 )}
                                             >
                                                 <RotateCcw size={11} strokeWidth={2.25} />
@@ -851,9 +857,112 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                     )}
                                 </div>
                                 <div className="flex-1 overflow-y-auto px-6 py-5 custom-scrollbar">
-                                    {subTab === 'special' ? (
+                                    {selectedCategory === 'Task Assignments' ? (
+                                        <div className="space-y-6 max-w-xl animate-in fade-in duration-200 text-left">
+                                            <div className="p-4 bg-primary-50/50 border border-primary-100 rounded-none space-y-2">
+                                                <h4 className="text-sm font-bold text-surface-900 flex items-center gap-2">
+                                                    📋 Task Assignments Configuration
+                                                </h4>
+                                                <p className="text-xs text-surface-500 leading-relaxed">
+                                                    Configure specific account (department) assignments per tab/module for the <strong>{getLabel(selectedRole)}</strong> role. Candidates from these accounts will automatically route to their <strong>My Tasks</strong> queue as a workflow shortcut.
+                                                </p>
+                                            </div>
+
+                                            {[
+                                                { id: 'application_management', label: 'Application Management', desc: 'Review New Application tasks (APPLIED status)' },
+                                                { id: 'scheduling', label: 'Scheduling', desc: 'Schedule Final Evaluation tasks (FINAL_INTERVIEW stage)' },
+                                                { id: 'typing_test_tracker', label: 'Tests Tracker', desc: 'Verify Candidate Tests tasks (TYPING_TEST & ASSESSMENT status)' },
+                                                { id: 'interview_rooms', label: 'Final Interview / Rooms', desc: 'Conduct Final Interview tasks (FINAL_INTERVIEW_SCHEDULED/IN_PROGRESS)' }
+                                            ].map((mod) => {
+                                                const currentMap = (permissions[selectedRole]?.['assigned_recruiter_types_by_module'] as Record<string, string[]>) || {};
+                                                const moduleRoles = currentMap[mod.id] || [];
+
+                                                return (
+                                                    <div key={mod.id} className="border border-neutral-200 rounded-none bg-white dark:bg-slate-900 p-5 space-y-4 hover:shadow-md transition-all duration-200">
+                                                        <div className="space-y-1">
+                                                            <p className="text-sm font-bold text-surface-900">{mod.label} Tab Shortcut</p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                                                {mod.desc}. If empty, standard recruiter assignment rules apply.
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {moduleRoles.map(roleKey => (
+                                                                <span
+                                                                    key={roleKey}
+                                                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider bg-blue-50 text-[#0078d4] border border-[#0078d4]/10 rounded-none"
+                                                                >
+                                                                    {getLabel(roleKey as UserRole)}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const nextRoles = moduleRoles.filter(r => r !== roleKey);
+                                                                            setPermissions(prev => {
+                                                                                const next = { ...prev };
+                                                                                const prevMap = (prev[selectedRole]?.['assigned_recruiter_types_by_module'] as Record<string, string[]>) || {};
+                                                                                next[selectedRole] = {
+                                                                                    ...prev[selectedRole],
+                                                                                    'assigned_recruiter_types_by_module': {
+                                                                                        ...prevMap,
+                                                                                        [mod.id]: nextRoles
+                                                                                    }
+                                                                                };
+                                                                                return next;
+                                                                            });
+                                                                            setSavedAt(null);
+                                                                        }}
+                                                                        className="text-[#0078d4]/50 hover:text-[#0078d4] font-bold ml-1 outline-none transition-colors cursor-pointer"
+                                                                    >
+                                                                        &times;
+                                                                    </button>
+                                                                </span>
+                                                            ))}
+                                                            {moduleRoles.length === 0 && (
+                                                                <p className="text-xs text-neutral-400 italic">No recruiter type assignments binded to this tab.</p>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex pt-1">
+                                                            <select
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+                                                                    if (!value) return;
+                                                                    if (!moduleRoles.includes(value)) {
+                                                                        const nextRoles = [...moduleRoles, value];
+                                                                        setPermissions(prev => {
+                                                                            const next = { ...prev };
+                                                                            const prevMap = (prev[selectedRole]?.['assigned_recruiter_types_by_module'] as Record<string, string[]>) || {};
+                                                                            next[selectedRole] = {
+                                                                                ...prev[selectedRole],
+                                                                                'assigned_recruiter_types_by_module': {
+                                                                                    ...prevMap,
+                                                                                    [mod.id]: nextRoles
+                                                                                }
+                                                                            };
+                                                                            return next;
+                                                                        });
+                                                                        setSavedAt(null);
+                                                                    }
+                                                                    e.target.value = ''; // Reset
+                                                                }}
+                                                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-neutral-300 text-xs font-medium text-surface-900 focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/10 outline-none transition-all rounded-none cursor-pointer"
+                                                            >
+                                                                <option value="">+ Bind Recruiter Type (Shortcut)...</option>
+                                                                {activeRoles
+                                                                    .filter(r => !moduleRoles.includes(r))
+                                                                    .map(r => (
+                                                                        <option key={r} value={r}>{getLabel(r)}</option>
+                                                                    ))
+                                                                }
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : subTab === 'special' ? (
                                         <div className="space-y-6 max-w-xl animate-in fade-in duration-200">
-                                            <div className="p-4 bg-primary-50/50 border border-primary-100 rounded-lg space-y-2">
+                                            <div className="p-4 bg-primary-50/50 border border-primary-100 rounded-none space-y-2">
                                                 <h4 className="text-sm font-bold text-surface-900 flex items-center gap-2">
                                                     ⭐ Specialized Account Settings
                                                 </h4>
@@ -862,7 +971,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                 </p>
                                             </div>
 
-                                            <div className="border border-neutral-200 rounded-lg bg-white p-5 space-y-4 hover:shadow-md transition-all duration-200">
+                                            <div className="border border-neutral-200 rounded-none bg-white dark:bg-slate-900 p-5 space-y-4 hover:shadow-md transition-all duration-200">
                                                 <div className="flex items-start justify-between gap-4">
                                                     <div className="space-y-1">
                                                         <p className="text-sm font-bold text-surface-900">Rerouting Option</p>
@@ -892,7 +1001,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                         )}
                                                     >
                                                         <div
-                                                            className="w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+                                                            className="w-4 h-4 rounded-full bg-white dark:bg-slate-900 shadow-sm transition-transform duration-200"
                                                             style={{
                                                                 transform: permissions[selectedRole]?.['allow_rerouting'] ? 'translateX(20px)' : 'translateX(0px)'
                                                             }}
@@ -902,7 +1011,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                             </div>
 
                                             {permissions[selectedRole]?.['allow_rerouting'] && (
-                                                <div className="border border-neutral-200 rounded-lg bg-white p-5 space-y-4 hover:shadow-md transition-all duration-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="border border-neutral-200 rounded-none bg-white dark:bg-slate-900 p-5 space-y-4 hover:shadow-md transition-all duration-200 animate-in fade-in slide-in-from-top-2 duration-200">
                                                     <div className="space-y-1">
                                                         <p className="text-sm font-bold text-surface-900">Rerouted Accounts</p>
                                                         <p className="text-xs text-surface-500 leading-relaxed">
@@ -911,16 +1020,16 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                     </div>
 
                                                     <div className="flex flex-wrap gap-2">
-                                                        {((permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve']).map(account => (
+                                                        {((permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve', 'paesler']).map(account => (
                                                             <span
                                                                 key={account}
-                                                                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider bg-[#deecf9] text-[#0078d4] border border-[#0078d4]/10 rounded-md"
+                                                                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider bg-[#deecf9] text-[#0078d4] border border-[#0078d4]/10 rounded-none"
                                                             >
                                                                 {account}
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => {
-                                                                        const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve'];
+                                                                        const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve', 'paesler'];
                                                                         const nextAccounts = currentAccounts.filter(a => a.toLowerCase() !== account.toLowerCase());
                                                                         setPermissions(prev => {
                                                                             const next = { ...prev };
@@ -938,7 +1047,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                 </button>
                                                             </span>
                                                         ))}
-                                                        {((permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve']).length === 0 && (
+                                                        {((permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve', 'paesler']).length === 0 && (
                                                             <p className="text-xs text-neutral-450 italic">No accounts set. All candidate accounts will bypass rerouting.</p>
                                                         )}
                                                     </div>
@@ -948,7 +1057,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                             onChange={(e) => {
                                                                 const value = e.target.value;
                                                                 if (!value) return;
-                                                                const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve'];
+                                                                const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve', 'paesler'];
                                                                 if (!currentAccounts.some(a => a.toLowerCase() === value.toLowerCase())) {
                                                                     const nextAccounts = [...currentAccounts, value.toLowerCase()];
                                                                     setPermissions(prev => {
@@ -963,12 +1072,12 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                 }
                                                                 e.target.value = ''; // Reset
                                                             }}
-                                                            className="flex-1 px-3 py-2 bg-white border border-neutral-300 text-xs font-medium text-surface-900 focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/10 outline-none transition-all rounded-md cursor-pointer"
+                                                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-neutral-300 text-xs font-medium text-surface-900 focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/10 outline-none transition-all rounded-none cursor-pointer"
                                                         >
                                                             <option value="">+ Add active account...</option>
                                                             {departments
                                                                 .filter(d => {
-                                                                    const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve'];
+                                                                    const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve', 'paesler'];
                                                                     return !currentAccounts.some(a => a.toLowerCase() === d.name.toLowerCase());
                                                                 })
                                                                 .map(d => (
@@ -986,7 +1095,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                     const input = e.currentTarget;
                                                                     const val = input.value.trim();
                                                                     if (val) {
-                                                                        const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve'];
+                                                                        const currentAccounts = (permissions[selectedRole]?.['rerouted_accounts'] as string[]) || ['keller postman', 'auto approve', 'paesler'];
                                                                         if (!currentAccounts.some(a => a.toLowerCase() === val.toLowerCase())) {
                                                                             const nextAccounts = [...currentAccounts, val.toLowerCase()];
                                                                             setPermissions(prev => {
@@ -1003,7 +1112,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                     }
                                                                 }
                                                             }}
-                                                            className="flex-1 px-3 py-2 bg-white border border-neutral-300 text-xs font-medium text-surface-950 placeholder-neutral-400 focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/10 outline-none transition-all rounded-md"
+                                                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-neutral-300 text-xs font-medium text-surface-950 placeholder-neutral-400 focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]/10 outline-none transition-all rounded-none"
                                                         />
                                                     </div>
                                                 </div>
@@ -1013,7 +1122,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                         bulkMode && bulkSelected.size === 0 ? (
                                             <div className="flex flex-col items-center justify-center h-full text-center py-12">
                                                 <div className={cn(
-                                                    "w-12 h-12 rounded-sm border flex items-center justify-center mb-4",
+                                                    "w-12 h-12 rounded-none border flex items-center justify-center mb-4",
                                                     allMindMode
                                                         ? "bg-emerald-950/40 border-emerald-500/30"
                                                         : "bg-[#deecf9] border-[#0078d4]/30"
@@ -1029,10 +1138,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                             <div className="space-y-5">
                                                 {Object.entries(groupedModules).map(([groupName, modules]) => (
                                                     <div key={groupName} className={cn(
-                                                        "rounded-lg border overflow-hidden shadow-sm transition-all duration-200 mb-6",
+                                                        "rounded-none border overflow-hidden shadow-sm transition-all duration-200 mb-6",
                                                         allMindMode
                                                             ? "bg-black border-emerald-500/20"
-                                                            : "bg-white border-neutral-200/80 hover:border-neutral-300"
+                                                            : "bg-white dark:bg-slate-900 border-neutral-200/80 hover:border-neutral-300"
                                                     )}>
                                                         <div className={cn(
                                                             "flex items-center justify-between px-4 py-3 border-b transition-colors select-none",
@@ -1086,7 +1195,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                     title={`Toggle all ${groupName} modules`}
                                                                 >
                                                                     <div
-                                                                        className="w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform duration-200"
+                                                                        className="w-3.5 h-3.5 bg-white dark:bg-slate-900 rounded-full shadow-sm transition-transform duration-200"
                                                                         style={{
                                                                             transform: modules.some(m => currentRole?.[m.id]) ? 'translateX(14px)' : 'translateX(0px)'
                                                                         }}
@@ -1098,7 +1207,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                             "divide-y",
                                                             allMindMode
                                                                 ? "divide-emerald-500/10 bg-black"
-                                                                : "divide-neutral-100 bg-white"
+                                                                : "divide-neutral-100 bg-white dark:bg-slate-900"
                                                         )}>
                                                             {modules.map(mod => {
                                                                 const checked = !!currentRole?.[mod.id];
@@ -1121,7 +1230,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                     >
                                                                         <div className="flex items-center gap-3.5 min-w-0">
                                                                             <div className={cn(
-                                                                                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200",
+                                                                                "w-8 h-8 rounded-none flex items-center justify-center shrink-0 transition-all duration-200",
                                                                                 checked
                                                                                     ? cn(getAccent(selectedRole).bg, getAccent(selectedRole).text, "scale-105 shadow-sm")
                                                                                     : allMindMode
@@ -1158,7 +1267,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                                                     : "bg-neutral-200 hover:bg-neutral-300"
                                                                         )}>
                                                                             <motion.div
-                                                                                className="w-4 h-4 rounded-full bg-white shadow-sm"
+                                                                                className="w-4 h-4 rounded-full bg-white dark:bg-slate-900 shadow-sm"
                                                                                 animate={{ x: checked ? 16 : 0 }}
                                                                                 transition={SPRING}
                                                                             />
@@ -1206,7 +1315,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                         )}
                                     >
                                         <div className={cn(
-                                            "w-5 h-5 rounded-sm flex items-center justify-center",
+                                            "w-5 h-5 rounded-none flex items-center justify-center",
                                             allMindMode ? "bg-emerald-950/40 border border-emerald-500/30" : "bg-emerald-100"
                                         )}>
                                             <Check size={11} strokeWidth={3} className={allMindMode ? "text-emerald-400" : "text-emerald-700"} />
@@ -1234,10 +1343,10 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                             <button
                                 onClick={onClose}
                                 className={cn(
-                                    "px-4 h-7 text-[11px] font-semibold transition-all rounded-sm",
+                                    "px-4 h-7 text-[11px] font-semibold transition-all rounded-none",
                                     allMindMode
                                         ? "text-emerald-500 bg-[#07140b] border border-emerald-500/20 hover:bg-neutral-950"
-                                        : "text-surface-600 bg-white border border-surface-200 hover:border-surface-300 hover:bg-surface-50"
+                                        : "text-surface-600 bg-white dark:bg-slate-900 border border-surface-200 hover:border-surface-300 hover:bg-surface-50"
                                 )}
                             >
                                 Cancel
@@ -1249,7 +1358,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                 onClick={handleSave}
                                 disabled={bulkMode && bulkSelected.size === 0}
                                 className={cn(
-                                    "flex items-center gap-1.5 px-4 h-7 text-[11px] font-semibold tracking-[-0.005em] transition-all rounded-sm disabled:opacity-40 disabled:cursor-not-allowed",
+                                    "flex items-center gap-1.5 px-4 h-7 text-[11px] font-semibold tracking-[-0.005em] transition-all rounded-none disabled:opacity-40 disabled:cursor-not-allowed",
                                     allMindMode
                                         ? "bg-emerald-600 text-neutral-950 hover:bg-emerald-500 shadow-[0_0_10px_#10b981]"
                                         : "bg-black text-white hover:bg-black/85"
@@ -1318,6 +1427,95 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                 </AnimatePresence>
 
                 <AnimatePresence>
+                    {isViewUsersOpen && (
+                        <div className="fixed inset-0 bg-surface-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                            <div className="bg-white dark:bg-slate-900 border border-surface-200 shadow-xl rounded-none w-full max-w-md flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                                <div className="px-5 py-4 border-b border-surface-200 flex items-center justify-between bg-surface-50/50">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={cn("w-7 h-7 rounded-none flex items-center justify-center border", getAccent(selectedRole).bg, getAccent(selectedRole).border)}>
+                                            {React.createElement(ROLE_ICON[selectedRole] || Users, { size: 12, className: getAccent(selectedRole).text, strokeWidth: 2.25 })}
+                                        </div>
+                                        <div>
+                                            <h3 className="text-[13px] font-bold text-surface-900 leading-none">Users in Role</h3>
+                                            <p className="text-[10px] text-surface-500 mt-1 font-semibold">{getLabel(selectedRole)}</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsViewUsersOpen(false)}
+                                        className="w-7 h-7 flex items-center justify-center text-surface-400 hover:text-surface-700 hover:bg-surface-100 transition-colors rounded-none"
+                                    >
+                                        <X size={14} strokeWidth={2} />
+                                    </button>
+                                </div>
+                                <div className="p-0 overflow-y-auto flex-1 custom-scrollbar min-h-[200px]">
+                                    {isLoadingUsers ? (
+                                        <div className="flex flex-col items-center justify-center h-40 space-y-3">
+                                            <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                                            <span className="text-[11px] font-semibold text-surface-500">Fetching operators...</span>
+                                        </div>
+                                    ) : usersInRole.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-40 text-center px-6">
+                                            <Users size={32} className="text-surface-200 mb-3" strokeWidth={1.5} />
+                                            <p className="text-[12px] font-bold text-surface-700">No active assignments</p>
+                                            <p className="text-[11px] text-surface-500 mt-1">There are no operators currently assigned to this account type.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-surface-100">
+                                            <div className="px-5 py-2 bg-surface-50 text-[10px] font-bold text-surface-500 tracking-wider uppercase border-b border-surface-100 flex justify-between">
+                                                <span>{usersInRole.length} Operator{usersInRole.length !== 1 ? 's' : ''}</span>
+                                                <span>Status</span>
+                                            </div>
+                                            {usersInRole.map(u => (
+                                                <div 
+                                                    key={u.id} 
+                                                    className={cn(
+                                                        "px-5 py-3 hover:bg-surface-50/50 transition-colors flex items-center justify-between group",
+                                                        onEditUser && "cursor-pointer"
+                                                    )}
+                                                    onClick={() => {
+                                                        if (onEditUser) {
+                                                            onEditUser(u);
+                                                            setIsViewUsersOpen(false);
+                                                            onClose();
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-none bg-surface-100 border border-surface-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                            {u.avatar_data ? (
+                                                                <img src={u.avatar_data} alt={u.full_name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span className="text-[10px] font-bold text-surface-600 font-mono">
+                                                                    {u.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[12px] font-bold text-surface-800">{u.full_name}</p>
+                                                            <p className="text-[10px] font-medium text-surface-500 font-mono mt-0.5">{u.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-wider border",
+                                                            u.is_active 
+                                                                ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                                                                : "bg-red-50 border-red-200 text-red-700"
+                                                        )}>
+                                                            {u.is_active ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
                     {showSuccess && (
                         <motion.div
                             key="success-overlay"
@@ -1333,7 +1531,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 8 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                                className="w-full max-w-[340px] bg-white border border-surface-200 shadow-2xl rounded-sm p-6 flex flex-col items-center text-center relative overflow-hidden"
+                                className="w-full max-w-[340px] bg-white dark:bg-slate-900 border border-surface-200 shadow-2xl rounded-none p-6 flex flex-col items-center text-center relative overflow-hidden"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-600" />
@@ -1346,7 +1544,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                 </p>
                                 <button
                                     onClick={() => setShowSuccess(false)}
-                                    className="w-full mt-6 h-8 text-[11px] font-bold text-white bg-black hover:bg-black/90 transition-all rounded-sm shadow-md active:scale-[0.98]"
+                                    className="w-full mt-6 h-8 text-[11px] font-bold text-white bg-black hover:bg-black/90 transition-all rounded-none shadow-md active:scale-[0.98]"
                                 >
                                     Awesome
                                 </button>
@@ -1371,12 +1569,12 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 8 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                                className="w-full max-w-[360px] bg-[#0a0f0d] border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)] rounded-sm overflow-hidden"
+                                className="w-full max-w-[360px] bg-[#0a0f0d] border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)] rounded-none overflow-hidden"
                                 onClick={e => e.stopPropagation()}
                             >
                                 <div className="px-5 py-4 border-b border-emerald-500/20">
                                     <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-sm bg-emerald-600 shadow-[0_0_10px_#10b981] flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-none bg-emerald-600 shadow-[0_0_10px_#10b981] flex items-center justify-center">
                                             <Lock size={14} className="text-white" strokeWidth={2.5} />
                                         </div>
                                         <div>
@@ -1422,7 +1620,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                             }}
                                             placeholder="••••••••••••"
                                             className={cn(
-                                                "w-full px-3 h-9 bg-black border rounded-sm text-[12px] font-mono text-emerald-400 placeholder-emerald-900 focus:outline-none focus:ring-1 transition-all",
+                                                "w-full px-3 h-9 bg-black border rounded-none text-[12px] font-mono text-emerald-400 placeholder-emerald-900 focus:outline-none focus:ring-1 transition-all",
                                                 allMindAuthError
                                                     ? "border-rose-500/60 focus:border-rose-500 focus:ring-rose-500/20"
                                                     : "border-emerald-500/20 focus:border-emerald-500 focus:ring-emerald-500/20"
@@ -1443,7 +1641,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                 <div className="px-5 py-3 border-t border-emerald-500/20 flex items-center justify-end gap-2">
                                     <button
                                         onClick={() => setShowAllMindAuth(false)}
-                                        className="px-3 h-7 text-[10px] font-mono font-semibold text-emerald-600 bg-black border border-emerald-500/20 hover:border-emerald-500/40 transition-all rounded-sm"
+                                        className="px-3 h-7 text-[10px] font-mono font-semibold text-emerald-600 bg-black border border-emerald-500/20 hover:border-emerald-500/40 transition-all rounded-none"
                                     >
                                         Abort
                                     </button>
@@ -1458,7 +1656,7 @@ export function UserSettingsModal({ open, onClose, onSaved }: UserSettingsModalP
                                                 setAllMindAuthError(true);
                                             }
                                         }}
-                                        className="flex items-center gap-1.5 px-3 h-7 text-[10px] font-mono font-semibold bg-emerald-600 text-neutral-950 hover:bg-emerald-500 shadow-[0_0_10px_#10b981] transition-all rounded-sm"
+                                        className="flex items-center gap-1.5 px-3 h-7 text-[10px] font-mono font-semibold bg-emerald-600 text-neutral-950 hover:bg-emerald-500 shadow-[0_0_10px_#10b981] transition-all rounded-none"
                                     >
                                         <Unlock size={11} strokeWidth={2.5} />
                                         Authenticate

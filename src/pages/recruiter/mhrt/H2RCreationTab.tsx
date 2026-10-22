@@ -12,7 +12,7 @@ export function H2RCreationTab() {
         deletingId, setDeletingId,
         formData, setFormData,
         scrollRef, isDragging,
-        handleAdd, handleEdit, handleSave, handleDelete,
+        handleAdd, handleEdit, handleSave, handleDelete, handleExport,
         handleMouseDown, handleMouseUp, handleMouseMove,
         filteredRecords
     } = useH2R();
@@ -23,6 +23,7 @@ export function H2RCreationTab() {
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 onAdd={handleAdd}
+                onExport={handleExport}
             />
 
             <H2RTable

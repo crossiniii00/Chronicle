@@ -22,6 +22,15 @@ export function errorHandler(error, _req, res, _next) {
         });
     }
 
+    if (error.code === '23505') {
+        let msg = 'A record with this value already exists.';
+        if (error.constraint === 'users_email_key') {
+            msg = 'This email address is already registered to an existing account.';
+        }
+        return res.status(409).json({ message: msg });
+    }
+
+
     const status = error.statusCode ?? error.status ?? 500;
     const message = error.message ?? 'Unexpected server error.';
     const detail = error.detail ?? error.stack ?? null;

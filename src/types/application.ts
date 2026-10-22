@@ -4,11 +4,15 @@ export type ApplicationStatus =
     | 'Withdrawn'
     | 'For PAN'
     | 'Applicant Form'
+    | 'Promoted'
     | 'Lateral Transfer'
     | 'Sent JO and BGC'
     | 'Assessment'
     | 'CLIENT_ASSESSMENT'
     | 'CLIENT_INTERVIEW'
+    | 'REPROFILE_FINAL_INTERVIEW'
+    | 'RESCHEDULED'
+    | 'MARKED_PENDING'
     | string;
 
 export interface WorkExperience {
@@ -37,7 +41,7 @@ export interface PersonalInfoSheet {
     full_name: string;
     nick_name?: string;
     birth_date?: string;
-    gender?: string;
+    sex?: string;
     civil_status?: string;
     nationality?: string;
     email: string;
@@ -67,7 +71,7 @@ export interface PersonalInfoSheet {
     emergency_contact_name?: string;
     emergency_contact_phone?: string;
     emergency_contact_relationship?: string;
-    
+
     // Family Background
     spouse_name?: string;
     spouse_occupation?: string;
@@ -77,7 +81,7 @@ export interface PersonalInfoSheet {
     mother_occupation?: string;
     num_children?: number;
     num_siblings?: number;
-    
+
     // Education Extended
     school_year_attended?: string;
     is_graduated?: boolean;
@@ -85,7 +89,7 @@ export interface PersonalInfoSheet {
     num_semesters?: number;
     plans_to_pursue_studies?: string;
     plans_to_go_abroad?: string;
-    
+
     // Medical & Habits
     medical_conditions?: string[];
     medical_history_notes?: string;
@@ -93,7 +97,7 @@ export interface PersonalInfoSheet {
     drinks_alcohol?: boolean;
     smokes?: boolean;
     is_pregnant?: boolean;
-    
+
     // Custom Tracker Fields
     background_summary?: string;
     tl_tenure?: string;
@@ -101,6 +105,7 @@ export interface PersonalInfoSheet {
     salary_expectation?: string;
     first_name?: string;
     middle_name?: string;
+    preferred_nickname?: string;
     last_name?: string;
     course_year?: string;
     preferred_setup?: string;
@@ -108,8 +113,7 @@ export interface PersonalInfoSheet {
     initial_interview_result?: string;
     second_level_interview_result?: string;
     final_interview_result?: string;
-    leadership_score?: string;
-    
+
     // New Not Eligible / Registry Fields
     start_time?: string;
     completion_time?: string;
@@ -141,30 +145,47 @@ export interface PersonalInfoSheet {
     initial_interview_results?: string;
     interview_type?: string;
     cefr_level?: string;
+    cefr?: string;
     personality_test?: string;
+    critical_thinking_score?: string;
     typing_speed_num?: string;
     typing_accuracy_pct?: string;
     ops_validator_email?: string;
     ops_validator_status?: string;
     ops_validator_notes?: string;
+    ops_validation_remarks?: string;
     leadership_assessment_status?: string;
+    leadership_score?: string;
     wonderlic_status?: string;
+    wonderlic_score?: string;
+    speechx_status?: string;
+    speechx_score?: string;
+    candidate_type?: string;
     client_interviewer_email?: string;
     client_interview_status?: string;
+    client_interview_result?: string;
     client_interview_notes?: string;
+    client_assessment_status?: string;
+    client_assessment_notes?: string;
     final_specific_status?: string;
     overall_status?: string;
     final_account?: string;
     last_updated_by?: string;
     notes?: string;
+    custom_lob?: string;
+
+    // Ops Validator Specific Fields
+    ops_validator_attachment_name?: string;
+    ops_validator_attachment_data?: string;
 
     // Team Leader Specific Registry Fields
     tenure_as_tl?: string;
     total_bpo_experience?: string;
 
-    
+
     // Finalization
     signature_data_url?: string;
+    signature?: string;
     form_submitted_at?: string;
 
     // Reprofiling
@@ -177,13 +198,21 @@ export interface PersonalInfoSheet {
     required_processes?: string[];
     process_order?: string[];
     process_settings?: Record<string, string>;
+    date_of_birth?: string;
+    dob?: string;
+    contact_number?: string;
+    email_address?: string;
+    specific_status?: string;
+    hiring_type?: string;
 }
 
 export interface Application {
     id: string;
+    hiring_type?: string;
     applicant_id: string;
     process_settings?: Record<string, string>;
     applicant_name: string;
+    preferred_nickname?: string;
     applicant_email: string;
     position_id: string;
     position_title: string;
@@ -194,6 +223,8 @@ export interface Application {
     source?: string;
     resume_url?: string;
     resume_name?: string;
+    resume_data?: string;
+    resume_path?: string;
     assigned_recruiter_id?: string;
     assigned_recruiter_name?: string;
     assigned_ops_validator_id?: string;
@@ -209,6 +240,8 @@ export interface Application {
     typing_test_accuracy?: number;
     typing_test_duration_seconds?: number;
     typing_test_completed_at?: string;
+    typing_test_passed?: boolean | string;
+    typing_test_attempts?: number;
     assessment_score?: number;
     client_assessment_score?: number;
     client_interview_remarks?: string;
@@ -217,8 +250,11 @@ export interface Application {
     interview_responses?: Record<string, string>;
     interview_grading?: Record<string, number>;
     endorsement_account?: string;
+    endorsed_to_recruiter_s?: boolean;
     overall_status?: string;
-    
+    quota_history_id?: string;
+    is_hidden?: boolean;
+
     // Skill Self-Ratings
     rating_communication?: number;
     rating_empathy?: number;
@@ -234,10 +270,16 @@ export interface Application {
     comp_leadership?: number;
 
     final_verdict?: 'PASSED' | 'REJECTED' | 'WAITLISTED' | 'CONDITIONAL' | 'WITHDRAWN' | 'HIRED';
-    interview_room?: string;
+    initial_verdict?: string;
+    assessment_status?: string;
+    assessment_results?: any[];
     interviewer_name?: string;
+    interview_room?: string;
+    scheduled_by?: string;
     pis?: Partial<PersonalInfoSheet>;
     rejection_reason?: string;
+    signature_data_url?: string;
+    final_specific_status?: string;
     interview_recording_url?: string;
     endorsement_meeting_date?: string;
     endorsement_meeting_end_date?: string;
@@ -248,7 +290,7 @@ export interface Application {
     master_wave?: string;
     master_hiring_request_id?: string;
     master_remarks?: string;
-    master_eid?: string; 
+    master_eid?: string;
     master_column?: string;
     master_last_name?: string;
     master_middle_name?: string;
@@ -276,15 +318,34 @@ export interface Application {
     master_training_confirmation?: string;
     master_status?: string;
     master_win_date?: string;
+    master_claim_date?: string;
     master_first_day_show_up?: string;
     master_second_day_show_up?: string;
     metadata?: Record<string, any>;
     notes?: string;
     highlight_color?: string;
 
-    // Recruiter S! Specific
-    endorsed_to_recruiter_s?: boolean;
-    recruiter_s_scheduling_status?: 'PENDING' | 'SCHEDULED' | 'RECEIVED';
+    failure_details?: {
+        changed_at: string;
+        changed_by_name: string;
+        from_status?: string;
+    };
+
+    // Runtime / computed fields used across views
+    email?: string;
+    is_on_call?: boolean;
+    started_at?: string;
+    completed_at?: string;
+    created_at?: string;
+    phone_number?: string;
+    home_address?: string;
+    date_of_birth?: string;
+    applicant_hire_eligibility_status?: string;
+    hiring_source?: string;
+    recruiter_s_scheduling_status?: string;
+    remarks?: string;
+    phone?: string;
+    leadership_score?: string | number;
 }
 
 export interface ApplicationSubmitPayload {
@@ -337,5 +398,6 @@ export interface EmailTemplate {
     type: TemplateType;
     isActive: boolean;
     attachment_name?: string;
+    cc_emails?: string | null;
     updated_at: string;
 }

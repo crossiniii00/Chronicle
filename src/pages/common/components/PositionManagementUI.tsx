@@ -16,11 +16,11 @@ interface PositionHeaderProps {
 
 export function PositionHeader({ hideHeader, onAdd, onAddCategory }: PositionHeaderProps) {
     return (
-        <div className={cn("relative px-6 py-4 flex items-center justify-center border-b border-[#edebe9] bg-white", !hideHeader && "mb-2")}>
+        <div className={cn("relative px-6 py-4 flex items-center justify-center border-b border-[#edebe9] dark:border-slate-800 bg-white dark:bg-slate-900", !hideHeader && "mb-2")}>
             <div className="flex items-center gap-2.5">
-                <Briefcase size={17} className="text-[#605e5c] self-center" />
+                <Briefcase size={17} className="text-[#605e5c] dark:text-slate-400 self-center" />
                 <h1
-                    className="text-[30px] leading-none text-[#323130] tracking-[-0.02em]"
+                    className="text-[30px] leading-none text-[#323130] dark:text-slate-300 tracking-[-0.02em]"
                     style={{ fontFamily: 'var(--font-family-display)', fontWeight: 500, fontStyle: 'italic' }}
                 >
                     Job Management
@@ -30,7 +30,7 @@ export function PositionHeader({ hideHeader, onAdd, onAddCategory }: PositionHea
                 {!hideHeader && (
                     <>
                         <button onClick={onAddCategory}
-                            className="flex items-center gap-1.5 px-3.5 h-7 bg-white border border-[#edebe9] hover:bg-[#faf9f8] text-[#323130] text-[11.5px] font-medium tracking-[-0.005em] transition-all rounded-sm"
+                            className="flex items-center gap-1.5 px-3.5 h-7 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 hover:bg-[#faf9f8] text-[#323130] dark:text-slate-300 text-[11.5px] font-medium tracking-[-0.005em] transition-all rounded-sm"
                             title="Create a new category"
                         >
                             <FolderPlus size={13} strokeWidth={2.25} />
@@ -48,7 +48,7 @@ export function PositionHeader({ hideHeader, onAdd, onAddCategory }: PositionHea
             {hideHeader && (
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
                     <button onClick={onAddCategory}
-                        className="flex items-center justify-center w-7 h-7 bg-white border border-[#edebe9] hover:bg-[#faf9f8] text-[#323130] rounded-full transition-all shadow-sm shrink-0"
+                        className="flex items-center justify-center w-7 h-7 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 hover:bg-[#faf9f8] text-[#323130] dark:text-slate-300 rounded-full transition-all shadow-sm shrink-0"
                         title="New Category"
                     >
                         <FolderPlus size={14} />
@@ -122,9 +122,9 @@ function CategoryDropdown({
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="h-7 px-3 bg-white border border-[#edebe9] hover:border-slate-350 active:scale-[0.97] transition-all rounded-sm text-[12px] font-semibold text-slate-700 outline-none flex items-center gap-2 cursor-pointer select-none"
+                className="h-7 px-3 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 hover:border-slate-350 active:scale-[0.97] transition-all rounded-sm text-[12px] font-semibold text-slate-700 dark:text-slate-300 outline-none flex items-center gap-2 cursor-pointer select-none"
             >
-                <SelectedIcon size={14} className="text-slate-500 shrink-0" />
+                <SelectedIcon size={14} className="text-slate-500 dark:text-slate-400 shrink-0" />
                 <span className="truncate max-w-[150px]">{selectedLabel}</span>
                 <ChevronDown size={13} className={cn("text-slate-400 transition-transform duration-200", isOpen && "rotate-180")} />
             </button>
@@ -136,17 +136,17 @@ function CategoryDropdown({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: -6 }}
                         transition={{ type: "spring", damping: 15, stiffness: 220 }}
-                        className="absolute left-0 mt-1.5 w-60 bg-white border border-[#edebe9] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-sm overflow-hidden flex flex-col p-1 text-left origin-top-left"
+                        className="absolute left-0 mt-1.5 w-60 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-sm overflow-hidden flex flex-col p-1 text-left origin-top-left"
                     >
                         <button
                             type="button"
                             onClick={() => { onChange(''); setIsOpen(false); }}
                             className={cn(
                                 "w-full px-3 py-1.5 rounded-sm text-[12px] font-semibold text-left transition-colors flex items-center gap-2.5",
-                                value === '' ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+                                value === '' ? "bg-slate-100 dark:bg-slate-800/50 text-slate-900 dark:text-white" : "text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
                             )}
                         >
-                            <Globe size={14} className="text-slate-500 shrink-0" />
+                            <Globe size={14} className="text-slate-500 dark:text-slate-400 shrink-0" />
                             <span>All Categories</span>
                         </button>
 
@@ -160,10 +160,10 @@ function CategoryDropdown({
                                     onClick={() => { onChange(cat.id); setIsOpen(false); }}
                                     className={cn(
                                         "w-full px-3 py-1.5 rounded-sm text-[12px] font-semibold text-left transition-colors flex items-center gap-2.5",
-                                        isSelected ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+                                        isSelected ? "bg-slate-100 dark:bg-slate-800/50 text-slate-900 dark:text-white" : "text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
                                     )}
                                 >
-                                    <CatIcon size={14} className="text-slate-500 shrink-0" />
+                                    <CatIcon size={14} className="text-slate-500 dark:text-slate-400 shrink-0" />
                                     <span>{cat.name}</span>
                                 </button>
                             );
@@ -174,10 +174,10 @@ function CategoryDropdown({
                             onClick={() => { onChange('__uncategorized__'); setIsOpen(false); }}
                             className={cn(
                                 "w-full px-3 py-1.5 rounded-sm text-[12px] font-semibold text-left transition-colors flex items-center gap-2.5 border-t border-slate-50 mt-1 pt-1.5",
-                                value === '__uncategorized__' ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+                                value === '__uncategorized__' ? "bg-slate-100 dark:bg-slate-800/50 text-slate-900 dark:text-white" : "text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800"
                             )}
                         >
-                            <FolderOpen size={14} className="text-slate-500 shrink-0" />
+                            <FolderOpen size={14} className="text-slate-500 dark:text-slate-400 shrink-0" />
                             <span>Uncategorized</span>
                         </button>
                     </motion.div>
@@ -199,14 +199,14 @@ export function PositionFilterBar({
     onCategoryFilterChange
 }: PositionFilterBarProps) {
     return (
-        <div className="flex flex-col md:flex-row md:items-center justify-center gap-4 py-3 px-6 border-b border-[#edebe9] mb-6 bg-white">
+        <div className="flex flex-col md:flex-row md:items-center justify-center gap-4 py-3 px-6 border-b border-[#edebe9] dark:border-slate-800 mb-6 bg-white dark:bg-slate-900">
             <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center border border-[#edebe9] rounded-sm p-0.5">
+                <div className="flex items-center border border-[#edebe9] dark:border-slate-800 rounded-sm p-0.5">
                     <button
                         onClick={() => onTabChange('active')}
                         className={cn(
                             "px-4 h-7 rounded-sm text-[11.5px] font-medium tracking-[-0.005em] transition-all",
-                            activeTab === 'active' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] hover:bg-[#faf9f8]"
+                            activeTab === 'active' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] dark:text-slate-400 hover:bg-[#faf9f8]"
                         )}
                     >
                         Active Jobs
@@ -215,7 +215,7 @@ export function PositionFilterBar({
                         onClick={() => onTabChange('logs')}
                         className={cn(
                             "px-4 h-7 rounded-sm text-[11.5px] font-medium tracking-[-0.005em] transition-all",
-                            activeTab === 'logs' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] hover:bg-[#faf9f8]"
+                            activeTab === 'logs' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] dark:text-slate-400 hover:bg-[#faf9f8]"
                         )}
                     >
                         Archives
@@ -223,13 +223,13 @@ export function PositionFilterBar({
                 </div>
 
                 <div className="relative w-full md:w-80 group text-left">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#605e5c]" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#605e5c] dark:text-slate-400" />
                     <input
                         type="text"
                         placeholder="Search positions..."
                         value={search}
                         onChange={e => onSearchChange(e.target.value)}
-                        className="w-full pl-9 pr-4 h-7 bg-white border border-[#edebe9] rounded-sm text-[12px] font-medium text-[#323130] placeholder-[#a19f9d] focus:outline-none focus:border-[#0c2461] transition-all"
+                        className="w-full pl-9 pr-4 h-7 bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm text-[12px] font-medium text-[#323130] dark:text-slate-300 placeholder-[#a19f9d] focus:outline-none focus:border-[#0c2461] transition-all"
                     />
                 </div>
 
@@ -242,12 +242,12 @@ export function PositionFilterBar({
             </div>
 
             <div className="flex items-center gap-2">
-                <div className="flex items-center border border-[#edebe9] rounded-sm p-0.5">
+                <div className="flex items-center border border-[#edebe9] dark:border-slate-800 rounded-sm p-0.5">
                     <button
                         onClick={() => onViewTypeChange('grid')}
                         className={cn(
                             "p-1.5 rounded-sm transition-all",
-                            viewType === 'grid' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] hover:bg-[#faf9f8]"
+                            viewType === 'grid' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] dark:text-slate-400 hover:bg-[#faf9f8]"
                         )}
                     >
                         <LayoutGrid size={14} />
@@ -256,7 +256,7 @@ export function PositionFilterBar({
                         onClick={() => onViewTypeChange('list')}
                         className={cn(
                             "p-1.5 rounded-sm transition-all",
-                            viewType === 'list' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] hover:bg-[#faf9f8]"
+                            viewType === 'list' ? "bg-[#0c2461]/[0.04] text-[#0c2461]" : "text-[#605e5c] dark:text-slate-400 hover:bg-[#faf9f8]"
                         )}
                     >
                         <List size={14} />
@@ -268,7 +268,7 @@ export function PositionFilterBar({
 }
 
 export const getBadgeClass = (pos: Position) => {
-    return { priority: 'Active', class: 'bg-[#f3f2f1] border-[#edebe9] text-[#323130]' };
+    return { priority: 'Active', class: 'bg-[#f3f2f1] border-[#edebe9] dark:border-slate-800 text-[#323130] dark:text-slate-300' };
 };
 
 export const getTimeStatus = (pos: Position) => {

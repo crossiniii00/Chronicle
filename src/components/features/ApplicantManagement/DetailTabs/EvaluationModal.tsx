@@ -25,13 +25,13 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[200] bg-surface-900/40 backdrop-blur-sm flex items-center justify-center p-4 md:p-8"
+                    className="fixed inset-0 z-[200] bg-surface-900/40 flex items-center justify-center p-4 md:p-8"
                 >
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.95, opacity: 0 }}
-                        className="bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-surface-200 rounded-sm"
+                        className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-surface-200 rounded-sm"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
@@ -58,7 +58,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                                     <p className="text-[9px] font-bold text-surface-400 uppercase tracking-wider mb-1">Interviewer</p>
                                     <p className="text-xs font-bold text-surface-900">{applicant.interviewer_name || 'Recruiter/System'}</p>
                                 </div>
-                                <div className="p-4 bg-white border-r border-surface-300">
+                                <div className="p-4 bg-white dark:bg-slate-900 border-r border-surface-300">
                                     <p className="text-[9px] font-bold text-surface-400 uppercase tracking-wider mb-1">Interview Room</p>
                                     <p className="text-xs font-bold text-surface-900">{applicant.interview_room || 'Room Alpha'}</p>
                                 </div>
@@ -66,7 +66,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                                     <p className="text-[9px] font-bold text-surface-400 uppercase tracking-wider mb-1">Date</p>
                                     <p className="text-xs font-bold text-surface-900">{applicant.interview_completed_at ? formatDate(applicant.interview_completed_at) : '—'}</p>
                                 </div>
-                                <div className="p-4 bg-white">
+                                <div className="p-4 bg-white dark:bg-slate-900">
                                     <p className="text-[9px] font-bold text-surface-400 uppercase tracking-wider mb-1">Evaluation Status</p>
                                     <p className="text-xs font-bold text-vibrant-emerald">VERIFIED</p>
                                 </div>
@@ -90,7 +90,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                                                     {q.question_text}
                                                 </h4>
                                             </div>
-                                            <div className="bg-white p-4 border border-surface-200 rounded-sm min-h-[60px]">
+                                            <div className="bg-white dark:bg-slate-900 p-4 border border-surface-200 rounded-sm min-h-[60px]">
                                                 {q.answer_type === 'rating' ? (
                                                     <div className="flex gap-2">
                                                         {[1, 2, 3, 4, 5].map(star => (
@@ -115,7 +115,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
                             {/* Final Summary */}
                             <div className="pt-10 border-t border-surface-200 grid md:grid-cols-2 gap-8">
-                                <div className="p-6 bg-white border border-surface-200 rounded-sm">
+                                <div className="p-6 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm">
                                     <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider mb-4">Overall Rating</p>
                                     <div className="flex items-center gap-4">
                                         <div className="flex gap-1">
@@ -126,7 +126,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                                         <span className="text-2xl font-bold text-surface-900">{safeOverallRating}/5</span>
                                     </div>
                                 </div>
-                                <div className="p-6 bg-white border border-surface-200 rounded-sm">
+                                <div className="p-6 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm">
                                     <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider mb-4">Recommendation</p>
                                     <div className="flex items-center gap-3">
                                         <div className={cn(

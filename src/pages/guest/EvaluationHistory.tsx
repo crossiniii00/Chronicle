@@ -90,7 +90,7 @@ export function InterviewRegistryHistory() {
     }
 
     const tabs = [
-        { id: 'PASSED', label: 'Passed', count: validatorEndorsements.filter(a => ['HIRED', 'PASSED', 'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'FINAL_VERDICT'].includes(a.current_status)).length },
+        { id: 'PASSED', label: 'For Job Offer', count: validatorEndorsements.filter(a => ['HIRED', 'PASSED', 'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'FINAL_VERDICT'].includes(a.current_status)).length },
         { id: 'FAILED', label: 'Failed', count: validatorEndorsements.filter(a => ['REJECTED', 'FAILED', 'NOT_ELIGIBLE_FOR_REHIRE'].includes(a.current_status) || isFailedForValidatorAccount(a)).length },
         { id: 'PENDING', label: 'Pending', count: validatorEndorsements.filter(a => ['FINAL_INTERVIEW_SCHEDULED', 'ENDORSED', 'FINAL_INTERVIEW', 'INTERVIEW_IN_PROGRESS', 'QUEUE_ASSIGNED'].includes(a.current_status) && !isFailedForValidatorAccount(a)).length },
     ];
@@ -145,17 +145,17 @@ export function InterviewRegistryHistory() {
                             placeholder="Search historical records, applicants, or roles..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white border border-surface-200 text-sm font-medium focus:border-[#0078d4] focus:ring-0 transition-all rounded-sm shadow-sm placeholder:text-surface-400"
+                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-surface-200 text-sm font-medium focus:border-[#0078d4] focus:ring-0 transition-all rounded-sm shadow-sm placeholder:text-surface-400"
                         />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        <button className="flex items-center gap-4 px-6 py-3 bg-white border border-surface-200 text-[10px] font-black uppercase tracking-widest text-surface-900 rounded-sm shadow-sm hover:bg-surface-50 transition-all">
+                        <button className="flex items-center gap-4 px-6 py-3 bg-white dark:bg-slate-900 border border-surface-200 text-[10px] font-black uppercase tracking-widest text-surface-900 rounded-sm shadow-sm hover:bg-surface-50 transition-all">
                             <Building2 size={16} className="text-surface-400" />
                             All Accounts
                             <ChevronDown size={14} className="text-surface-300" />
                         </button>
-                        <button className="flex items-center gap-4 px-6 py-3 bg-white border border-surface-200 text-[10px] font-black uppercase tracking-widest text-surface-900 rounded-sm shadow-sm hover:bg-surface-50 transition-all">
+                        <button className="flex items-center gap-4 px-6 py-3 bg-white dark:bg-slate-900 border border-surface-200 text-[10px] font-black uppercase tracking-widest text-surface-900 rounded-sm shadow-sm hover:bg-surface-50 transition-all">
                             <Filter size={16} className="text-surface-400" />
                             All Records
                             <ChevronDown size={14} className="text-surface-300" />
@@ -163,7 +163,7 @@ export function InterviewRegistryHistory() {
 
                         <div className="w-[1px] h-8 bg-surface-200 mx-2 hidden sm:block" />
 
-                        <div className="flex bg-white border border-surface-200 p-1 rounded-sm shadow-sm">
+                        <div className="flex bg-white dark:bg-slate-900 border border-surface-200 p-1 rounded-sm shadow-sm">
                             <button 
                                 onClick={() => setViewMode('grid')}
                                 className={cn(

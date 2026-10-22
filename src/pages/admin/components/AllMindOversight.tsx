@@ -138,7 +138,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
             <div className="space-y-6 font-mono text-emerald-400">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-sm shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
+                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-none shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10">
                             <Users size={48} />
                         </div>
@@ -147,7 +147,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                         <p className="text-[9px] text-emerald-700 mt-2">Socket-level connections online</p>
                     </div>
 
-                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-sm shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
+                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-none shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10">
                             <Activity size={48} />
                         </div>
@@ -156,7 +156,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                         <p className="text-[9px] text-emerald-700 mt-2">HTTP buffer request load</p>
                     </div>
 
-                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-sm shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
+                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-none shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10">
                             <ShieldAlert size={48} />
                         </div>
@@ -167,7 +167,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                         <p className="text-[9px] text-emerald-700 mt-2">HTTP statuses &ge; 400</p>
                     </div>
 
-                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-sm shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
+                    <div className="bg-black/40 border border-emerald-500/20 p-4 rounded-none shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10">
                             <Cpu size={48} />
                         </div>
@@ -178,12 +178,12 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                 </div>
 
                 {/* System Diagnostics */}
-                <div className="bg-black/40 border border-emerald-500/20 rounded-sm p-5 shadow-[0_0_20px_rgba(16,185,129,0.02)]">
+                <div className="bg-black/40 border border-emerald-500/20 rounded-none p-5 shadow-[0_0_20px_rgba(16,185,129,0.02)]">
                     <div className="flex items-center gap-2 mb-4">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                         <h3 className="text-xs font-semibold uppercase tracking-widest text-emerald-400">System Telemetry Output</h3>
                     </div>
-                    <div className="bg-black/80 rounded-sm p-4 h-64 overflow-y-auto text-[11px] leading-relaxed text-emerald-500/90 custom-scrollbar border border-emerald-950 font-mono">
+                    <div className="bg-black/80 rounded-none p-4 h-64 overflow-y-auto text-[11px] leading-relaxed text-emerald-500/90 custom-scrollbar border border-emerald-950 font-mono">
                         <p className="text-emerald-700">[{new Date().toISOString()}] ALLMIND Core interface initialized...</p>
                         <p className="text-emerald-700">[{new Date().toISOString()}] Connection pool established with PostgreSQL-18</p>
                         <p className="text-emerald-700">[{new Date().toISOString()}] Port 4447 socket streams bind: OK</p>
@@ -211,14 +211,14 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                     <h3 className="text-xs font-semibold uppercase tracking-widest text-emerald-500">Live Traffic Ring Buffer</h3>
                     <button 
                         onClick={fetchTraffic}
-                        className="flex items-center gap-1 text-[10px] bg-neutral-900 border border-emerald-500/20 hover:border-emerald-500 px-2.5 py-1 text-emerald-500 rounded-sm transition-all"
+                        className="flex items-center gap-1 text-[10px] bg-neutral-900 border border-emerald-500/20 hover:border-emerald-500 px-2.5 py-1 text-emerald-500 rounded-none transition-all"
                     >
                         <RefreshCw size={10} className="animate-spin-slow" />
                         Refresh Buffer
                     </button>
                 </div>
 
-                <div className="bg-black border border-emerald-500/20 rounded-sm overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+                <div className="bg-black border border-emerald-500/20 rounded-none overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.8)]">
                     <div className="max-h-[50vh] overflow-y-auto custom-scrollbar">
                         <table className="w-full text-[11px] text-left border-collapse">
                             <thead>
@@ -257,7 +257,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                                             </td>
                                             <td className="p-3 text-center">
                                                 <span className={cn(
-                                                    "px-1.5 py-0.5 rounded-sm text-[10px] font-semibold",
+                                                    "px-1.5 py-0.5 rounded-none text-[10px] font-semibold",
                                                     t.status < 300 ? "bg-emerald-950/60 text-emerald-400" :
                                                     t.status < 400 ? "bg-cyan-950/60 text-cyan-400" : "bg-rose-950/60 text-rose-400"
                                                 )}>
@@ -296,14 +296,14 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                     <button 
                         onClick={fetchLogins}
                         disabled={loading}
-                        className="flex items-center gap-1 text-[10px] bg-neutral-900 border border-emerald-500/20 hover:border-emerald-500 px-2.5 py-1 text-emerald-500 rounded-sm transition-all disabled:opacity-40"
+                        className="flex items-center gap-1 text-[10px] bg-neutral-900 border border-emerald-500/20 hover:border-emerald-500 px-2.5 py-1 text-emerald-500 rounded-none transition-all disabled:opacity-40"
                     >
                         <RefreshCw size={10} className={cn(loading && "animate-spin")} />
                         Refresh Audit Logs
                     </button>
                 </div>
 
-                <div className="bg-black border border-emerald-500/20 rounded-sm overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+                <div className="bg-black border border-emerald-500/20 rounded-none overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.8)]">
                     <div className="max-h-[50vh] overflow-y-auto custom-scrollbar">
                         <table className="w-full text-[11px] text-left border-collapse">
                             <thead>
@@ -341,7 +341,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                                                     {log.user_name || <span className="text-rose-500">Unregistered Identity</span>}
                                                 </td>
                                                 <td className="p-3">
-                                                    <span className="px-1.5 py-0.5 rounded-sm bg-emerald-950 border border-emerald-900 text-emerald-500 text-[10px]">
+                                                    <span className="px-1.5 py-0.5 rounded-none bg-emerald-950 border border-emerald-900 text-emerald-500 text-[10px]">
                                                         {log.user_role ? log.user_role.toUpperCase() : 'N/A'}
                                                     </span>
                                                 </td>
@@ -378,7 +378,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                     <h3 className="text-xs font-semibold uppercase tracking-widest text-emerald-500">Active Node Command</h3>
                     <button 
                         onClick={fetchSessions}
-                        className="flex items-center gap-1 text-[10px] bg-neutral-900 border border-emerald-500/20 hover:border-emerald-500 px-2.5 py-1 text-emerald-500 rounded-sm transition-all"
+                        className="flex items-center gap-1 text-[10px] bg-neutral-900 border border-emerald-500/20 hover:border-emerald-500 px-2.5 py-1 text-emerald-500 rounded-none transition-all"
                     >
                         <RefreshCw size={10} />
                         Refresh Nodes
@@ -387,17 +387,17 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     {sessions.length === 0 ? (
-                        <div className="col-span-2 p-12 text-center border border-emerald-950 rounded-sm text-emerald-800">
+                        <div className="col-span-2 p-12 text-center border border-emerald-950 rounded-none text-emerald-800">
                             No active communication nodes trace
                         </div>
                     ) : (
                         sessions.map((s) => (
-                            <div key={s.socketId} className="bg-black/60 border border-emerald-500/20 rounded-sm p-4 flex flex-col justify-between space-y-4 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                            <div key={s.socketId} className="bg-black/60 border border-emerald-500/20 rounded-none p-4 flex flex-col justify-between space-y-4 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2">
                                             <p className="font-bold text-emerald-300 truncate text-[13px]">{s.full_name}</p>
-                                            <span className="px-1.5 py-0.2 bg-emerald-950 border border-emerald-800 text-emerald-500 rounded-sm text-[9px] uppercase font-bold shrink-0">
+                                            <span className="px-1.5 py-0.2 bg-emerald-950 border border-emerald-800 text-emerald-500 rounded-none text-[9px] uppercase font-bold shrink-0">
                                                 {s.role}
                                             </span>
                                         </div>
@@ -405,7 +405,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                                             UID: {s.id} · SID: {s.socketId.substring(0, 8)}...
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-950 text-emerald-400 border border-emerald-900 text-[10px] shrink-0 font-bold">
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-none bg-emerald-950 text-emerald-400 border border-emerald-900 text-[10px] shrink-0 font-bold">
                                         <Eye size={11} className="text-emerald-500" />
                                         <span>{s.page || 'Dashboard'}</span>
                                     </div>
@@ -417,7 +417,7 @@ export function AllMindOversight({ tab }: AllMindOversightProps) {
                                     </div>
                                     <button
                                         onClick={() => handleForceLogout(s.socketId)}
-                                        className="flex items-center gap-1 px-3 py-1 bg-rose-950/60 border border-rose-900 hover:bg-rose-900 hover:text-white hover:border-rose-600 text-rose-400 rounded-sm transition-all font-bold"
+                                        className="flex items-center gap-1 px-3 py-1 bg-rose-950/60 border border-rose-900 hover:bg-rose-900 hover:text-white hover:border-rose-600 text-rose-400 rounded-none transition-all font-bold"
                                     >
                                         <LogOut size={10} />
                                         Force Logout

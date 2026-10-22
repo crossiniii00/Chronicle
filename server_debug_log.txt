@@ -1,90 +1,910 @@
-[2026-06-21T09:25:37.592Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
-Error: new row for relation "applications" violates check constraint "applications_status_check"
-Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:21:59.484Z] GET /api/auth/users
+Error: relation "users" does not exist
+Stack: error: relation "users" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
-    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async UserRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/UserRepository.js:24:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/auth.routes.js:150:23
 
-[2026-06-21T09:25:40.111Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
-Error: new row for relation "applications" violates check constraint "applications_status_check"
-Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:21:59.896Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
-    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
 
-[2026-06-21T09:25:40.251Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
-Error: new row for relation "applications" violates check constraint "applications_status_check"
-Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:23:12.372Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
-    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
 
-[2026-06-21T09:25:40.447Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
-Error: new row for relation "applications" violates check constraint "applications_status_check"
-Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:23:12.403Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
-    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
 
-[2026-06-21T09:25:41.393Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
-Error: new row for relation "applications" violates check constraint "applications_status_check"
-Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:23:16.716Z] GET /api/mhrt/accounts
+Error: relation "mhrt_accounts" does not exist
+Stack: error: relation "mhrt_accounts" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
-    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async MhrtRepository.findAllAccounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/MhrtRepository.js:39:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/mhrt.routes.js:14:26
 
-[2026-06-21T09:25:41.542Z] PATCH /api/applications/267700eb-465d-4951-97a1-9ba977550e13/status
-Error: new row for relation "applications" violates check constraint "applications_status_check"
-Stack: error: new row for relation "applications" violates check constraint "applications_status_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:23:16.761Z] GET /api/mhrt/accounts
+Error: relation "mhrt_accounts" does not exist
+Stack: error: relation "mhrt_accounts" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/ApplicationRepository.js:154:9)
-    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/ApplicationService.js:347:13)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/applications.routes.js:161:9
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async MhrtRepository.findAllAccounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/MhrtRepository.js:39:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/mhrt.routes.js:14:26
 
-[2026-06-21T17:39:48.948Z] PATCH /api/auth/users/cd4f5d87-818b-4ad4-8073-a24b799fb334
-Error: new row for relation "users" violates check constraint "users_role_check"
-Stack: error: new row for relation "users" violates check constraint "users_role_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:23:22.371Z] GET /api/report-configs/account_type_settings
+Error: relation "report_configs" does not exist
+Stack: error: relation "report_configs" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async UserRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/UserRepository.js:43:24)
-    at async AuthService.updateUser (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/AuthService.js:113:16)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/auth.routes.js:169:22
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ReportConfigRepository.findById (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ReportConfigRepository.js:5:24)
+    at async ReportConfigService.getConfig (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ReportConfigService.js:5:16)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/report-configs.routes.js:32:24
 
-[2026-06-21T17:39:51.852Z] PATCH /api/auth/users/cd4f5d87-818b-4ad4-8073-a24b799fb334
-Error: new row for relation "users" violates check constraint "users_role_check"
-Stack: error: new row for relation "users" violates check constraint "users_role_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:23:22.452Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async UserRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/UserRepository.js:43:24)
-    at async AuthService.updateUser (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/AuthService.js:113:16)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/auth.routes.js:169:22
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
 
-[2026-06-21T17:39:52.011Z] PATCH /api/auth/users/cd4f5d87-818b-4ad4-8073-a24b799fb334
-Error: new row for relation "users" violates check constraint "users_role_check"
-Stack: error: new row for relation "users" violates check constraint "users_role_check"
-    at C:\Users\willb\Downloads\CRMFINAL\CRMFINAL\node_modules\pg-pool\index.js:45:11
+[2026-09-09T23:23:22.483Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async query (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/db.js:18:20)
-    at async UserRepository.update (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/repositories/UserRepository.js:43:24)
-    at async AuthService.updateUser (file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/services/AuthService.js:113:16)
-    at async file:///C:/Users/willb/Downloads/CRMFINAL/CRMFINAL/server/src/routes/auth.routes.js:169:22
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
+
+[2026-09-09T23:23:22.607Z] GET /api/departments
+Error: relation "departments" does not exist
+Stack: error: relation "departments" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async DepartmentRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/DepartmentRepository.js:8:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/departments.routes.js:33:29
+
+[2026-09-09T23:23:22.657Z] GET /api/positions
+Error: relation "positions" does not exist
+Stack: error: relation "positions" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/positions.routes.js:227:24
+
+[2026-09-09T23:23:22.672Z] GET /api/mhrt/accounts
+Error: relation "mhrt_accounts" does not exist
+Stack: error: relation "mhrt_accounts" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async MhrtRepository.findAllAccounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/MhrtRepository.js:39:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/mhrt.routes.js:14:26
+
+[2026-09-09T23:23:22.751Z] GET /api/auth/users
+Error: relation "users" does not exist
+Stack: error: relation "users" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async UserRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/UserRepository.js:24:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/auth.routes.js:150:23
+
+[2026-09-09T23:23:22.858Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
+
+[2026-09-09T23:23:23.402Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:23:23.498Z] GET /api/auth/users
+Error: relation "users" does not exist
+Stack: error: relation "users" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async UserRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/UserRepository.js:24:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/auth.routes.js:150:23
+
+[2026-09-09T23:23:23.580Z] GET /api/auth/users
+Error: relation "users" does not exist
+Stack: error: relation "users" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async UserRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/UserRepository.js:24:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/auth.routes.js:150:23
+
+[2026-09-09T23:25:08.604Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:25:08.620Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
+
+[2026-09-09T23:26:42.085Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:26:42.127Z] GET /api/applications
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:26:42.129Z] POST /api/applications/counts/badges
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:26:42.145Z] GET /api/auth/users
+Error: relation "users" does not exist
+Stack: error: relation "users" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async UserRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/UserRepository.js:24:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/auth.routes.js:150:23
+
+[2026-09-09T23:27:25.064Z] GET /api/applications
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:27:25.069Z] POST /api/applications/counts/badges
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:27:25.080Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:27:25.143Z] GET /api/auth/users
+Error: relation "users" does not exist
+Stack: error: relation "users" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async UserRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/UserRepository.js:24:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/auth.routes.js:150:23
+
+[2026-09-09T23:28:01.967Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:28:02.008Z] POST /api/applications/counts/badges
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:28:02.058Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
+
+[2026-09-09T23:28:22.718Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:28:22.734Z] POST /api/applications/counts/badges
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:28:22.750Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
+
+[2026-09-09T23:28:25.768Z] GET /api/mhrt/accounts
+Error: relation "mhrt_accounts" does not exist
+Stack: error: relation "mhrt_accounts" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async MhrtRepository.findAllAccounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/MhrtRepository.js:39:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/mhrt.routes.js:14:26
+
+[2026-09-09T23:28:25.818Z] GET /api/mhrt/accounts
+Error: relation "mhrt_accounts" does not exist
+Stack: error: relation "mhrt_accounts" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async MhrtRepository.findAllAccounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/MhrtRepository.js:39:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/mhrt.routes.js:14:26
+
+[2026-09-09T23:28:26.693Z] GET /api/interview-questions
+Error: relation "interview_questions" does not exist
+Stack: error: relation "interview_questions" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async InterviewQuestionRepository.findAllActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/InterviewQuestionRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/interview-questions.routes.js:40:27
+
+[2026-09-09T23:28:26.730Z] GET /api/departments
+Error: relation "departments" does not exist
+Stack: error: relation "departments" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async DepartmentRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/DepartmentRepository.js:8:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/departments.routes.js:33:29
+
+[2026-09-09T23:28:26.793Z] GET /api/interview-questions
+Error: relation "interview_questions" does not exist
+Stack: error: relation "interview_questions" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async InterviewQuestionRepository.findAllActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/InterviewQuestionRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/interview-questions.routes.js:40:27
+
+[2026-09-09T23:28:26.846Z] GET /api/departments
+Error: relation "departments" does not exist
+Stack: error: relation "departments" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async DepartmentRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/DepartmentRepository.js:8:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/departments.routes.js:33:29
+
+[2026-09-09T23:29:59.416Z] POST /api/applications/counts/badges
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:29:59.479Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:29:59.501Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
+
+[2026-09-09T23:32:55.561Z] POST /api/applications/counts/badges
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:32:55.579Z] GET /api/applications
+Error: relation "applications" does not exist
+Stack: error: relation "applications" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:32:55.586Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-09T23:32:55.622Z] GET /api/auth/users
+Error: relation "users" does not exist
+Stack: error: relation "users" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async UserRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/UserRepository.js:24:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/auth.routes.js:150:23
+
+[2026-09-09T23:33:35.547Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:33:37.516Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:33:37.616Z] GET /api/positions
+Error: column "image_url" does not exist
+Stack: error: column "image_url" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/positions.routes.js:227:24
+
+[2026-09-09T23:33:37.668Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:33:37.861Z] GET /api/applications
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:40:08.707Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:40:34.287Z] GET /api/applications
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:40:34.291Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:40:40.734Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:40:40.739Z] GET /api/positions
+Error: column "image_url" does not exist
+Stack: error: column "image_url" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/positions.routes.js:227:24
+
+[2026-09-09T23:40:40.939Z] GET /api/applications
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:40:40.942Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+
+[2026-09-09T23:40:42.734Z] POST /api/applications/counts/badges
+Error: column a.position_id does not exist
+Stack: error: column a.position_id does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:43:58.413Z] POST /api/applications/counts/badges
+Error: column a.created_at does not exist
+Stack: error: column a.created_at does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:44:04.021Z] POST /api/applications/counts/badges
+Error: column a.created_at does not exist
+Stack: error: column a.created_at does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:44:04.120Z] GET /api/positions
+Error: column "image_url" does not exist
+Stack: error: column "image_url" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/positions.routes.js:227:24
+
+[2026-09-09T23:44:04.954Z] POST /api/applications/counts/badges
+Error: column a.created_at does not exist
+Stack: error: column a.created_at does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:44:04.967Z] GET /api/applications
+Error: column a.created_at does not exist
+Stack: error: column a.created_at does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:44:10.599Z] POST /api/applications/counts/badges
+Error: column a.created_at does not exist
+Stack: error: column a.created_at does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:44:10.733Z] GET /api/positions
+Error: column "image_url" does not exist
+Stack: error: column "image_url" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/positions.routes.js:227:24
+
+[2026-09-09T23:44:10.781Z] POST /api/applications/counts/badges
+Error: column a.created_at does not exist
+Stack: error: column a.created_at does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:44:10.936Z] GET /api/applications
+Error: column a.created_at does not exist
+Stack: error: column a.created_at does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:47:24.199Z] POST /api/applications/counts/badges
+Error: column a.master_bi_results does not exist
+Stack: error: column a.master_bi_results does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:47:29.512Z] POST /api/applications/counts/badges
+Error: column a.master_bi_results does not exist
+Stack: error: column a.master_bi_results does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:47:30.715Z] POST /api/applications/counts/badges
+Error: column a.master_bi_results does not exist
+Stack: error: column a.master_bi_results does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:47:30.729Z] GET /api/applications
+Error: column a.master_bi_results does not exist
+Stack: error: column a.master_bi_results does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:47:42.646Z] PATCH /api/applications/cc1a6e9f-86f8-4f65-81a7-d8a38db9ad95/status
+Error: Application not found
+Stack: Error: Application not found
+    at ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:573:29)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-09T23:47:46.727Z] GET /api/applications
+Error: column a.master_bi_results does not exist
+Stack: error: column a.master_bi_results does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:47:46.878Z] GET /api/applications
+Error: column a.master_bi_results does not exist
+Stack: error: column a.master_bi_results does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:48:27.548Z] PATCH /api/applications/cc1a6e9f-86f8-4f65-81a7-d8a38db9ad95/status
+Error: Application not found
+Stack: Error: Application not found
+    at ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:573:29)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-09T23:48:31.412Z] PATCH /api/applications/cc1a6e9f-86f8-4f65-81a7-d8a38db9ad95/status
+Error: Application not found
+Stack: Error: Application not found
+    at ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:573:29)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-09T23:48:58.202Z] POST /api/applications/counts/badges
+Error: column a.master_nbi_status does not exist
+Stack: error: column a.master_nbi_status does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:48:59.332Z] POST /api/applications/counts/badges
+Error: column a.master_nbi_status does not exist
+Stack: error: column a.master_nbi_status does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:48:59.425Z] GET /api/applications
+Error: column a.master_nbi_status does not exist
+Stack: error: column a.master_nbi_status does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:50:59.776Z] POST /api/applications/counts/badges
+Error: column a.nationality does not exist
+Stack: error: column a.nationality does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:51:05.505Z] POST /api/applications/counts/badges
+Error: column a.nationality does not exist
+Stack: error: column a.nationality does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:51:06.598Z] POST /api/applications/counts/badges
+Error: column a.nationality does not exist
+Stack: error: column a.nationality does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-09T23:51:06.707Z] GET /api/applications
+Error: column a.nationality does not exist
+Stack: error: column a.nationality does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:173:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:457:26
+    at async ApplicationService.getBadgeCounts (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:502:25)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:64:24
+
+[2026-09-10T00:01:33.540Z] GET /api/queue/active
+Error: relation "queue" does not exist
+Stack: error: relation "queue" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async QueueRepository.findActive (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/QueueRepository.js:28:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/queue.routes.js:18:23
+
+[2026-09-10T00:01:33.544Z] GET /api/rooms
+Error: relation "interview_rooms" does not exist
+Stack: error: relation "interview_rooms" does not exist
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async RoomRepository.findAll (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/RoomRepository.js:6:24)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/rooms.routes.js:30:23
+
+[2026-09-10T00:30:51.512Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:310:24
+
+[2026-09-10T00:34:31.460Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70/status
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:888:13)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-10T00:34:59.967Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70/status
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:888:13)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-10T00:35:02.610Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70/status
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:888:13)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-10T00:35:04.569Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70/status
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:888:13)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-10T00:35:08.967Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:310:24
+
+[2026-09-10T00:35:11.370Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70/status
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:888:13)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-10T00:35:15.057Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70/status
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:888:13)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
+
+[2026-09-10T00:35:16.423Z] PATCH /api/applications/9c682aa5-01af-4392-ab43-9503eab41d70/status
+Error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+Stack: error: insert or update on table "applications" violates foreign key constraint "applications_assigned_recruiter_id_fkey"
+    at C:\Users\willb\Downloads\ChronicleV9\ChronicleV8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async query (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/db.js:27:20)
+    at async ApplicationRepository.update (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/repositories/ApplicationRepository.js:543:9)
+    at async ApplicationService.updateApplicationStatus (file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/services/ApplicationService.js:888:13)
+    at async file:///C:/Users/willb/Downloads/ChronicleV9/ChronicleV8/server/src/routes/applications.routes.js:271:28
 

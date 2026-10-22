@@ -1,17 +1,18 @@
 export const MASTERLIST_COLUMNS = [
     { label: 'WAVE', field: 'master_wave', width: 100 },
     { label: 'Account', field: 'department', width: 160 },
+    { label: 'Job Position', field: 'pis', subField: 'custom_lob', width: 140 },
     { label: 'Hiring Request ID', field: 'master_hiring_request_id', width: 160 },
-    { label: 'Position', field: 'position_title', width: 220 },
+    // { label: 'Position', field: 'position_title', width: 220 },
     { label: 'STATUS', field: 'current_status', width: 160 },
     { label: 'Remarks', field: 'final_interview_notes', width: 300 },
     { label: '1st Day Show up', field: 'master_first_day_show_up', width: 140 },
-    { label: 'Showed 2nd Day', field: 'master_second_day_show_up', width: 140 },
     { label: 'Last Keep Warm', field: 'master_last_keep_warm', width: 140 },
     { label: 'EID', field: 'master_eid', width: 110 },
     { label: 'Last Name', field: 'master_last_name', width: 160 },
     { label: 'Middle Name', field: 'master_middle_name', width: 130 },
     { label: 'First Name', field: 'master_first_name', width: 160 },
+    { label: 'Preferred Name', field: 'preferred_nickname', width: 160 },
     { label: 'Date of Birth', field: 'birth_date', width: 130 },
     { label: 'Contact no.', field: 'phone', width: 140 },
     { label: 'Personal Email Address', field: 'applicant_email', width: 280 },
@@ -26,26 +27,40 @@ export const MASTERLIST_COLUMNS = [
     { label: 'NEO Date', field: 'master_neo_date', width: 140 },
     { label: 'PEME', field: 'master_peme_status', width: 140 },
     { label: 'PEME Result', field: 'master_peme_result', width: 140 },
-    { label: 'PHIC', field: 'philhealth_no', width: 160 },
 
     { label: 'BGC Status', field: 'master_bgs_status', width: 140 },
     { label: 'NBI Status', field: 'master_nbi_result', width: 140 },
+    { label: 'NBI Validity', field: 'pis', subField: 'custom_nbi_validity_date', width: 140 },
     { label: 'BI Status', field: 'master_bi_endorsement_date', width: 140 },
     { label: 'BI Results', field: 'master_bi_result', width: 140 },
+    {
+        label: 'Gov\'t Status', field: 'pis', subField: 'custom_govt_status_checker', width: 140, type: 'checklist', checklistItems: [
+            { label: 'SSS No.', key: 'sss', field: 'sss_no', source: 'masterlist', conditionType: 'content' },
+            { label: 'PhilHealth No.', key: 'philhealth', field: 'philhealth_no', source: 'masterlist', conditionType: 'content' },
+            { label: 'Pag-Ibig No.', key: 'pagibig', field: 'pagibig_no', source: 'masterlist', conditionType: 'content' },
+            { label: 'Tin No.', key: 'tin', field: 'tin_no', source: 'masterlist', conditionType: 'content' }
+        ]
+    },
+    { label: 'Gov\'t Remarks', field: 'pis', subField: 'custom_govt__ids_status', width: 140 },
 
-    { label: 'SSS No.', field: 'pis', subField: 'sss_no', width: 140 },
-    { label: 'PhilHealth No.', field: 'pis', subField: 'philhealth_no', width: 140 },
-    { label: 'Pag-Ibig No.', field: 'pis', subField: 'pagibig_no', width: 140 },
-    { label: 'Tin No.', field: 'pis', subField: 'tin_no', width: 140 },
+    { label: 'ID Remarks', field: 'master_id_remarks', width: 160 },
+    { label: 'SSS No.', field: 'sss_no', width: 140 },
+    { label: 'PhilHealth No.', field: 'philhealth_no', width: 140 },
+    { label: 'Pag-Ibig No.', field: 'pagibig_no', width: 140 },
+    { label: 'Tin No.', field: 'tin_no', width: 140 },
 
     { label: 'RCBC', field: 'master_rcbc_status', width: 140 },
     { label: 'Drug Test', field: 'drug_test', width: 140 },
-    { label: 'H2R Status', field: 'master_h2r_status', width: 140 }
+    { label: 'H2R Status', field: 'master_h2r_status', width: 140 },
+
 ];
+
+export const INACTIVE_APPLICATION_COLUMNS = MASTERLIST_COLUMNS.filter(c => c.field !== 'philhealth_no');
 
 export const PIVOT_COLUMNS = [
     { label: 'Account', field: 'department', width: 160 },
     { label: 'First Name', field: 'master_first_name', width: 160 },
+    { label: 'Preferred Name', field: 'preferred_nickname', width: 160 },
     { label: 'STATUS', field: 'current_status', width: 160 },
     { label: 'PEME', field: 'master_peme_status', width: 160 }
 ];
@@ -59,26 +74,37 @@ export const YC_COLUMNS = [
 ];
 
 export const OFFBOARDING_COLUMNS = [
-    { label: 'Last Name', field: 'master_last_name', width: 160 },
-    { label: 'First', field: 'master_first_name', width: 160 },
-    { label: 'Position/Title', field: 'position_title', width: 220 },
-    { label: 'Department', field: 'department', width: 160 },
-    { label: 'Company Email Address', field: 'master_cp36_email', width: 280 },
+    ...MASTERLIST_COLUMNS,
     { label: 'Reason', field: 'rejection_reason', width: 300 }
+];
+
+export const ONBOARDING_WINNERS_COLUMNS = [
+    { label: 'Account', field: 'department', width: 160 },
+    { label: 'Start Date', field: 'master_training_start_date', width: 160 },
+    { label: 'Last Name', field: 'master_last_name', width: 160 },
+    { label: 'First Name', field: 'master_first_name', width: 160 },
+    { label: 'Preferred Name', field: 'preferred_nickname', width: 160 },
+    { label: 'Win Date', field: 'master_win_date', width: 160 },
+    { label: 'Status', field: 'current_status', width: 160 },
+    { label: 'Claim Date', field: 'master_claim_date', width: 160 }
 ];
 
 export const QUERY2_COLUMNS = [
     { label: 'Account', field: 'department', width: 160 },
+    { label: 'Job Position', field: 'pis', subField: 'custom_lob', width: 140 },
     { label: 'Hiring Request ID', field: 'master_hiring_request_id', width: 160 },
-    { label: 'Position', field: 'position_title', width: 220 },
+    // { label: 'Position', field: 'position_title', width: 220 },
     { label: 'STATUS', field: 'current_status', width: 160 },
+    { label: 'STATUS', field: 'current_status_2', width: 160 },
+    { label: 'STATUS', field: 'current_status_3', width: 160 },
     { label: 'Remarks', field: 'final_interview_notes', width: 300 },
     { label: '1st Day Show up', field: 'master_first_day_show_up', width: 140 },
-    { label: 'Showed 2nd Day', field: 'master_second_day_show_up', width: 140 },
     { label: 'Last Keep Warm', field: 'master_last_keep_warm', width: 140 },
     { label: 'EID', field: 'master_eid', width: 110 },
     { label: 'Last Name', field: 'master_last_name', width: 160 },
+    { label: 'Middle Name', field: 'master_middle_name', width: 130 },
     { label: 'First Name', field: 'master_first_name', width: 160 },
+    { label: 'Preferred Name', field: 'preferred_nickname', width: 160 },
     { label: 'Date of Birth', field: 'birth_date', width: 130 },
     { label: 'Contact no.', field: 'phone', width: 140 },
     { label: 'Personal Email Address', field: 'applicant_email', width: 280 },
@@ -91,7 +117,7 @@ export const QUERY2_COLUMNS = [
     { label: 'Exam Score', field: 'assessment_score', width: 110 },
     { label: 'NEO Date', field: 'master_neo_date', width: 140 },
     { label: 'PEME', field: 'master_peme_status', width: 140 },
-    { label: 'PHIC', field: 'philhealth_no', width: 160 },
+    { label: 'ID Remarks', field: 'master_id_remarks', width: 160 },
     { label: 'EID of Referree', field: 'master_referee_eid', width: 130 },
     { label: 'Name', field: 'applicant_name', width: 220 }
 ];
@@ -103,15 +129,17 @@ export const QUERY2_GROUPS = [
     { label: 'ONBOARDING & RESULTS', span: 6, color: '#605e5c' }
 ];
 
-export const SHEET1_COLUMNS = MASTERLIST_COLUMNS;
+
 
 export const POOL_COLUMNS = [
     { label: 'WAVE', field: 'master_wave', width: 100 },
     { label: 'Account', field: 'department', width: 160 },
     { label: 'Status', field: 'current_status', width: 160 },
-    { label: 'Position', field: 'position_title', width: 220 },
+    // { label: 'Position', field: 'position_title', width: 220 },
     { label: 'Last Name', field: 'master_last_name', width: 160 },
+    { label: 'Middle Name', field: 'master_middle_name', width: 130 },
     { label: 'First Name', field: 'master_first_name', width: 160 },
+    { label: 'Preferred Name', field: 'preferred_nickname', width: 160 },
     { label: 'Date of Birth', field: 'pis', subField: 'birth_date', width: 130 },
     { label: 'Contact no.', field: 'pis', subField: 'phone', width: 140 },
     { label: 'Personal Email Address', field: 'pis', subField: 'email', width: 280 },
@@ -130,7 +158,7 @@ export const NOT_ELIGIBLE_COLUMNS = [
     { label: 'Name', field: 'applicant_name', width: 220 },
     { label: 'Interview Date', field: 'interview_completed_at', width: 140 },
     { label: 'Candidate\'s Complete Name', field: 'applicant_name', width: 250 },
-    { label: 'Position Applying for?', field: 'position_title', width: 220 },
+    // { label: 'Position Applying for?', field: 'position_title', width: 220 },
     { label: 'Summary of Background', field: 'pis', subField: 'summary_of_background', width: 300 },
     { label: 'Interest in Role', field: 'pis', subField: 'reason_for_interest', width: 300 },
     { label: 'Goals 6 Months', field: 'pis', subField: 'goals_6_months', width: 300 },
@@ -161,7 +189,7 @@ export const NOT_ELIGIBLE_COLUMNS = [
     { label: 'PRONUNCIATION', field: 'pis', subField: 'pronunciation', width: 160 },
     { label: 'Date of Birth', field: 'pis', subField: 'birth_date', width: 130 },
     { label: 'Age', field: 'pis', subField: 'age', width: 80 },
-    { label: 'Gender', field: 'pis', subField: 'gender', width: 100 },
+    { label: 'Sex', field: 'pis', subField: 'sex', width: 100 },
     { label: 'Civil Status', field: 'pis', subField: 'civil_status', width: 120 },
     { label: 'Contact Number', field: 'pis', subField: 'phone', width: 140 },
     { label: 'Email Address', field: 'applicant_email', width: 280 },
@@ -187,13 +215,13 @@ export const NOT_ELIGIBLE_COLUMNS = [
     { label: 'Ops Validator Email', field: 'pis', subField: 'ops_validator_email', width: 250 },
     { label: 'Ops Val Status', field: 'pis', subField: 'ops_validator_status', width: 140 },
     { label: 'Ops Val Notes', field: 'pis', subField: 'ops_validator_notes', width: 300 },
-    { label: 'Leadership Status', field: 'pis', subField: 'leadership_assessment_status', width: 140 },
+    { label: 'Leadership Status', field: 'pis', subField: 'leadership_score', width: 140 },
     { label: 'Wonderlic Status', field: 'pis', subField: 'wonderlic_status', width: 140 },
     { label: 'Client Interviewer Email', field: 'pis', subField: 'client_interviewer_email', width: 250 },
     { label: 'Client Interview Status', field: 'pis', subField: 'client_interview_status', width: 140 },
     { label: 'Client Interview Notes', field: 'pis', subField: 'client_interview_notes', width: 300 },
     { label: 'Final Specific Status', field: 'pis', subField: 'final_specific_status', width: 140 },
-    { label: 'Application Status', field: 'current_status', width: 140 },
+    { label: 'Current Step', field: 'current_status', width: 140 },
     { label: 'Overall Status', field: 'pis', subField: 'overall_status', width: 140 },
     { label: 'Hire Date', field: 'hired_at', width: 130 },
     { label: 'Final Account', field: 'pis', subField: 'final_account', width: 160 },

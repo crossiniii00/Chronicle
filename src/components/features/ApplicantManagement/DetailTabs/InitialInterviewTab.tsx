@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Video } from 'lucide-react';
+import { Video, RefreshCw, Unlock } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Application } from '@/types/application';
 import { ApplicationService } from '@/services/ApplicationService';
@@ -21,10 +21,11 @@ interface InitialInterviewTabProps {
     showRegressPrompt: boolean;
     setShowRegressPrompt: (show: boolean) => void;
     onDelete?: (app: Application) => void;
+    handleUpdateApplication?: (id: string, patch: any) => void;
 }
 
 export const InitialInterviewTab: React.FC<InitialInterviewTabProps> = ({
-    applicant, onQueue, handlePromote, onRegress, setShowEvaluationResults,
+    applicant, onQueue, handlePromote, onRegress, setShowEvaluationResults, handleUpdateApplication,
     showRejectionPrompt, setShowRejectionPrompt, rejectionReasonInput, setRejectionReasonInput,
     showRegressPrompt, setShowRegressPrompt, onDelete
 }) => {
@@ -57,6 +58,50 @@ export const InitialInterviewTab: React.FC<InitialInterviewTabProps> = ({
             </div>
 
             <div className="max-w-md mx-auto space-y-4">
+                {(() => {
+                    const revertedData = applicant.metadata?.reverted_stages?.INITIAL_INTERVIEW;
+                    if (!revertedData) return null;
+                    return (
+                        <div className="mb-6 relative bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-6 rounded-xl overflow-hidden shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md">
+                                    <RefreshCw size={20} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-black text-amber-900 uppercase tracking-wide">Previous Data Available</h4>
+                                    <p className="text-xs text-amber-700 font-medium mt-0.5">
+                                        Candidate was reverted. Previous result: <strong className="text-amber-900">{revertedData.initial_interview_results || 'N/A'}</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    if (handleUpdateApplication) {
+                                        const { initial_interview_results, final_interview_notes } = revertedData;
+                                        const newRevertedStages = { ...(applicant.metadata?.reverted_stages || {}) };
+                                        delete newRevertedStages.INITIAL_INTERVIEW;
+                                        
+                                        await handleUpdateApplication(applicant.id, {
+                                            final_interview_notes,
+                                            pis: {
+                                                ...(applicant.pis || {}),
+                                                initial_interview_results
+                                            },
+                                            metadata: {
+                                                ...(applicant.metadata || {}),
+                                                reverted_stages: newRevertedStages
+                                            }
+                                        });
+                                    }
+                                }}
+                                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-md transition-all shrink-0 flex items-center gap-2 cursor-pointer"
+                            >
+                                <RefreshCw size={14} />
+                                <span>Undo Reversal</span>
+                            </button>
+                        </div>
+                    );
+                })()}
                 {applicant.current_status === 'INITIAL_INTERVIEW' || (applicant.current_status === 'QUEUE_ASSIGNED' && applicant.queue_type === 'INITIAL') || applicant.current_status === 'INTERVIEW_IN_PROGRESS' || isActuallyQueuedOrInInterview ? (
                     <div className="space-y-4">
                         {applicant.current_status === 'QUEUE_ASSIGNED' || applicant.current_status === 'INTERVIEW_IN_PROGRESS' || isActuallyQueuedOrInInterview ? (
@@ -288,11 +333,24 @@ export const InitialInterviewTab: React.FC<InitialInterviewTabProps> = ({
                             </div>
                         ) : (
                             <>
-                                <div className="p-4 bg-surface-50 border border-surface-100 text-surface-600 rounded-sm text-sm font-medium">
-                                    {applicant.current_status === 'REJECTED' ? 'Applicant has been REJECTED at this stage.' : 'Stage completed. Candidate has moved to assessment.'}
+                                <div className="p-8 bg-surface-50 border border-surface-200 rounded-sm text-center shadow-sm">
+                                    <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-2">Stage Completed</p>
+                                    <p className="text-sm text-surface-700 font-medium">
+                                        {applicant.current_status === 'REJECTED' ? 'Applicant has been REJECTED at this stage.' : 'Candidate has successfully passed the Initial Interview.'}
+                                    </p>
                                 </div>
+                                <button
+                                    onClick={() => setShowEvaluationResults(true)}
+                                    className="w-full mt-4 py-4 bg-white border border-primary-500 text-primary-600 hover:bg-primary-50 font-bold text-[10px] uppercase tracking-wider rounded-sm transition-all shadow-sm flex items-center justify-center gap-2"
+                                >
+                                    View Detailed Evaluation
+                                </button>
+
                                 {applicant.rejection_reason && (
-                                    <div className="p-5 bg-white border border-red-200 rounded-sm text-left relative overflow-hidden group">
+                                    <div className="mt-4 p-5 bg-white border border-red-200 rounded-sm text-left relative overflow-hidden group">
                                         <div className="absolute top-0 left-0 w-1 h-full bg-red-500" />
                                         <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-2">
                                             Rejection Reason
@@ -321,3 +379,4 @@ export const InitialInterviewTab: React.FC<InitialInterviewTabProps> = ({
         </div>
     );
 };
+

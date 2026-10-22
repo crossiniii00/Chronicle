@@ -40,27 +40,49 @@ export class MhrtService {
         return mapped;
     }
 
+    static mapToCamel(data, map) {
+        if (!data) return data;
+        const reverseMap = Object.entries(map).reduce((acc, [camel, snake]) => {
+            acc[snake] = camel;
+            return acc;
+        }, {});
+        
+        const mapped = {};
+        Object.entries(data).forEach(([key, val]) => {
+            if (reverseMap[key]) {
+                mapped[reverseMap[key]] = val;
+            } else {
+                mapped[key] = val; // fallback for unmapped like 'id'
+            }
+        });
+        return mapped;
+    }
+
     // Master Accounts
     static async createAccount(data) {
         const mapped = this.mapFields(data, this.accountMap);
         if (mapped.ov_status === undefined) mapped.ov_status = 'Pending';
-        return await MhrtRepository.createAccount(mapped);
+        const result = await MhrtRepository.createAccount(mapped);
+        return this.mapToCamel(result, this.accountMap);
     }
 
     static async updateAccount(id, data) {
         const mapped = this.mapFields(data, this.accountMap);
-        return await MhrtRepository.updateAccount(id, mapped);
+        const result = await MhrtRepository.updateAccount(id, mapped);
+        return this.mapToCamel(result, this.accountMap);
     }
 
     // H2R Records
     static async createH2R(data) {
         const mapped = this.mapFields(data, this.h2rMap);
-        return await MhrtRepository.createH2R(mapped);
+        const result = await MhrtRepository.createH2R(mapped);
+        return this.mapToCamel(result, this.h2rMap);
     }
 
     static async updateH2R(id, data) {
         const mapped = this.mapFields(data, this.h2rMap);
-        return await MhrtRepository.updateH2R(id, mapped);
+        const result = await MhrtRepository.updateH2R(id, mapped);
+        return this.mapToCamel(result, this.h2rMap);
     }
 
     // Divisions
@@ -69,14 +91,16 @@ export class MhrtService {
             division: data.division,
             assigned_roles: data.assignedRoles
         };
-        return await MhrtRepository.createDivision(mapped);
+        const result = await MhrtRepository.createDivision(mapped);
+        return { id: result.id, division: result.division, assignedRoles: result.assigned_roles };
     }
 
     static async updateDivision(id, data) {
         const mapped = {};
         if (data.division !== undefined) mapped.division = data.division;
         if (data.assignedRoles !== undefined) mapped.assigned_roles = data.assignedRoles;
-        return await MhrtRepository.updateDivision(id, mapped);
+        const result = await MhrtRepository.updateDivision(id, mapped);
+        return { id: result.id, division: result.division, assignedRoles: result.assigned_roles };
     }
 
     // Time Off
@@ -85,14 +109,16 @@ export class MhrtService {
             location_group: data.locationGroup,
             assigned_roles: data.assignedRoles
         };
-        return await MhrtRepository.createTimeOff(mapped);
+        const result = await MhrtRepository.createTimeOff(mapped);
+        return { id: result.id, locationGroup: result.location_group, assignedRoles: result.assigned_roles };
     }
 
     static async updateTimeOff(id, data) {
         const mapped = {};
         if (data.locationGroup !== undefined) mapped.location_group = data.locationGroup;
         if (data.assignedRoles !== undefined) mapped.assigned_roles = data.assignedRoles;
-        return await MhrtRepository.updateTimeOff(id, mapped);
+        const result = await MhrtRepository.updateTimeOff(id, mapped);
+        return { id: result.id, locationGroup: result.location_group, assignedRoles: result.assigned_roles };
     }
 
     // Directory

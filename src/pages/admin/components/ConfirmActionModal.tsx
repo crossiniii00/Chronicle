@@ -61,11 +61,11 @@ export function ConfirmActionModal({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.97, y: 4 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-                className="w-full max-w-[420px] bg-white border border-surface-200 shadow-xl rounded-sm"
+                className="w-full max-w-[420px] bg-white dark:bg-slate-900 border border-surface-200 shadow-xl rounded-none"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="px-5 pt-5 pb-3 flex flex-col items-center text-center">
-                    <div className={`w-11 h-11 rounded-sm flex items-center justify-center mb-3 ${bgIconClass}`}>
+                    <div className={`w-11 h-11 rounded-none flex items-center justify-center mb-3 ${bgIconClass}`}>
                         <Icon size={20} className={iconClass} strokeWidth={2} />
                     </div>
                     <h3 className="text-[14px] font-semibold text-surface-900 tracking-[-0.005em]">{title}</h3>
@@ -76,13 +76,13 @@ export function ConfirmActionModal({
                 <div className="px-5 py-3 border-t border-surface-200 bg-surface-50/30 flex items-center justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-3 h-7 text-[11px] font-semibold text-surface-600 bg-white border border-surface-200 hover:border-surface-300 hover:bg-surface-50 transition-all rounded-sm"
+                        className="px-3 h-7 text-[11px] font-semibold text-surface-600 bg-white dark:bg-slate-900 border border-surface-200 hover:border-surface-300 hover:bg-surface-50 transition-all rounded-none"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={onConfirm}
-                        className={`flex items-center gap-1.5 px-3 h-7 text-white text-[11px] font-semibold tracking-[-0.005em] transition-all rounded-sm ${confirmBtnBg}`}
+                        className={`flex items-center gap-1.5 px-3 h-7 text-white text-[11px] font-semibold tracking-[-0.005em] transition-all rounded-none ${confirmBtnBg}`}
                     >
                         <Icon size={12} strokeWidth={2.25} />
                         {confirmBtnText}

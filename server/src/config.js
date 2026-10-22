@@ -10,14 +10,14 @@ const rootDir = process.cwd();
 
 export const config = {
     port: Number(process.env.PORT ?? 4000),
-    baseUrl: process.env.APP_BASE_URL ?? 'https://recruitms.local',
+    baseUrl: process.env.APP_BASE_URL ?? 'http://chronicle.cp',
     sessionSecret: process.env.SESSION_SECRET ?? 'change_me',
     uploadDir: path.resolve(rootDir, process.env.UPLOAD_DIR ?? 'uploads/resumes'),
-    corsOrigin: process.env.CORS_ORIGIN ?? 'https://recruitms.local',
+    corsOrigin: process.env.CORS_ORIGIN ?? 'http://chronicle.cp',
     postgres: {
         host: process.env.POSTGRES_HOST ?? 'localhost',
         port: Number(process.env.POSTGRES_PORT ?? 5432),
-        database: process.env.POSTGRES_DB ?? 'recruitms',
+        database: process.env.POSTGRES_DB ?? 'chronicle',
         user: process.env.POSTGRES_USER ?? 'postgres',
         password: process.env.POSTGRES_PASSWORD ?? 'postgres',
         max: Number(process.env.POSTGRES_MAX_POOL ?? 50),

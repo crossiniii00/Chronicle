@@ -29,6 +29,7 @@ export const publicApplicationSchema = z.object({
     
     // Biodata
     nick_name: z.string().optional(),
+    preferred_nickname: z.string().optional(),
     place_of_birth: z.string().optional(),
     sss_no: z.string().optional(),
     tin_no: z.string().optional(),

@@ -4,6 +4,9 @@ export interface DailyStats {
     date: string;
     total_count: number;
     endorsed_count: number;
+    endorsedOver_count: number;
+    endorsedOps_count: number;
+    passed_count: number;
     failed_count: number;
     interviews: InterviewRecord[];
 }
@@ -14,11 +17,12 @@ export interface InterviewRecord {
     position_title: string;
     room_name: string;
     queue_type: 'INITIAL' | 'FINAL';
-    status: 'PASSED' | 'ENDORSED' | 'FAILED' | 'PENDING' | 'SCREENED';
+    status: 'PASSED' | 'ENDORSED' | 'ENDORSED_OVER' | 'ENDORSED_OPS' | 'DROPPED' | 'FAILED' | 'PENDING' | 'SCREENED';
     created_at: string;
     completed_at?: string;
     interviewer_name: string;
     department: string;
+    raw_status?: string;
 }
 
 export async function fetchInterviewerStats(
@@ -32,7 +36,6 @@ export async function fetchInterviewerStats(
             ApplicationService.getAll() || []
         ]);
 
-        const currentStatusMap = new Map(allApps.map(app => [app.id, app.current_status]));
 
         const statsMap: Record<string, DailyStats> = {};
 
@@ -48,6 +51,9 @@ export async function fetchInterviewerStats(
                 date: dateStr,
                 total_count: 0,
                 endorsed_count: 0,
+                endorsedOver_count: 0,
+                endorsedOps_count: 0,
+                passed_count: 0,
                 failed_count: 0,
                 interviews: []
             };
@@ -58,85 +64,109 @@ export async function fetchInterviewerStats(
 
         const nameLower = interviewerName.toLowerCase();
 
-        // === SOURCE 1: Direct application records (Interview Form data) ===
-        // Match by interviewer_name or assigned_recruiter_name
+        // === SOURCE 1: Direct application records (Interview Form data & Tracker logic) ===
         allApps.forEach(app => {
-            const interviewerMatch = (app.interviewer_name || '').toLowerCase() === nameLower;
-            const recruiterMatch = (app.assigned_recruiter_name || '').toLowerCase() === nameLower;
-            if (!interviewerMatch && !recruiterMatch) return;
+            const isAssignedRecruiter = (app.assigned_recruiter_name || app.interviewer_name || '').toLowerCase() === nameLower;
+            const scheduledByThem = (app.scheduled_by || '').toLowerCase() === nameLower;
+            const appHistory = history.filter((h: any) => h.application_id === app.id && (h.changed_by_name || '').toLowerCase() === nameLower);
+            
+            // Check if they had interaction with this app
+            if (!isAssignedRecruiter && !scheduledByThem && appHistory.length === 0) return;
 
-            // Determine date from interview_completed_at only (do not fall back to updated_at/applied_at to avoid lumping imported data on the import date)
-            const activityDate = app.interview_completed_at;
+            // Figure out the date they last interacted
+            const activityDate = app.interview_completed_at || app.endorsement_meeting_date || app.created_at || (appHistory[0] && appHistory[0].changed_at);
             if (!activityDate) return;
             const dateStr = new Date(activityDate).toISOString().split('T')[0];
+            
             if (dateStr < startDate || dateStr > endDate) return;
             if (!statsMap[dateStr]) return;
-
             if (!dailyLatestMap[dateStr]) dailyLatestMap[dateStr] = {};
 
-            const statusUpper = (app.current_status || '').toUpperCase();
-            let workbenchStatus: InterviewRecord['status'] = 'PENDING';
+            const isFailedStatus = ['FAILED', 'REJECTED'].includes(app.current_status || '');
+            const isPassedStatus = [
+                'ASSESSMENT', 'FINAL_INTERVIEW', 'FINAL_INTERVIEW_SCHEDULED', 
+                'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'FOR_JOB_OFFER', 'FOR JOB OFFER',
+                'PASSED', 'HIRED', 'SENT_JO_AND_BGC', 'ACCEPTED_OFFER', 'CONTRACT_SENT', 'ENDORSED'
+            ].includes(app.current_status || '');
+            
+            const didDropInHistory = appHistory.some((h: any) => ['FAILED', 'REJECTED'].includes(h.to_status));
+            const didPassInHistory = appHistory.some((h: any) => ['ASSESSMENT', 'FINAL_INTERVIEW'].includes(h.to_status));
+            
+            const specStatus = String((app.pis as any)?.final_specific_status || (app.pis as any)?.specific_status || '').toLowerCase();
+            const isNoShowStatus = specStatus.includes('no show') || specStatus.includes('noshow');
+            const hasFinalResult = isPassedStatus || isFailedStatus || isNoShowStatus;
+            const isFullyScheduled = !!app.endorsement_meeting_date || hasFinalResult || app.current_status === 'REPROFILE_FINAL_INTERVIEW';
 
-            if (['PASSED', 'HIRED', 'HIRED_PROCESSED', 'ENDORSED', 'CONDITIONAL', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'FOR JOB OFFER', 'FOR_JOB_OFFER'].includes(statusUpper)) {
-                workbenchStatus = ['PASSED', 'HIRED', 'HIRED_PROCESSED'].includes(statusUpper) ? 'PASSED' : 'ENDORSED';
-            } else if (['REJECTED', 'FAILED', 'NOT_ELIGIBLE_FOR_REHIRE', 'WITHDRAWN'].includes(statusUpper)) {
-                workbenchStatus = 'FAILED';
-            } else if (app.interview_completed_at || app.interview_responses) {
-                workbenchStatus = 'SCREENED';
+            // calculate scheduledCount
+            const accountSchedules = app.metadata?.account_schedules || {};
+            let scheduledCount = 0;
+            for (const scheduler of Object.values(accountSchedules)) {
+                if ((scheduler as string).toLowerCase() === nameLower) scheduledCount++;
+            }
+            if (scheduledCount === 0 && scheduledByThem) scheduledCount = 1;
+
+            let added = false;
+
+            if (isAssignedRecruiter) {
+                let status: InterviewRecord['status'] = 'SCREENED';
+                if (isPassedStatus || didPassInHistory) {
+                    status = 'ENDORSED_OVER';
+                } else if (isFailedStatus || didDropInHistory) {
+                    status = 'DROPPED';
+                }
+                
+                dailyLatestMap[dateStr][`${app.id}-OVER`] = {
+                    id: `${app.id}-OVER`,
+                    applicant_name: app.applicant_name || 'Unknown',
+                    position_title: app.position_title || 'General',
+                    room_name: app.interview_room || 'Virtual Room',
+                    queue_type: 'INITIAL',
+                    status,
+                    created_at: activityDate,
+                    interviewer_name: interviewerName,
+                    department: app.department || 'General',
+                    raw_status: app.current_status || ''
+                };
+                added = true;
             }
 
-            dailyLatestMap[dateStr][app.id] = {
-                id: app.id,
-                applicant_name: app.applicant_name || 'Unknown',
-                position_title: app.position_title || 'General',
-                room_name: app.interview_room || 'Virtual Room',
-                queue_type: 'INITIAL',
-                status: workbenchStatus,
-                created_at: activityDate,
-                interviewer_name: app.interviewer_name || app.assigned_recruiter_name || interviewerName,
-                department: app.department || 'General'
-            };
-        });
-
-        // === SOURCE 2: Status history (supplement for records not caught by source 1) ===
-        const relevantHistory = history.filter((h: any) => {
-            const dateStr = h.changed_at.split('T')[0];
-            return h.changed_by_name === interviewerName &&
-                dateStr >= startDate &&
-                dateStr <= endDate;
-        });
-
-        relevantHistory.sort((a: any, b: any) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime());
-
-        relevantHistory.forEach((h: any) => {
-            const dateStr = h.changed_at.split('T')[0];
-            if (!statsMap[dateStr]) return;
-            if (!dailyLatestMap[dateStr]) dailyLatestMap[dateStr] = {};
-
-            // Skip if already captured from application source
-            if (dailyLatestMap[dateStr][h.application_id]) return;
-
-            const currentAppStatus = currentStatusMap.get(h.application_id);
-            const statusToCheck = currentAppStatus || h.to_status;
-
-            let workbenchStatus: InterviewRecord['status'] = 'PENDING';
-            if (['PASSED', 'HIRED', 'ENDORSED', 'CONDITIONAL', 'ACCEPTED_OFFER'].includes(statusToCheck)) {
-                workbenchStatus = ['PASSED', 'HIRED'].includes(statusToCheck) ? 'PASSED' : 'ENDORSED';
-            } else if (['REJECTED', 'FAILED', 'NOT_ELIGIBLE_FOR_REHIRE', 'WITHDRAWN'].includes(statusToCheck)) {
-                workbenchStatus = 'FAILED';
+            if (scheduledCount > 0 && isFullyScheduled) {
+                for (let i = 0; i < scheduledCount; i++) {
+                    dailyLatestMap[dateStr][`${app.id}-OPS-${i}`] = {
+                        id: `${app.id}-OPS-${i}`,
+                        applicant_name: app.applicant_name || 'Unknown',
+                        position_title: app.position_title || 'General',
+                        room_name: app.interview_room || 'Virtual Room',
+                        queue_type: 'INITIAL',
+                        status: 'ENDORSED_OPS',
+                        created_at: activityDate,
+                        interviewer_name: interviewerName,
+                        department: app.department || 'General',
+                        raw_status: app.current_status || ''
+                    };
+                    added = true;
+                }
             }
-
-            dailyLatestMap[dateStr][h.application_id] = {
-                id: h.id,
-                applicant_name: h.applicant_name,
-                position_title: h.position_title,
-                room_name: h.room_name || 'Virtual Room',
-                queue_type: 'INITIAL',
-                status: workbenchStatus,
-                created_at: h.changed_at,
-                interviewer_name: h.changed_by_name,
-                department: h.department || 'General'
-            };
+            
+            // If they interacted with it but it's neither of the above (just history)
+            if (!added && appHistory.length > 0) {
+                let status: InterviewRecord['status'] = 'SCREENED';
+                if (isPassedStatus || didPassInHistory) status = 'ENDORSED_OVER';
+                else if (isFailedStatus || didDropInHistory) status = 'DROPPED';
+                
+                dailyLatestMap[dateStr][`${app.id}-HIST`] = {
+                    id: `${app.id}-HIST`,
+                    applicant_name: app.applicant_name || 'Unknown',
+                    position_title: app.position_title || 'General',
+                    room_name: app.interview_room || 'Virtual Room',
+                    queue_type: 'INITIAL',
+                    status,
+                    created_at: activityDate,
+                    interviewer_name: interviewerName,
+                    department: app.department || 'General',
+                    raw_status: app.current_status || ''
+                };
+            }
         });
 
         // Populate statsMap from merged sources
@@ -145,12 +175,21 @@ export async function fetchInterviewerStats(
 
             applicantsOnDay.forEach(record => {
                 statsMap[dateStr].interviews.push(record);
-                statsMap[dateStr].total_count++;
+                
+                if (record.status !== 'ENDORSED_OPS') {
+                    statsMap[dateStr].total_count++;
+                }
 
-                if (['ENDORSED', 'PASSED'].includes(record.status)) {
-                    statsMap[dateStr].endorsed_count++;
-                } else if (record.status === 'FAILED') {
+                if (record.status === 'ENDORSED_OVER') {
+                    statsMap[dateStr].endorsedOver_count++;
+                } else if (record.status === 'ENDORSED_OPS') {
+                    statsMap[dateStr].endorsedOps_count++;
+                } else if (record.status === 'DROPPED' || record.status === 'FAILED') {
                     statsMap[dateStr].failed_count++;
+                } else if (record.status === 'PASSED') {
+                    statsMap[dateStr].passed_count++;
+                } else if (record.status === 'ENDORSED') {
+                    statsMap[dateStr].endorsed_count++;
                 }
             });
 

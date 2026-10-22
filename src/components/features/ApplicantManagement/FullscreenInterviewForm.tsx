@@ -13,6 +13,7 @@ interface FullscreenInterviewFormProps {
     currentResponses: Record<string, string>;
     onUpdateResponse: (qId: string, value: string) => void;
     onApply: () => void;
+    onSync?: () => void;
 }
 
 export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = ({
@@ -22,7 +23,8 @@ export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = (
     questions,
     currentResponses,
     onUpdateResponse,
-    onApply
+    onApply,
+    onSync
 }) => {
     const [localDraft, setLocalDraft] = useState<Record<string, string>>(currentResponses);
 
@@ -34,6 +36,7 @@ export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = (
             onUpdateResponse('pis_ops_validator_notes', localDraft.final_interview_notes);
         }
         onApply();
+        if (onSync) onSync();
     };
 
     return (
@@ -46,7 +49,7 @@ export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = (
         >
             <div className="flex flex-col h-full bg-[#f8f9fa] overflow-hidden">
                 {/* PIS-MATCHED HEADER */}
-                <div className="bg-white px-8 py-5 flex items-center justify-between shrink-0 border-b border-surface-200">
+                <div className="bg-white dark:bg-slate-900 px-8 py-5 flex items-center justify-between shrink-0 border-b border-surface-200">
                     <div className="flex items-center gap-5">
                         <div className="w-14 h-14 bg-primary-900 flex items-center justify-center text-white text-xl font-bold rounded-sm">
                             {applicant.applicant_name.charAt(0)}
@@ -86,7 +89,7 @@ export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = (
                 <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
                     
                     {/* SECTION: INTERVIEW DATA GRID */}
-                    <div className="bg-white border border-surface-200 rounded-sm shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-sm shadow-sm overflow-hidden">
                         <div className="bg-[#f0f6ff] px-6 py-3 flex items-center gap-3 border-b border-[#0078d4]/10">
                             <ClipboardList size={14} className="text-primary-600" />
                             <h3 className="text-[10px] font-bold text-primary-600 uppercase tracking-[0.15em]">INTERVIEW RESPONSES / Matrix Modules</h3>
@@ -110,7 +113,7 @@ export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = (
                     </div>
 
                     {/* SECTION: FINAL VERDICT */}
-                    <div className="bg-white border border-surface-200 rounded-sm shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-sm shadow-sm overflow-hidden">
                         <div className="bg-[#fffafa] px-6 py-3 flex items-center gap-3 border-b border-[#d13438]/10">
                             <ShieldCheck size={14} className="text-[#d13438]" />
                             <h3 className="text-[10px] font-bold text-[#d13438] uppercase tracking-[0.15em]">JUSTIFICATION / Final Intelligence</h3>
@@ -130,7 +133,7 @@ export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = (
                 </div>
 
                 {/* SIMPLE FOOTER */}
-                <div className="bg-white border-t border-surface-200 px-8 py-4 flex items-center justify-between shrink-0">
+                <div className="bg-white dark:bg-slate-900 border-t border-surface-200 px-8 py-4 flex items-center justify-between shrink-0">
                     <p className="text-[10px] font-medium text-surface-400 tracking-wider uppercase">RECRUITMS V1.0</p>
                     <div className="flex gap-3">
                         <button
@@ -141,7 +144,7 @@ export const FullscreenInterviewForm: React.FC<FullscreenInterviewFormProps> = (
                         </button>
                         <button
                             onClick={onClose}
-                            className="bg-white border border-surface-300 text-surface-700 px-10 py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-sm hover:bg-surface-50 transition-all"
+                            className="bg-white dark:bg-slate-900 border border-surface-300 text-surface-700 px-10 py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-sm hover:bg-surface-50 transition-all"
                         >
                             Close
                         </button>

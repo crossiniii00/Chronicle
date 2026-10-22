@@ -9,21 +9,25 @@ interface AccountAvatarProps {
 }
 
 export function AccountAvatar({ department, quota, size = 'md' }: AccountAvatarProps) {
-    const sizeClass = size === 'xl' ? 'w-16 h-16 rounded-xl' : size === 'lg' ? 'w-12 h-12 rounded-xl' : size === 'sm' ? 'w-10 h-10 rounded-lg' : 'w-10 h-10 rounded-md';
+    const sizeClass = size === 'xl' ? 'w-16 h-16 rounded-none' : size === 'lg' ? 'w-12 h-12 rounded-none' : size === 'sm' ? 'w-10 h-10 rounded-none' : 'w-10 h-10 rounded-none';
     const [imgError, setImgError] = useState(false);
 
-    const displayImage = !imgError && department.accountImageUrl ? department.accountImageUrl : department.accountImageData;
+    const resolvedUrl = department.accountImageUrl
+        ? (department.accountImageUrl.startsWith('/') ? `/api${department.accountImageUrl}` : department.accountImageUrl)
+        : null;
+
+    const displayImage = !imgError && resolvedUrl ? resolvedUrl : department.accountImageData;
 
     return (
         <div className={cn(
             sizeClass,
-            "flex items-center justify-center flex-shrink-0 overflow-hidden transition-all shadow-sm border border-surface-200 bg-white"
+            "flex items-center justify-center flex-shrink-0 overflow-hidden transition-all shadow-sm border border-surface-200 bg-white dark:bg-slate-900"
         )}>
             {displayImage ? (
-                <img 
-                    src={displayImage} 
-                    alt={department.name} 
-                    className="w-full h-full object-cover" 
+                <img
+                    src={displayImage}
+                    alt={department.name}
+                    className="w-full h-full object-cover"
                     onError={() => setImgError(true)}
                 />
             ) : (

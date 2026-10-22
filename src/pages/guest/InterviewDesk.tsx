@@ -1,22 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ApplicationService } from '@/services/ApplicationService';
+import { UserService } from '@/services/UserService';
 import { QueueService } from '@/services/QueueService';
 import { useToast } from '@/components/common/useToast';
 import { cn } from '@/utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Calendar,
-    History as HistoryIcon,
-    Search,
-    Filter,
-    ChevronDown,
-    Play,
-    UserCircle2,
-    X,
-    Send,
-    AlertCircle,
-    LayoutDashboard
+    Search, Calendar, Filter, ChevronDown, UserCircle2, UserX,
+    LayoutDashboard, X, AlertCircle, History as HistoryIcon,
+    Play, Send, Sparkles, HelpCircle, MousePointerClick, Info
 } from 'lucide-react';
 import type { ApplicationStatus, Application } from '@/types/application';
 import { useAuthStore } from '@/store/authStore';
@@ -25,7 +18,7 @@ import { InterviewSession } from '@/components/features/InterviewRooms/Interview
 import { GuestApplicantTable } from '@/components/features/ApplicantManagement/GuestApplicantTable';
 import { ReceiptModal } from '@/pages/recruiter/components/InterviewRoomsUI';
 import { FullscreenProfileView } from '@/components/features/ApplicantManagement/FullscreenProfileView';
-import { checkValidatorAssignment } from './dashboardUtils';
+import { checkValidatorAssignment, isMatchingAccount } from './dashboardUtils';
 import { useActiveAccountStore, parseAccounts } from '@/store/activeAccountStore';
 import { socketService } from '@/services/socketService';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
@@ -36,15 +29,19 @@ export function InterviewDesk() {
     const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { error, success } = useToast();
-    const [activeTab, setActiveTab] = useState<'desk' | 'records'>('desk');
+    const [activeTab, setActiveTab] = React.useState<'desk' | 'records' | 'noshow' | 'client'>('desk');
     const [activeSessionRoomId, setActiveSessionRoomId] = useState<string | null>(null);
+    const [activeSessionAppId, setActiveSessionAppId] = useState<string | null>(null);
 
     const [deskSearchTerm, setDeskSearchTerm] = useState('');
     const [recordsSearchTerm, setRecordsSearchTerm] = useState('');
-    const searchTerm = activeTab === 'desk' ? deskSearchTerm : recordsSearchTerm;
+    const [clientSearchTerm, setClientSearchTerm] = useState('');
+    const searchTerm = activeTab === 'desk' ? deskSearchTerm : (activeTab === 'client' ? clientSearchTerm : recordsSearchTerm);
     const setSearchTerm = (val: string) => {
         if (activeTab === 'desk') {
             setDeskSearchTerm(val);
+        } else if (activeTab === 'client') {
+            setClientSearchTerm(val);
         } else {
             setRecordsSearchTerm(val);
         }
@@ -53,14 +50,17 @@ export function InterviewDesk() {
     const [receiptData, setReceiptData] = useState<any | null>(null);
     const [selectedApplicantProfile, setSelectedApplicantProfile] = useState<Application | null>(null);
     const [roomSelectionApp, setRoomSelectionApp] = useState<Application | null>(null);
-    const [roomTypeTab, setRoomTypeTab] = useState<'onsite' | 'online'>('onsite');
+    const [roomTypeTab, setRoomTypeTab] = useState<'onsite' | 'online'>('online');
 
     const [deskStatusFilter, setDeskStatusFilter] = useState<'ALL' | 'HIRED' | 'PASSED' | 'FAILED' | 'PENDING'>('ALL');
     const [recordsStatusFilter, setRecordsStatusFilter] = useState<'ALL' | 'HIRED' | 'PASSED' | 'FAILED' | 'PENDING'>('ALL');
-    const statusFilter = activeTab === 'desk' ? deskStatusFilter : recordsStatusFilter;
+    const [clientStatusFilter, setClientStatusFilter] = useState<'ALL' | 'HIRED' | 'PASSED' | 'FAILED' | 'PENDING'>('ALL');
+    const statusFilter = activeTab === 'desk' ? deskStatusFilter : (activeTab === 'client' ? clientStatusFilter : recordsStatusFilter);
     const setStatusFilter = (val: 'ALL' | 'HIRED' | 'PASSED' | 'FAILED' | 'PENDING') => {
         if (activeTab === 'desk') {
             setDeskStatusFilter(val);
+        } else if (activeTab === 'client') {
+            setClientStatusFilter(val);
         } else {
             setRecordsStatusFilter(val);
         }
@@ -70,24 +70,33 @@ export function InterviewDesk() {
     const [rescheduleApp, setRescheduleApp] = useState<Application | null>(null);
     const [rescheduleReason, setRescheduleReason] = useState<string>('');
     const [scheduleWarningApp, setScheduleWarningApp] = useState<Application | null>(null);
-    const [validatorWarningApp, setValidatorWarningApp] = useState<Application | null>(null);
+
+    const [showOnlyMyEndorsements, setShowOnlyMyEndorsements] = useState(false);
+    const [showRoomTutorial, setShowRoomTutorial] = useState(true);
 
     // Sync state from location redirect
     React.useEffect(() => {
         if (location.state) {
-            const { activeTab: stateTab, statusFilter: stateFilter } = location.state as any;
+            const { activeTab: stateTab, statusFilter: stateFilter, autoOpenRoomId } = location.state as any;
             if (stateTab) {
                 setActiveTab(stateTab);
                 if (stateFilter) {
                     if (stateTab === 'desk') {
                         setDeskStatusFilter(stateFilter);
+                    } else if (stateTab === 'client') {
+                        setClientStatusFilter(stateFilter);
                     } else {
                         setRecordsStatusFilter(stateFilter);
                     }
                 }
             }
+            if (autoOpenRoomId) {
+                setActiveSessionRoomId(autoOpenRoomId);
+                // Clear the state so it doesn't keep reopening on refresh
+                navigate(location.pathname, { replace: true, state: {} });
+            }
         }
-    }, [location.state]);
+    }, [location.state, navigate]);
 
     const { user: authUser } = useAuthStore();
     const { rooms, loadRooms } = useRoomStore();
@@ -98,15 +107,31 @@ export function InterviewDesk() {
     const resolvedActiveAccount = (activeAccount && accounts.map(a => a.toUpperCase()).includes(activeAccount.toUpperCase()))
         ? activeAccount
         : (accounts[0] || 'DOORDASH');
+    const [allUsers, setAllUsers] = useState<any[]>([]);
 
     const loadData = React.useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
-            const [fetchedApps] = await Promise.all([
+            const [fetchedApps, userList] = await Promise.all([
                 ApplicationService.getAll(),
+                UserService.getAll().catch(() => []),
                 loadRooms(true)
             ]);
-            setApplications(fetchedApps);
+
+            setAllUsers(Array.isArray(userList) ? userList : []);
+
+            const uniqueMap = new Map();
+            (fetchedApps || []).forEach((app: any) => {
+                if (!app) return;
+                const key = String(app.applicant_email || app.applicant_name || app.id || Math.random()).trim().toLowerCase();
+                const existing = uniqueMap.get(key);
+                const appTime = app.updated_at ? new Date(app.updated_at).getTime() : 0;
+                const existingTime = (existing && existing.updated_at) ? new Date(existing.updated_at).getTime() : 0;
+                if (!existing || appTime > existingTime) {
+                    uniqueMap.set(key, app);
+                }
+            });
+            setApplications(Array.from(uniqueMap.values()));
         } catch {
             error('Protocol Error', 'Failed to synchronize with central registry.');
         } finally {
@@ -114,7 +139,7 @@ export function InterviewDesk() {
         }
     }, [error, loadRooms]);
 
-    useVisibilityPolling(() => void loadData(true), 60000, [loadData]);
+    useVisibilityPolling(() => void loadData(true), 300000, [loadData]);
 
     React.useEffect(() => {
         const socket = socketService.getSocket();
@@ -128,18 +153,34 @@ export function InterviewDesk() {
         setShowStatusDropdown(false);
     }, [activeTab]);
 
-    const isMatchingAccount = (app: Application) => {
-        const candidateAccount = (app.endorsement_account || app.department || '').trim().toUpperCase();
-        if (!candidateAccount) return false;
-        
-        // Split candidate's department just in case it's a comma-separated list
-        const candidateDepts = candidateAccount.split(',').map(s => s.trim().toUpperCase());
-        
-        return candidateDepts.includes(resolvedActiveAccount.trim().toUpperCase());
+
+    const isCandidateEndorsedToOpsValidator = (app: Application): boolean => {
+        const metadata = app.metadata || {};
+        const meetingDate = (app.endorsement_meeting_date || metadata.endorsement_meeting_date || (app.pis as any)?.endorsement_meeting_date || '').trim();
+        const isScheduled = Boolean(meetingDate && meetingDate !== '—' && meetingDate !== 'Pending' && meetingDate !== '');
+
+        const isEndorsedStatus = [
+            'FINAL_INTERVIEW_SCHEDULED', 
+            'FOR_OPS_VAL_SCHEDULING', 
+            'ENDORSED'
+        ].includes(app.current_status || '');
+
+        if (!isScheduled && !isEndorsedStatus) return false;
+
+        return isMatchingAccount(app, resolvedActiveAccount);
     };
 
-    const isAssignedToCurrentValidator = (app: Application) => 
-        isActuallyAssignedValidator(app) && isMatchingAccount(app);
+    const isAssignedToCurrentValidator = (app: Application) => {
+        if (!isMatchingAccount(app, resolvedActiveAccount)) {
+            return false;
+        }
+
+        if (showOnlyMyEndorsements) {
+            return isActuallyAssignedValidator(app);
+        }
+
+        return true;
+    };
 
     const isActuallyAssignedValidator = (app: Application) => {
         if (authUser?.role === 'admin') return true;
@@ -147,81 +188,183 @@ export function InterviewDesk() {
         const assignedId = app.assigned_ops_validator_id || metadata.assigned_ops_validator_id;
         const assignedName = (app.assigned_ops_validator_name || metadata.assigned_ops_validator_name || '').trim().toLowerCase();
         const assignedEmail = (app.pis?.ops_validator_email || metadata.ops_validator_email || '').trim().toLowerCase();
-        
+
         const currentUserId = authUser?.id;
         const currentUserName = (authUser?.full_name || '').trim().toLowerCase();
         const currentUserEmail = (authUser?.email || '').trim().toLowerCase();
 
         return Boolean(
             (assignedId && assignedId === currentUserId) ||
-            (assignedName && assignedName === currentUserName) ||
-            (assignedEmail && assignedEmail === currentUserEmail)
+            (assignedName && currentUserName && (assignedName.includes(currentUserName) || currentUserName.includes(assignedName))) ||
+            (assignedEmail && currentUserEmail && assignedEmail === currentUserEmail)
         );
     };
 
-    const activeCandidates = applications.filter(a => {
-        const isFailedForActiveAccount = a.metadata?.failed_accounts?.some(
-            (f: string) => f.trim().toLowerCase() === resolvedActiveAccount.trim().toLowerCase()
+    const isCandidateNoShow = (a: Application): boolean => {
+        const rawStatus = String(a.final_verdict || a.current_status || '').toUpperCase().trim().replace(/_/g, ' ');
+        const specStatus = String((a as any).final_specific_status || a.pis?.final_specific_status || a.metadata?.final_specific_status || a.metadata?.['Specific Status'] || '').toUpperCase().trim();
+        const ovStatus = String(a.metadata?.ops_validator_status || a.pis?.ops_validator_status || (a as any).ops_validator_status || '').toUpperCase().trim();
+        const overallStatus = String(a.overall_status || '').toUpperCase().trim();
+
+        return (
+            rawStatus.includes('NO SHOW') ||
+            specStatus.includes('NO SHOW') ||
+            ovStatus.includes('NO SHOW') ||
+            overallStatus.includes('NO SHOW')
         );
-        if (isFailedForActiveAccount) return false;
+    };
 
-        return (a.current_status === 'FINAL_INTERVIEW_SCHEDULED' || (a.current_status === 'QUEUE_ASSIGNED' && a.queue_type === 'FINAL') || a.current_status === 'INTERVIEW_IN_PROGRESS' || a.current_status === 'ENDORSED') &&
-            isAssignedToCurrentValidator(a);
-    });
+    const getOpsValSessionStatus = (a: Application) => {
+        if (isCandidateNoShow(a)) return 'NO_SHOW';
 
-    const pastCandidates = applications.filter(a => {
+        const metadata = a.metadata || {};
+        const ovStatus = String(metadata.ops_validator_status || a.pis?.ops_validator_status || (a as any).ops_validator_status || '').toUpperCase().trim();
+        const specStatus = String((a as any).final_specific_status || a.pis?.final_specific_status || metadata.final_specific_status || '').toUpperCase().trim();
+
+        const currentStatus = String(a.current_status || '').toUpperCase().trim();
+        
+        // 1. If candidate is explicitly hired/passed/failed/withdrawn overall, they are no longer pending an interview
+        if (['PASSED', 'FOR_JOB_OFFER', 'FOR JOB OFFER', 'HIRED', 'HIRED_PROCESSED', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'CONTRACT SENT', 'FOR PAN', 'FOR_PAN'].includes(currentStatus)) {
+            return 'PASSED';
+        }
+        if (['FAILED', 'REJECTED', 'DISQUALIFIED', 'WITHDRAWN'].includes(currentStatus)) {
+            return 'FAILED';
+        }
+
+        // 2. Explicit Ops Validator Verdict Check
+        // Note: we strictly DO NOT check `fiResult` or `final_verdict` here, as those fields are often populated by the earlier Recruitment interview stage, which would cause incoming scheduled candidates to be prematurely evaluated as 'PASSED'.
+        const isExplicitPassed = (
+            ovStatus === 'PASSED' ||
+            specStatus.includes('OV - PASSED') ||
+            specStatus.includes('OPS VALIDATOR PASSED')
+        );
+        if (isExplicitPassed) return 'PASSED';
+
+        const isExplicitFailed = (
+            ovStatus === 'FAILED' ||
+            specStatus.includes('OV - FAILED') ||
+            specStatus.includes('OPS VALIDATOR FAILED')
+        );
+        if (isExplicitFailed) return 'FAILED';
+
+        // 3. If candidate is scheduled/assigned for an interview with no explicit verdict yet -> PENDING
+        const isScheduledSession = Boolean(
+            a.current_status === 'FINAL_INTERVIEW_SCHEDULED' ||
+            a.recruiter_s_scheduling_status === 'SCHEDULED' ||
+            (a.endorsement_meeting_date && a.endorsement_meeting_date !== '—') ||
+            a.assigned_ops_validator_name ||
+            a.assigned_ops_validator_id
+        );
+        if (isScheduledSession) {
+            return 'PENDING';
+        }
+
+        return 'PENDING';
+    };
+
+    const activeCandidates = React.useMemo(() => applications.filter(a => {
+        if (!isCandidateEndorsedToOpsValidator(a)) return false;
+        if (!isAssignedToCurrentValidator(a)) return false;
+        if (isCandidateNoShow(a)) return false;
+
+        const statusUpper = String(a.current_status || '').toUpperCase().trim();
+        if (['CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW'].includes(statusUpper)) return false;
+
+        const sessionStatus = getOpsValSessionStatus(a);
+        return sessionStatus === 'PENDING';
+    }).sort((a, b) => {
+        const getDateVal = (app: any) => {
+            const dateStr = app.metadata?.reschedule_date || app.endorsement_meeting_date || app.metadata?.endorsement_meeting_date || app.updated_at;
+            const parsed = new Date(dateStr).getTime();
+            return isNaN(parsed) ? new Date(app.updated_at).getTime() : parsed;
+        };
+        const now = Date.now();
+        return Math.abs(getDateVal(a) - now) - Math.abs(getDateVal(b) - now);
+    }), [applications, resolvedActiveAccount, showOnlyMyEndorsements, authUser]);
+
+    const noShowCandidates = React.useMemo(() => applications.filter(a => {
+        if (!isAssignedToCurrentValidator(a)) return false;
+        return isCandidateNoShow(a);
+    }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()), [applications, resolvedActiveAccount, showOnlyMyEndorsements, authUser]);
+
+    const pastCandidates = React.useMemo(() => applications.filter(a => {
+        if (!isAssignedToCurrentValidator(a)) return false;
+        if (isCandidateNoShow(a)) return false;
+
+        const statusUpper = String(a.current_status || '').toUpperCase().trim();
+        if (['CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW'].includes(statusUpper)) return false;
+
+        const metadata = a.metadata || {};
+        const hasAssignedOpsValidator = Boolean(a.assigned_ops_validator_name || metadata.assigned_ops_validator_name || a.assigned_ops_validator_id);
+        const notes = String(a.pis?.ops_validator_notes || metadata.ops_validator_notes || '').toUpperCase();
+        const updater = String(a.pis?.last_updated_by || metadata.last_updated_by || '').toUpperCase();
+        const isForced = notes.includes('FORCE PASS') || notes.includes('FORCE FAIL') || updater.includes('FORCE PASS') || updater.includes('FORCE FAIL');
+
+        // The user explicitly stated: if they don't have the symbol (forced pass/fail) AND have no assigned ops validator, they should NOT be in the records.
+        if (!hasAssignedOpsValidator && !isForced) {
+            return false;
+        }
+
+        const sessionStatus = getOpsValSessionStatus(a);
+        if (sessionStatus !== 'PASSED' && sessionStatus !== 'FAILED') return false;
+
+        return true;
+    }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()), [applications, resolvedActiveAccount, showOnlyMyEndorsements, authUser]);
+
+    const clientCandidates = React.useMemo(() => applications.filter(a => {
         const statusUpper = String(a.current_status || '').toUpperCase();
-        const isFailedForActiveAccount = a.metadata?.failed_accounts?.some(
-            (f: string) => f.trim().toLowerCase() === resolvedActiveAccount.trim().toLowerCase()
-        );
-        const isPast = [
-            'PASSED', 'FAILED', 'HIRED', 'HIRED_PROCESSED', 'REJECTED', 
-            'FINAL_VERDICT', 'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 
-            'FOR_JOB_OFFER', 'FOR JOB OFFER', 'FOR_PAN', 'FOR PAN', 
-            'CONTRACT_SENT', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'WITHDRAWN', 
-            'DISQUALIFIED', 'NOT_ELIGIBLE_FOR_REHIRE'
-        ].includes(statusUpper);
-        
+        const isClientPhase = ['CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW'].includes(statusUpper);
         const isAssigned = isAssignedToCurrentValidator(a);
-        const isMatchingAcc = isMatchingAccount(a);
-        return isPast && (isAssigned || (isFailedForActiveAccount && isMatchingAcc));
-    }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        return isClientPhase && isAssigned;
+    }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()), [applications, resolvedActiveAccount, showOnlyMyEndorsements, authUser]);
 
-    const filteredList = (activeTab === 'desk' ? activeCandidates : pastCandidates).filter(c => {
-        const matchesSearch = c.applicant_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (c.applicant_id || c.id).toLowerCase().includes(searchTerm.toLowerCase());
-            
+    const filteredList = React.useMemo(() => {
+        return (activeTab === 'desk' ? activeCandidates : (activeTab === 'records' ? pastCandidates : (activeTab === 'client' ? clientCandidates : noShowCandidates))).filter(c => {
+        const searchTokens = searchTerm.toLowerCase().split(' ').filter(Boolean);
+        const nameLower = (c.applicant_name || '').toLowerCase();
+        const idLower = (c.applicant_id || c.id || '').toLowerCase();
+        const matchesSearch = searchTokens.length === 0 || searchTokens.every(token => nameLower.includes(token) || idLower.includes(token));
+
         if (!matchesSearch) return false;
+        if (showOnlyMyEndorsements && !isActuallyAssignedValidator(c)) return false;
         if (statusFilter === 'ALL') return true;
-        
+
         const status = c.final_verdict || c.current_status;
-        const statusUpper = String(status || '').toUpperCase();
-        
-        const isHired = ['HIRED', 'HIRED_PROCESSED', 'ACCEPTED_OFFER', 'ACCEPTED OFFER'].includes(statusUpper);
-        const isPassed = [
-            'PASSED', 'CLIENT_ASSESSMENT', 
-            'CLIENT_INTERVIEW', 'FINAL_VERDICT', 'FOR_JOB_OFFER', 'FOR JOB OFFER', 
-            'CONTRACT_SENT', 'FOR_PAN'
-        ].includes(statusUpper) && !isHired;
-        
+        const statusUpper = String(status || '').toUpperCase().trim();
+        const specUpper = String((c as any).final_specific_status || c.pis?.final_specific_status || c.metadata?.final_specific_status || c.metadata?.['Specific Status'] || '').toUpperCase().trim();
+        const finalResultUpper = String(c.metadata?.final_interview_result || c.pis?.final_interview_result || '').toUpperCase().trim();
+
+        const isHired = ['HIRED', 'HIRED_PROCESSED', 'HIRED PROCESSED', 'ACCEPTED_OFFER', 'ACCEPTED OFFER'].includes(statusUpper);
+        const isPassed = ([
+            'PASSED', 'CLIENT_ASSESSMENT', 'CLIENT ASSESSMENT',
+            'CLIENT_INTERVIEW', 'CLIENT INTERVIEW', 'FINAL_VERDICT', 'FOR_JOB_OFFER', 'FOR JOB OFFER',
+            'CONTRACT_SENT', 'CONTRACT SENT', 'FOR_PAN', 'FOR PAN', 'CONFIRMED_TRAINING', 'CONFIRMED TRAINING'
+        ].includes(statusUpper) || finalResultUpper === 'PASSED' || specUpper.includes('OV - PASSED') || specUpper.includes('OPS VALIDATOR PASSED') || specUpper.includes('FINAL INTERVIEW PASSED') || specUpper.includes('RECRUITMENT INTERVIEW - PASSED') || specUpper.includes('PASSED')) && !isHired;
+
         const targetAcc = (c.endorsement_account || c.department || '').trim().toLowerCase();
-        const isFailed = [
-            'FAILED', 'REJECTED', 'DISQUALIFIED', 'WITHDRAWN', 
-            'WITHDRAWN BY APPLICANT', 'NOT_ELIGIBLE_FOR_REHIRE'
-        ].includes(statusUpper) || c.metadata?.failed_accounts?.some(
+        const isFailed = ['FAILED', 'REJECTED', 'DISQUALIFIED', 'WITHDRAWN', 'WITHDRAWN BY APPLICANT', 'NOT ELIGIBLE FOR REHIRE', 'NOT_ELIGIBLE_FOR_REHIRE'].includes(statusUpper) || finalResultUpper === 'FAILED' || specUpper.includes('OV - FAILED') || specUpper.includes('FAILED') || c.metadata?.failed_accounts?.some(
             (f: string) => f.trim().toLowerCase() === targetAcc
         );
-        
+
         if (statusFilter === 'HIRED') return isHired;
         if (statusFilter === 'PASSED') return isPassed;
         if (statusFilter === 'FAILED') return isFailed;
         if (statusFilter === 'PENDING') return !isPassed && !isFailed && !isHired;
-        
+
         return true;
     });
+    }, [activeTab, activeCandidates, pastCandidates, clientCandidates, noShowCandidates, searchTerm, showOnlyMyEndorsements, statusFilter, authUser, resolvedActiveAccount]);
 
     const handleInitiate = async (app: Application) => {
-        setRoomTypeTab('onsite');
+        const appDept = (app.endorsement_account || app.department || '').toUpperCase();
+        const userDept = (authUser?.department || '').toUpperCase();
+        const mode = (app.metadata?.interview_mode || (app as any).interview_mode || '').toUpperCase();
+        const isAbbott = appDept.includes('ABBOTT') || userDept.includes('ABBOTT');
+        if (isAbbott || mode === 'ON-SITE' || mode === 'ONSITE') {
+            setRoomTypeTab('onsite');
+        } else {
+            setRoomTypeTab('online');
+        }
         setRoomSelectionApp(app);
     };
 
@@ -231,19 +374,30 @@ export function InterviewDesk() {
         if (isNaN(date.getTime())) return false;
         const today = new Date();
         return date.getFullYear() === today.getFullYear() &&
-               date.getMonth() === today.getMonth() &&
-               date.getDate() === today.getDate();
+            date.getMonth() === today.getMonth() &&
+            date.getDate() === today.getDate();
     };
 
     const handleRequestReschedule = async (app: Application, reason: string) => {
         try {
             setIsLoading(true);
+            const isNoShowReason = reason.toLowerCase().includes('no-show') || reason.toLowerCase().includes('no show');
+            const targetStatus = isNoShowReason ? 'RESCHEDULED' : 'FINAL_INTERVIEW_SCHEDULED';
+            const specStatus = isNoShowReason ? 'OV - No Show' : 'OV - Reschedule';
+            const opsValStatus = isNoShowReason ? 'No Show' : (app.metadata?.ops_validator_status || app.pis?.ops_validator_status || '');
+
             const patch: any = {
-                overall_status: 'OPEN',
-                final_specific_status: 'OV - Reschedule',
+                overall_status: isNoShowReason ? 'NO_SHOW' : 'OPEN',
+                final_specific_status: specStatus,
+                metadata: {
+                    ...(app.metadata || {}),
+                    ops_validator_status: opsValStatus,
+                    rescheduled_from_status: app.current_status
+                },
                 pis: {
                     ...(app.pis || {}),
-                    final_specific_status: 'OV - Reschedule',
+                    final_specific_status: specStatus,
+                    ops_validator_status: opsValStatus,
                     ops_validator_notes: reason || 'Reschedule requested by validator.'
                 }
             };
@@ -251,13 +405,13 @@ export function InterviewDesk() {
             await ApplicationService.updateStatus({
                 id: app.id,
                 fromStatus: app.current_status,
-                toStatus: 'FINAL_INTERVIEW_SCHEDULED' as ApplicationStatus,
+                toStatus: targetStatus as ApplicationStatus,
                 changedByName: authUser?.full_name || 'OPS Validator',
                 reason: reason || 'Validator requested interview reschedule.',
                 patch
             });
 
-            success('Reschedule Requested', `${app.applicant_name} status updated to OV - Reschedule.`);
+            success('Reschedule Requested', `${app.applicant_name} status updated to ${specStatus}.`);
             setRescheduleApp(null);
             setRescheduleReason('');
             void loadData(true);
@@ -268,64 +422,151 @@ export function InterviewDesk() {
         }
     };
 
-    const handleCallWithRoom = async (app: Application, room: any) => {
-        try {
-            setIsLoading(true);
-            // 1. Update the room to occupied
-            await useRoomStore.getState().updateRoom(room.id, {
-                status: 'OCCUPIED',
-                current_application_id: app.id,
-                current_applicant_name: app.applicant_name,
-                occupied_since: new Date().toISOString()
-            });
+    const handleCallWithRoom = (app: Application, room: any) => {
+        // Optimistically open the session UI instantly
+        setActiveSessionRoomId(room.id);
+        setActiveSessionAppId(app.id);
+        setRoomSelectionApp(null);
 
-            // 2. Create queue entry for FINAL stage
-            const queueEntry = await QueueService.assignQueue({
-                applicationId: app.id,
-                applicantName: app.applicant_name,
-                queueType: 'FINAL',
-                interviewerId: authUser?.id,
-                interviewerName: authUser?.full_name
-            });
+        // Run the backend updates asynchronously in the background
+        const runUpdates = async () => {
+            try {
+                setIsLoading(true);
+                // 1. Update the room to occupied
+                await useRoomStore.getState().updateRoom(room.id, {
+                    status: 'OCCUPIED',
+                    current_application_id: app.id,
+                    current_applicant_name: app.applicant_name,
+                    occupied_since: new Date().toISOString()
+                });
 
-            // 3. Immediately set the queue entry to CALLED with the room name
-            await QueueService.update(queueEntry.id, {
-                status: 'CALLED',
-                called_at: new Date().toISOString(),
-                assigned_room_name: room.room_name
-            });
+                // 2. Create queue entry for FINAL stage
+                const queueEntry = await QueueService.assignQueue({
+                    applicationId: app.id,
+                    applicantName: app.applicant_name,
+                    queueType: 'FINAL',
+                    interviewerId: authUser?.id,
+                    interviewerName: authUser?.full_name
+                });
 
-            // 4. Update the application status to INTERVIEW_IN_PROGRESS
-            await ApplicationService.updateStatus({
-                id: app.id,
-                fromStatus: app.current_status,
-                toStatus: 'INTERVIEW_IN_PROGRESS',
-                changedByName: authUser?.full_name || 'OPS Validator',
-                reason: `Interview initiated by validator in Room ${room.room_name}`,
-                patch: {
-                    metadata: {
-                        ...(app.metadata || {}),
-                        active_interview_type: 'FINAL'
-                    }
-                }
-            });
+                // 3. Immediately set the queue entry to CALLED with the room name
+                await QueueService.update(queueEntry.id, {
+                    status: 'CALLED',
+                    called_at: new Date().toISOString(),
+                    assigned_room_name: room.room_name
+                });
 
-            success('Call Initiated', `${app.applicant_name} has been queued and called to Room ${room.room_name}.`);
-            
-            // 5. Open the interview session workbench
-            setActiveSessionRoomId(room.id);
-            
-            // Refresh data
-            void loadData(true);
-        } catch {
-            error('Call Failed', 'Failed to properly initialize room or queue.');
-        } finally {
-            setIsLoading(false);
-        }
+                // 4. Update the application status to INTERVIEW_IN_PROGRESS
+                await ApplicationService.updateStatus({
+                    id: app.id,
+                    fromStatus: app.current_status,
+                    toStatus: 'INTERVIEW_IN_PROGRESS',
+                    changedByName: authUser?.full_name || 'OPS Validator',
+                    reason: `Interview initiated by validator in Room ${room.room_name}`,
+                    patch: {
+                        overall_status: 'OPEN',
+                        final_specific_status: 'OV - Interview In Progress',
+                        metadata: {
+                            ...(app.metadata || {}),
+                            active_interview_type: 'FINAL',
+                            active_ops_validator_name: authUser?.full_name || 'OPS Validator',
+                            ops_validator_status: 'IN_PROGRESS',
+                            'Specific Status': 'OV - Interview In Progress',
+                            final_specific_status: 'OV - Interview In Progress'
+                        },
+                        pis: {
+                            ...(app.pis || {}),
+                            ops_validator_status: 'IN_PROGRESS',
+                            final_specific_status: 'OV - Interview In Progress'
+                        }
+                    } as any
+                });
+
+                success('Call Initiated', `${app.applicant_name} has been queued and called to Room ${room.room_name}.`);
+
+                // Refresh data
+                void loadData(true);
+            } catch {
+                error('Call Failed', 'Failed to properly initialize room or queue.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        void runUpdates();
     };
 
     const getAssignedRoom = (appId: string) => {
         return rooms.find(r => r.current_application_id === appId);
+    };
+
+    const handleUpdateCandidateStatus = async (app: Application, newStatus: string) => {
+        try {
+            setIsLoading(true);
+            const isClientPhase = ['CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW'].includes(String(app.current_status || '').toUpperCase());
+
+            let currentStatus = newStatus;
+            let specStatus = isClientPhase ? 'Client Interview Pending' : 'OV - Pending';
+            let ovStatus = isClientPhase ? String(app.metadata?.ops_validator_status || app.pis?.ops_validator_status || 'PASSED') : newStatus;
+            let overallStatus = 'OPEN';
+            let finalVerdict = newStatus;
+
+            if (newStatus === 'PASSED') {
+                currentStatus = 'PASSED';
+                specStatus = isClientPhase ? 'Client Interview Passed' : 'OV - Passed';
+                if (!isClientPhase) ovStatus = 'PASSED';
+                overallStatus = 'PASSED';
+                finalVerdict = 'PASSED';
+            } else if (newStatus === 'FAILED') {
+                currentStatus = 'FAILED';
+                specStatus = isClientPhase ? 'Client Interview Failed' : 'OV - Failed';
+                if (!isClientPhase) ovStatus = 'FAILED';
+                overallStatus = 'FAILED';
+                finalVerdict = 'FAILED';
+            } else if (newStatus === 'NO_SHOW') {
+                currentStatus = 'RESCHEDULED';
+                specStatus = isClientPhase ? 'Client Interview No Show' : 'OV - No Show';
+                if (!isClientPhase) ovStatus = 'No Show';
+                overallStatus = 'NO_SHOW';
+                finalVerdict = 'NO_SHOW';
+            }
+
+            const patchObj: any = {
+                overall_status: overallStatus,
+                final_verdict: finalVerdict,
+                final_specific_status: specStatus,
+                metadata: {
+                    ...(app.metadata || {}),
+                    'Specific Status': specStatus,
+                    final_specific_status: specStatus
+                },
+                pis: {
+                    ...(app.pis || {}),
+                    final_specific_status: specStatus
+                }
+            };
+
+            if (!isClientPhase) {
+                patchObj.metadata.ops_validator_status = ovStatus;
+                patchObj.pis.ops_validator_status = ovStatus;
+            }
+
+            await ApplicationService.updateStatus({
+                id: app.id,
+                fromStatus: app.current_status,
+                toStatus: currentStatus as ApplicationStatus,
+                changedByName: authUser?.full_name || 'OPS Validator',
+                reason: `Status manually updated to ${newStatus} in Ops Validator ${isClientPhase ? 'Client Candidates' : 'Records'}`,
+                patch: patchObj
+            });
+
+            success('Status Updated', `${app.applicant_name}'s status updated to ${newStatus === 'NO_SHOW' ? 'No show' : (newStatus === 'PASSED' ? 'Passed' : 'Failed')}.`);
+            void loadData(true);
+        } catch {
+            error('Update Failed', 'Failed to update candidate status.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     if (isLoading && applications.length === 0) {
@@ -340,7 +581,7 @@ export function InterviewDesk() {
     return (
         <div className="w-full flex flex-col h-full bg-[#f5f6f8] overflow-hidden p-4 gap-4">
             {/* --- HEADER (Application Management Style) --- */}
-            <div className="bg-white border border-[#edebe9] rounded-sm shadow-sm relative">
+            <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-sm relative">
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 z-10">
                     <button
                         onClick={() => navigate('/queue-display')}
@@ -449,11 +690,93 @@ export function InterviewDesk() {
                             />
                         )}
                     </button>
+
+                    <button
+                        onClick={() => setActiveTab('noshow')}
+                        className={cn(
+                            "group flex items-center gap-2.5 px-1 py-4 text-[14px] font-medium transition-colors whitespace-nowrap relative",
+                            activeTab === 'noshow' ? "text-surface-900" : "text-surface-500 hover:text-surface-800"
+                        )}
+                    >
+                        <motion.span
+                            className="inline-flex shrink-0"
+                            animate={activeTab === 'noshow' ? { x: [-2, 2, -2, 2, 0], transition: { duration: 0.4 } } : { x: 0 }}
+                        >
+                            <UserX
+                                size={15}
+                                className={cn(
+                                    "transition-colors duration-200",
+                                    activeTab === 'noshow' ? "text-rose-600" : "text-surface-400 group-hover:text-rose-500"
+                                )}
+                            />
+                        </motion.span>
+                        <span className={cn("transition-colors", activeTab === 'noshow' && "text-surface-900")}>Interview No Show</span>
+                        <span
+                            className={cn(
+                                "min-w-[22px] h-[22px] px-2 text-[11px] font-semibold rounded-full flex items-center justify-center transition-colors shrink-0 tabular-nums",
+                                activeTab === 'noshow'
+                                    ? "bg-rose-100 text-rose-600"
+                                    : noShowCandidates.length > 0
+                                        ? "bg-rose-50 text-rose-500"
+                                        : "bg-surface-100 text-surface-500"
+                            )}
+                        >
+                            {noShowCandidates.length}
+                        </span>
+                        {activeTab === 'noshow' && (
+                            <motion.span
+                                layoutId="tab-underline-guest"
+                                className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-rose-500"
+                                transition={{ type: 'spring', stiffness: 500, damping: 18, mass: 0.6 }}
+                            />
+                        )}
+                    </button>
+
+                    <button
+                        onClick={() => setActiveTab('client')}
+                        className={cn(
+                            "group flex items-center gap-2.5 px-1 py-4 text-[14px] font-medium transition-colors whitespace-nowrap relative",
+                            activeTab === 'client' ? "text-surface-900" : "text-surface-500 hover:text-surface-800"
+                        )}
+                    >
+                        <motion.span
+                            className="inline-flex shrink-0"
+                            animate={activeTab === 'client' ? { scale: [1, 1.15, 1], transition: { repeat: Infinity, duration: 1.4, ease: 'easeInOut' } } : { scale: 1 }}
+                        >
+                            <UserCircle2
+                                size={15}
+                                className={cn(
+                                    "transition-colors duration-200",
+                                    activeTab === 'client' ? "text-purple-600" : "text-surface-400 group-hover:text-purple-500"
+                                )}
+                            />
+                        </motion.span>
+                        <span className={cn("transition-colors", activeTab === 'client' && "text-surface-900")}>For Client Candidates</span>
+                        <span
+                            className={cn(
+                                "min-w-[22px] h-[22px] px-2 text-[11px] font-semibold rounded-full flex items-center justify-center transition-colors shrink-0 tabular-nums",
+                                activeTab === 'client'
+                                    ? "bg-purple-100 text-purple-600"
+                                    : clientCandidates.length > 0
+                                        ? "bg-purple-50 text-purple-500"
+                                        : "bg-surface-100 text-surface-500"
+                            )}
+                        >
+                            {clientCandidates.length}
+                        </span>
+                        {activeTab === 'client' && (
+                            <motion.span
+                                layoutId="tab-underline-guest"
+                                className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500"
+                                transition={{ type: 'spring', stiffness: 500, damping: 18, mass: 0.6 }}
+                            />
+                        )}
+                    </button>
                 </div>
             </div>
 
             {/* --- FILTERS & CONTROLS --- */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center bg-white p-3 border border-surface-200 rounded-sm shadow-sm shrink-0">
+            <div className="flex flex-col sm:flex-row gap-3 items-center bg-white dark:bg-slate-900 p-3 border border-surface-200 rounded-sm shadow-sm shrink-0">
                 <div className="flex-1 w-full relative group">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 group-focus-within:text-[#0078d4] transition-colors" />
                     <input
@@ -466,26 +789,39 @@ export function InterviewDesk() {
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end relative">
-                    <button 
+                    <button
+                        onClick={() => setShowOnlyMyEndorsements(!showOnlyMyEndorsements)}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-1.5 border text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all select-none",
+                            showOnlyMyEndorsements
+                                ? "bg-blue-50 border-blue-500 text-blue-700 shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+                                : "bg-white dark:bg-slate-900 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                        )}
+                    >
+                        <UserCircle2 size={14} className={showOnlyMyEndorsements ? "text-blue-600 animate-pulse" : "text-blue-500"} />
+                        My Endorsements
+                    </button>
+
+                    <button
                         onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                        className="flex items-center gap-2 px-4 py-1.5 bg-white border border-surface-200 text-[10px] font-bold uppercase tracking-wider text-surface-900 rounded-sm hover:bg-surface-50 transition-all select-none"
+                        className="flex items-center gap-2 px-4 py-1.5 bg-white dark:bg-slate-900 border border-surface-200 text-[10px] font-bold uppercase tracking-wider text-surface-900 rounded-sm hover:bg-surface-50 transition-all select-none"
                     >
                         <Filter size={14} className="text-surface-400" />
-                        {statusFilter === 'ALL' ? 'All Statuses' : 
-                         statusFilter === 'HIRED' ? 'Hired' :
-                         statusFilter === 'PASSED' ? 'Passed' : 
-                         statusFilter === 'FAILED' ? 'Failed' : 'Pending'}
+                        {statusFilter === 'ALL' ? 'All Statuses' :
+                            statusFilter === 'HIRED' ? 'Accepted Offer' :
+                                statusFilter === 'PASSED' ? 'For Job Offer' :
+                                    statusFilter === 'FAILED' ? 'Failed' : 'Pending'}
                         <ChevronDown size={12} className="text-surface-300" />
                     </button>
-                    
+
                     {showStatusDropdown && (
                         <>
                             <div className="fixed inset-0 z-10" onClick={() => setShowStatusDropdown(false)} />
-                            <div className="absolute right-0 top-full mt-1 bg-white border border-surface-200 rounded-sm shadow-lg z-20 py-1 min-w-[140px] text-left">
+                            <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm shadow-lg z-20 py-1 min-w-[140px] text-left">
                                 {[
                                     { value: 'ALL', label: 'All Statuses' },
-                                    { value: 'HIRED', label: 'Hired' },
-                                    { value: 'PASSED', label: 'Passed' },
+                                    { value: 'HIRED', label: 'Accepted Offer' },
+                                    { value: 'PASSED', label: 'For Job Offer' },
                                     { value: 'FAILED', label: 'Failed' },
                                     { value: 'PENDING', label: 'Pending' }
                                 ].map((item) => (
@@ -510,17 +846,31 @@ export function InterviewDesk() {
             </div>
 
             {/* --- TABLE CONTENT --- */}
-            <div className="flex-1 min-h-0 overflow-y-auto bg-white border border-[#edebe9] rounded-sm shadow-sm">
+            <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-sm shadow-sm">
                 <GuestApplicantTable
                     applicants={filteredList}
-                    viewMode={activeTab === 'desk' ? 'active' : 'history'}
+                    viewMode={['desk', 'client'].includes(activeTab) ? 'active' : 'history'}
                     onRowClick={(app) => setSelectedApplicantProfile(app)}
-                    emptyMessage={activeTab === 'desk' ? "Registry Standby: Awaiting candidate endorsement tokens..." : "No historical records found in your evaluation logs."}
+                    emptyMessage={
+                        activeTab === 'desk' ? "Registry Standby: Awaiting candidate endorsement tokens..." :
+                            activeTab === 'records' ? "No historical records found in your evaluation logs." :
+                                activeTab === 'client' ? "No client candidates found for this account." :
+                                    "No 'No Show' candidates found."
+                    }
                     activeAccount={resolvedActiveAccount}
+                    onStatusChange={['records', 'client'].includes(activeTab) ? handleUpdateCandidateStatus : undefined}
                     renderActions={(app) => {
                         if (activeTab === 'desk') {
                             const isToday = isScheduleToday(app.endorsement_meeting_date);
-                            const isAssigned = isActuallyAssignedValidator(app);
+                            const isAssigned = isAssignedToCurrentValidator(app);
+                            const roomOccupied = rooms.find(r => r.status === 'OCCUPIED' && r.current_application_id === app.id);
+                            const isOngoing = Boolean(
+                                roomOccupied ||
+                                app.current_status === 'INTERVIEW_IN_PROGRESS' ||
+                                String(app.metadata?.ops_validator_status || '').toUpperCase() === 'IN_PROGRESS' ||
+                                String(app.metadata?.final_specific_status || '').toUpperCase().includes('PROGRESS')
+                            );
+
                             return (
                                 <div className="flex items-center gap-2">
                                     <motion.button
@@ -530,26 +880,22 @@ export function InterviewDesk() {
                                         transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (!isAssigned) {
-                                                setValidatorWarningApp(app);
-                                            } else if (isToday) {
-                                                void handleInitiate(app);
+                                            if (roomOccupied) {
+                                                setActiveSessionRoomId(roomOccupied.id);
                                             } else {
-                                                setScheduleWarningApp(app);
+                                                void handleInitiate(app);
                                             }
                                         }}
                                         className={cn(
                                             "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-sm whitespace-nowrap text-white transition-colors",
                                             !isAssigned
                                                 ? "bg-amber-600 hover:bg-amber-700"
-                                                : isToday 
-                                                    ? "bg-emerald-600 hover:bg-emerald-700" 
-                                                    : "bg-rose-600 hover:bg-rose-700"
+                                                : "bg-emerald-600 hover:bg-emerald-700"
                                         )}
-                                        title={!isAssigned ? "Validator Not Met" : isToday ? "Call Candidate" : "Schedule Not Met"}
+                                        title={!isAssigned ? "Validator Not Met" : "Start Interview"}
                                     >
-                                        <Play size={12} fill="currentColor" className={cn(isToday && isAssigned && "animate-pulse")} />
-                                        <span>{!isAssigned ? "Validator not met" : isToday ? "Call candidate" : "Schedule not met"}</span>
+                                        <Play size={12} fill="currentColor" />
+                                        <span>{!isAssigned ? "Validator not met" : "Start Interview"}</span>
                                     </motion.button>
 
                                     <motion.button
@@ -567,6 +913,60 @@ export function InterviewDesk() {
                                         <Calendar size={12} />
                                         <span>Request Reschedule</span>
                                     </motion.button>
+                                </div>
+                            );
+                        }
+                        if (activeTab === 'noshow') {
+                            const isAssigned = isAssignedToCurrentValidator(app);
+                            return (
+                                <div className="flex items-center gap-2">
+                                    <motion.button
+                                        type="button"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleInitiate(app);
+                                        }}
+                                        className={cn(
+                                            "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-sm whitespace-nowrap text-white transition-colors",
+                                            !isAssigned
+                                                ? "bg-amber-600 hover:bg-amber-700"
+                                                : "bg-emerald-600 hover:bg-emerald-700"
+                                        )}
+                                        title={!isAssigned ? "Validator Not Met" : "Start Interview"}
+                                    >
+                                        <Play size={12} fill="currentColor" />
+                                        <span>{!isAssigned ? "Validator not met" : "Start Interview"}</span>
+                                    </motion.button>
+
+                                    <motion.button
+                                        type="button"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setRescheduleApp(app);
+                                        }}
+                                        className="px-3 py-1.5 text-[10px] font-bold bg-[#efebeb] text-surface-700 hover:bg-[#e1dfdd] uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+                                        title="Request Reschedule"
+                                    >
+                                        <Calendar size={12} />
+                                        <span>Request Reschedule</span>
+                                    </motion.button>
+
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedApplicantProfile(app);
+                                        }}
+                                        className="p-2 text-surface-400 hover:text-[#0078d4] hover:bg-surface-50 rounded-sm transition-all"
+                                        title="View Profile"
+                                    >
+                                        <UserCircle2 size={18} />
+                                    </button>
                                 </div>
                             );
                         }
@@ -593,12 +993,19 @@ export function InterviewDesk() {
                         roomId={activeSessionRoomId}
                         rooms={rooms}
                         applications={applications}
-                        onClose={() => setActiveSessionRoomId(null)}
+                        stage="FINAL"
+                        onClose={() => {
+                            setActiveSessionRoomId(null);
+                            setActiveSessionAppId(null);
+                        }}
                         onComplete={(summary) => {
                             setActiveSessionRoomId(null);
+                            setActiveSessionAppId(null);
                             setReceiptData(summary);
                             void loadData(true);
                         }}
+                        isAssigningRoom={isLoading}
+                        draftApplicantId={activeSessionAppId || undefined}
                     />
                 )}
             </AnimatePresence>
@@ -624,17 +1031,17 @@ export function InterviewDesk() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.98, y: 10 }}
                             transition={{ duration: 0.2, ease: 'easeOut' }}
-                            className="bg-white rounded-sm shadow-xl border border-surface-300 w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] relative"
+                            className="bg-white dark:bg-slate-900 rounded-sm shadow-xl border border-surface-300 w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] relative"
                         >
                             {/* Header */}
                             <div className="px-8 py-8 flex flex-col items-center border-b border-surface-200 bg-surface-50/20 text-center relative">
-                                <button 
+                                <button
                                     onClick={() => setRoomSelectionApp(null)}
                                     className="absolute top-4 right-4 p-1.5 text-surface-400 hover:text-surface-700 transition-colors rounded-sm hover:bg-surface-100"
                                 >
                                     <X size={15} />
                                 </button>
-                                <h3 
+                                <h3
                                     className="text-2xl text-surface-900 tracking-tight"
                                     style={{ fontFamily: 'var(--font-family-display)', fontWeight: 400, fontStyle: 'italic' }}
                                 >
@@ -645,30 +1052,38 @@ export function InterviewDesk() {
                                 </p>
                             </div>
 
+                            {/* Microsoft Fluent-Style InfoBar (Clean static text) */}
+                            <div className="mx-6 mt-4 p-3 bg-[#f0f6ff] border-l-4 border-[#0078d4] border border-[#d8e6f8] rounded-xs flex items-center gap-3 text-left shrink-0">
+                                <Info size={16} className="text-[#0078d4] shrink-0" />
+                                <div className="flex-1 text-xs text-surface-800 leading-relaxed">
+                                    <span className="font-semibold text-surface-900">Room Selection:</span> If the interview will be conducted online, use <strong className="text-[#0078d4]">Online Rooms</strong>. If onsite, use <strong className="text-[#0078d4]">Onsite Rooms</strong>.
+                                </div>
+                            </div>
+
                             {/* Tabs */}
                             <div className="flex justify-center border-b border-surface-200 bg-surface-50/10 py-3 shrink-0">
                                 <div className="bg-surface-100 p-0.5 rounded-sm flex gap-0.5 border border-surface-250">
                                     <button
-                                        onClick={() => setRoomTypeTab('onsite')}
-                                        className={cn(
-                                            "px-4 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer",
-                                            roomTypeTab === 'onsite' 
-                                                ? "text-surface-900 bg-white border border-surface-250 shadow-xs" 
-                                                : "text-surface-500 hover:text-surface-800"
-                                        )}
-                                    >
-                                        Onsite Rooms
-                                    </button>
-                                    <button
                                         onClick={() => setRoomTypeTab('online')}
                                         className={cn(
-                                            "px-4 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer",
-                                            roomTypeTab === 'online' 
-                                                ? "text-surface-900 bg-white border border-surface-250 shadow-xs" 
+                                            "px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer",
+                                            roomTypeTab === 'online'
+                                                ? "text-surface-900 bg-white dark:bg-slate-900 border border-surface-250 shadow-xs"
                                                 : "text-surface-500 hover:text-surface-800"
                                         )}
                                     >
                                         Online Rooms
+                                    </button>
+                                    <button
+                                        onClick={() => setRoomTypeTab('onsite')}
+                                        className={cn(
+                                            "px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer",
+                                            roomTypeTab === 'onsite'
+                                                ? "text-surface-900 bg-white dark:bg-slate-900 border border-surface-250 shadow-xs"
+                                                : "text-surface-500 hover:text-surface-800"
+                                        )}
+                                    >
+                                        Onsite Rooms
                                     </button>
                                 </div>
                             </div>
@@ -678,7 +1093,7 @@ export function InterviewDesk() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     {rooms.filter(r => r.is_active && (r.room_type || 'onsite').toLowerCase() === roomTypeTab).map(room => {
                                         const isAvailable = room.status === 'AVAILABLE';
-                                        
+
                                         // Pick room picture based on name if not explicitly set in room
                                         const getRoomPicture = (name: string) => {
                                             const lower = name.toLowerCase();
@@ -697,9 +1112,9 @@ export function InterviewDesk() {
                                             <div
                                                 key={room.id}
                                                 className={cn(
-                                                    "border rounded-sm overflow-hidden bg-white shadow-sm flex flex-col transition-all duration-150 relative",
-                                                    isAvailable 
-                                                        ? "border-surface-200 hover:border-surface-400 hover:shadow-md" 
+                                                    "border rounded-sm overflow-hidden bg-white dark:bg-slate-900 shadow-sm flex flex-col transition-all duration-150 relative",
+                                                    isAvailable
+                                                        ? "border-surface-200 hover:border-surface-400 hover:shadow-md"
                                                         : canReenter
                                                             ? "border-blue-400 bg-blue-50/20 hover:border-blue-500 hover:shadow-md"
                                                             : "border-surface-150 opacity-60 bg-surface-50/30"
@@ -707,22 +1122,22 @@ export function InterviewDesk() {
                                             >
                                                 {/* Image Container */}
                                                 <div className="h-28 w-full overflow-hidden relative bg-surface-100">
-                                                    <img 
-                                                        src={roomImg} 
-                                                        alt={room.room_name} 
+                                                    <img
+                                                        src={roomImg}
+                                                        alt={room.room_name}
                                                         className="w-full h-full object-cover"
                                                     />
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                                                    
+
                                                     {/* Status Badge */}
                                                     <div className="absolute top-2 right-2">
                                                         <span className={cn(
                                                             "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-sm backdrop-blur-md flex items-center gap-1 shadow-sm border",
-                                                            isAvailable 
-                                                                ? "bg-emerald-500/95 border-emerald-400 text-white" 
+                                                            isAvailable
+                                                                ? "bg-emerald-500/95 border-emerald-400 text-white"
                                                                 : "bg-amber-500/95 border-amber-400 text-white"
                                                         )}>
-                                                            <span className={cn("w-1.5 h-1.5 rounded-full bg-white", isAvailable && "animate-ping")} />
+                                                            <span className={cn("w-1.5 h-1.5 rounded-full bg-white dark:bg-slate-900", isAvailable && "animate-ping")} />
                                                             {room.status}
                                                         </span>
                                                     </div>
@@ -741,11 +1156,11 @@ export function InterviewDesk() {
                                                 {/* Bottom Action Area */}
                                                 <div className="p-3 flex-1 flex flex-col justify-between gap-3">
                                                     <p className="text-[9px] text-surface-400 font-semibold uppercase tracking-wider">
-                                                        {isAvailable 
-                                                            ? "Ready for candidate" 
+                                                        {isAvailable
+                                                            ? "Ready for candidate"
                                                             : `In session: ${room.current_applicant_name || 'Anonymous'}`
                                                         }
-                                                     </p>
+                                                    </p>
 
                                                     <button
                                                         disabled={!isAvailable && !canReenter}
@@ -759,8 +1174,8 @@ export function InterviewDesk() {
                                                         }}
                                                         className={cn(
                                                             "w-full py-1.5 text-[9px] font-black uppercase tracking-widest rounded-sm flex items-center justify-center gap-1 transition-all shadow-sm border border-transparent",
-                                                            isAvailable 
-                                                                ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer" 
+                                                            isAvailable
+                                                                ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
                                                                 : canReenter
                                                                     ? "bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
                                                                     : "bg-surface-100 text-surface-400 border-surface-200 cursor-not-allowed"
@@ -794,11 +1209,11 @@ export function InterviewDesk() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.98, y: 10 }}
                             transition={{ duration: 0.2, ease: 'easeOut' }}
-                            className="bg-white rounded-sm shadow-xl border border-surface-300 w-full max-w-md overflow-hidden flex flex-col relative"
+                            className="bg-white dark:bg-slate-900 rounded-sm shadow-xl border border-surface-300 w-full max-w-md overflow-hidden flex flex-col relative"
                         >
                             {/* Header */}
                             <div className="px-6 py-6 flex flex-col items-center border-b border-surface-200 bg-surface-50/20 text-center relative">
-                                <button 
+                                <button
                                     onClick={() => {
                                         setRescheduleApp(null);
                                         setRescheduleReason('');
@@ -810,7 +1225,7 @@ export function InterviewDesk() {
                                 <div className="p-2 bg-rose-50 rounded-full text-rose-600 mb-2">
                                     <Calendar size={20} />
                                 </div>
-                                <h3 
+                                <h3
                                     className="text-xl text-surface-900 tracking-tight"
                                     style={{ fontFamily: 'var(--font-family-display)', fontWeight: 400, fontStyle: 'italic' }}
                                 >
@@ -869,7 +1284,7 @@ export function InterviewDesk() {
                                         setRescheduleApp(null);
                                         setRescheduleReason('');
                                     }}
-                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border border-surface-300 bg-white hover:bg-surface-50 rounded-sm text-surface-700 transition-colors"
+                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border border-surface-300 bg-white dark:bg-slate-900 hover:bg-surface-50 rounded-sm text-surface-700 transition-colors"
                                 >
                                     Cancel
                                 </button>
@@ -896,11 +1311,11 @@ export function InterviewDesk() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.98, y: 10 }}
                             transition={{ duration: 0.2, ease: 'easeOut' }}
-                            className="bg-white rounded-sm shadow-xl border border-surface-300 w-full max-w-md overflow-hidden flex flex-col relative"
+                            className="bg-white dark:bg-slate-900 rounded-sm shadow-xl border border-surface-300 w-full max-w-md overflow-hidden flex flex-col relative"
                         >
                             {/* Header */}
                             <div className="px-6 py-6 flex flex-col items-center border-b border-surface-200 bg-surface-50/20 text-center relative">
-                                <button 
+                                <button
                                     onClick={() => setScheduleWarningApp(null)}
                                     className="absolute top-4 right-4 p-1.5 text-surface-400 hover:text-surface-700 transition-colors rounded-sm hover:bg-surface-100"
                                 >
@@ -909,7 +1324,7 @@ export function InterviewDesk() {
                                 <div className="p-2 bg-amber-50 rounded-full text-amber-600 mb-2">
                                     <AlertCircle size={20} />
                                 </div>
-                                <h3 
+                                <h3
                                     className="text-xl text-surface-900 tracking-tight"
                                     style={{ fontFamily: 'var(--font-family-display)', fontWeight: 400, fontStyle: 'italic' }}
                                 >
@@ -923,7 +1338,7 @@ export function InterviewDesk() {
                             {/* Body */}
                             <div className="p-6 text-center space-y-2">
                                 <p className="text-xs text-surface-600">
-                                    The scheduled interview time for this candidate is not today. 
+                                    The scheduled interview time for this candidate is not today.
                                 </p>
                                 <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider">
                                     Scheduled: {scheduleWarningApp.endorsement_meeting_date ? new Date(scheduleWarningApp.endorsement_meeting_date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'No schedule set'}
@@ -938,7 +1353,7 @@ export function InterviewDesk() {
                                 <button
                                     type="button"
                                     onClick={() => setScheduleWarningApp(null)}
-                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border border-surface-300 bg-white hover:bg-surface-50 rounded-sm text-surface-700 transition-colors"
+                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border border-surface-300 bg-white dark:bg-slate-900 hover:bg-surface-50 rounded-sm text-surface-700 transition-colors"
                                 >
                                     Cancel
                                 </button>
@@ -950,78 +1365,6 @@ export function InterviewDesk() {
                                         void handleInitiate(app);
                                     }}
                                     className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm shadow-sm transition-colors"
-                                >
-                                    Proceed Anyway
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Validator Not Met Warning Modal */}
-            <AnimatePresence>
-                {validatorWarningApp && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.98, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.98, y: 10 }}
-                            transition={{ duration: 0.2, ease: 'easeOut' }}
-                            className="bg-white rounded-sm shadow-xl border border-surface-300 w-full max-w-md overflow-hidden flex flex-col relative"
-                        >
-                            {/* Header */}
-                            <div className="px-6 py-6 flex flex-col items-center border-b border-surface-200 bg-surface-50/20 text-center relative">
-                                <button 
-                                    onClick={() => setValidatorWarningApp(null)}
-                                    className="absolute top-4 right-4 p-1.5 text-surface-400 hover:text-surface-700 transition-colors rounded-sm hover:bg-surface-100"
-                                >
-                                    <X size={15} />
-                                </button>
-                                <div className="p-2 bg-amber-50 rounded-full text-amber-600 mb-2">
-                                    <AlertCircle size={20} />
-                                </div>
-                                <h3 
-                                    className="text-xl text-surface-900 tracking-tight"
-                                    style={{ fontFamily: 'var(--font-family-display)', fontWeight: 400, fontStyle: 'italic' }}
-                                >
-                                    Validator Assignment Check
-                                </h3>
-                                <p className="text-[10px] text-surface-400 font-medium tracking-[0.05em] uppercase mt-2">
-                                    Attention required for <span className="font-bold text-surface-700">{validatorWarningApp.applicant_name}</span>
-                                </p>
-                            </div>
-
-                            {/* Body */}
-                            <div className="p-6 text-center space-y-2">
-                                <p className="text-xs text-surface-700 font-semibold leading-relaxed">
-                                    This candidate was endorsed to <span className="font-bold text-slate-800">"{validatorWarningApp.assigned_ops_validator_name || validatorWarningApp.metadata?.assigned_ops_validator_name || validatorWarningApp.pis?.ops_validator_email || 'another validator'}"</span> but you have an option to proceed anyway.
-                                </p>
-                            </div>
-
-                            {/* Footer */}
-                            <div className="px-6 py-4 bg-surface-50 border-t border-surface-200 flex justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setValidatorWarningApp(null)}
-                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border border-surface-300 bg-white hover:bg-surface-50 rounded-sm text-surface-700 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const app = validatorWarningApp;
-                                        setValidatorWarningApp(null);
-                                        
-                                        const isToday = isScheduleToday(app.endorsement_meeting_date);
-                                        if (isToday) {
-                                            void handleInitiate(app);
-                                        } else {
-                                            setScheduleWarningApp(app);
-                                        }
-                                    }}
-                                    className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-white rounded-sm shadow-sm transition-colors"
                                 >
                                     Proceed Anyway
                                 </button>

@@ -275,7 +275,7 @@ export function NotesDrawer({ app, onClose, onSaveNote, currentUser = 'Recruiter
                                 {/* Windows Sticky Note + Button */}
                                 <button
                                     onClick={() => textareaRef.current?.focus()}
-                                    className="p-1 hover:bg-black/5 rounded text-slate-800/60 hover:text-slate-900 transition-all active:scale-90"
+                                    className="p-1 hover:bg-black/5 rounded text-slate-800 dark:text-slate-200/60 hover:text-slate-900 dark:text-white transition-all active:scale-90"
                                     title="New Note"
                                 >
                                     <Plus size={16} />
@@ -299,16 +299,16 @@ export function NotesDrawer({ app, onClose, onSaveNote, currentUser = 'Recruiter
 
                             <div className="flex items-center gap-2">
                                 <div className="text-right">
-                                    <h2 className="text-[10px] font-bold text-slate-800 leading-tight uppercase tracking-wider">
+                                    <h2 className="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight uppercase tracking-wider">
                                         {app.applicant_name}
                                     </h2>
-                                    <p className="text-[7.5px] font-semibold text-slate-500 uppercase tracking-wider opacity-70">
+                                    <p className="text-[7.5px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider opacity-70">
                                         {app.position_title}
                                     </p>
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="p-1 hover:bg-black/5 rounded text-slate-800/60 hover:text-slate-900 transition-all active:scale-90"
+                                    className="p-1 hover:bg-black/5 rounded text-slate-800 dark:text-slate-200/60 hover:text-slate-900 dark:text-white transition-all active:scale-90"
                                 >
                                     <X size={16} />
                                 </button>
@@ -319,8 +319,8 @@ export function NotesDrawer({ app, onClose, onSaveNote, currentUser = 'Recruiter
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar pointer-events-auto">
                             {notes.length === 0 ? (
                                 <div className="py-12 flex flex-col items-center justify-center text-center opacity-30">
-                                    <MessageSquare size={24} className="text-slate-700 mb-2" />
-                                    <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">No Notes Posted</p>
+                                    <MessageSquare size={24} className="text-slate-700 dark:text-slate-300 mb-2" />
+                                    <p className="text-[9px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">No Notes Posted</p>
                                 </div>
                             ) : (
                                 notes.map((note, idx) => {
@@ -383,7 +383,7 @@ export function NotesDrawer({ app, onClose, onSaveNote, currentUser = 'Recruiter
                                     onKeyDown={handleKeyDown}
                                     placeholder="Write a new sticky note..."
                                     className={cn(
-                                        "flex-1 border border-black/5 rounded-lg p-3 text-[12.5px] text-slate-800 outline-none min-h-[60px] max-h-[120px] resize-none transition-all placeholder:uppercase placeholder:text-[8px] placeholder:font-bold placeholder:tracking-widest shadow-sm select-text",
+                                        "flex-1 border border-black/5 rounded-lg p-3 text-[12.5px] text-slate-800 dark:text-slate-200 outline-none min-h-[60px] max-h-[120px] resize-none transition-all placeholder:uppercase placeholder:text-[8px] placeholder:font-bold placeholder:tracking-widest shadow-sm select-text",
                                         activeTheme.inputBg, activeTheme.placeholder
                                     )}
                                 />
@@ -396,7 +396,7 @@ export function NotesDrawer({ app, onClose, onSaveNote, currentUser = 'Recruiter
                                 </button>
                             </form>
                             <div className="mt-2 text-center">
-                                <span className="text-[7.5px] font-semibold text-slate-500 uppercase tracking-widest opacity-60">
+                                <span className="text-[7.5px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest opacity-60">
                                     Enter to submit · Shift + Enter for new line
                                 </span>
                             </div>
@@ -446,7 +446,7 @@ export function NotesDrawer({ app, onClose, onSaveNote, currentUser = 'Recruiter
                                         <div className="flex items-center gap-2 w-full mt-1">
                                             <button
                                                 onClick={() => setDeleteConfirmId(null)}
-                                                className="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-wider border border-black/10 bg-black/5 hover:bg-black/10 rounded transition-all active:scale-95 text-slate-800"
+                                                className="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-wider border border-black/10 bg-black/5 hover:bg-black/10 rounded transition-all active:scale-95 text-slate-800 dark:text-slate-200"
                                             >
                                                 Cancel
                                             </button>

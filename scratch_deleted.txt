@@ -1,0 +1,466 @@
+} = {}) {
+    const { 
+        applications: remoteApplications, 
+        setApplications: setRemoteApplications,
+        users: allStaff, 
+        departments: deptRecords, 
+        isLoading: isInitialLoading,
+        isInitialized 
+    } = useGlobalDataStore();
+    const { '*': splat } = useParams();
+    const navigate = useNavigate();
+    const urlApplicantId = splat?.replace(/^\//, '');
+    const toast = useToast();
+    const { withLoading } = useLoading();
+    const { user } = useAuthStore();
+
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab === 'requests' ? 'requests' : (initialTab as Tab) || 'all_tab');
+    const [activeMajorTab, setActiveMajorTab] = useState<'onsite' | 'oncall' | 'all'>('all');
+    const [isPendingTrackerMode, setIsPendingTrackerMode] = useState<boolean>(false);
+    const [isIdleFilterActive, setIsIdleFilterActive] = useState<boolean>(false);
+
+    // Sync active tab if initialTab prop changes (e.g. from sidebar navigation)
+    useEffect(() => {
+        if (initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [initialTab]);
+
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
+    const [promotionPromptApp, setPromotionPromptApp] = useState<Application | null>(null);
+    const [pisApplicant, setPisApplicant] = useState<Application | null>(null);
+    const [stepFilter, setStepFilter] = useState<string[]>([]);
+    const [accountFilter, setAccountFilter] = useState<string[]>([]);
+    const [specialStatusFilter, setSpecialStatusFilter] = useState<string[]>([]);
+    const [taggingFilter, setTaggingFilter] = useState<string[]>([]);
+    const [lobFilter, setLobFilter] = useState<string[]>([]);
+    const [hireTypeFilter, setHireTypeFilter] = useState<string[]>([]);
+    const [appliedDateFilter, setAppliedDateFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [interviewDateFilter, setInterviewDateFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [trainingDateFilter, setTrainingDateFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [dateFilter, setDateFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [dateTargetFilter, setDateTargetFilter] = useState<'APPLIED' | 'INITIAL_INTERVIEW' | 'TRAINING_START_DATE' | 'OPS_VAL_INTERVIEW'>('APPLIED');
+    const [recruiterFilter, setRecruiterFilter] = useState<string[]>([]);
+    const [assessmentScore, setAssessmentScore] = useState<string>('');
+    const [modalTab, setModalTab] = useState<ModalTab>('application');
+    const [requestModalTab, setRequestModalTab] = useState<RequestModalTab>('application');
+    const [finalInterviewNotes, setFinalInterviewNotes] = useState('');
+    const [clientAssessmentScore, setClientAssessmentScore] = useState<string>('');
+    const [clientInterviewRemarks, setClientInterviewRemarks] = useState<string>('');
+
+    const isKnownAccount = useCallback((val: string) =>
+        KNOWN_ACCOUNTS.some(acc => acc.toLowerCase() === val.toLowerCase()), []);
+    const isCandidateOnCall = useCallback((app: Application) => {
+        if (app.is_on_call === true) return true;
+
+        const posTitle = String(app.position_title || (app as any).position?.title || app.metadata?.position_title || app.metadata?.position || '').toLowerCase();
+        if (posTitle.includes('[on-call]') || posTitle.includes('[on call]') || posTitle.includes('on-call')) {
+            return true;
+        }
+
+        const mode = String(app.metadata?.interview_mode || app.metadata?.active_interview_type || app.pis?.preferred_setup || '').toLowerCase();
+        if (mode === 'on-call' || mode.includes('on-call')) return true;
+
+        if (app.metadata && typeof app.metadata === 'object') {
+            for (const key in app.metadata) {
+                const val = app.metadata[key];
+                if (typeof val === 'string') {
+                    const lowerVal = val.toLowerCase();
+                    if (lowerVal.includes('[on-call]') || lowerVal.includes('[on call]') || lowerVal === 'on-call') {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }, []);
+    const [validators, setValidators] = useState<UserType[]>([]);
+    
+    // Derived validators from global allStaff
+    useEffect(() => {
+        setValidators(allStaff.filter(u => u.role === 'ops_validator'));
+    }, [allStaff]);
+
+    const normalizedRecruitersMap = useRef<Map<string, string>>(new Map());
+
+    useEffect(() => {
+        normalizedRecruitersMap.current.clear();
+    }, [allStaff]);
+
+    const normalizeRecruiterName = useCallback((name: string | null | undefined): string => {
+        if (!name) return '';
+        const trimmed = name.trim();
+        let lower = trimmed.toLowerCase();
+        if (lower === 'unassigned') return '';
+
+        // Aliases for known recruiter name anomalies
+        if (lower === 'sean v.') {
+            lower = 'sean jessfredd claros';
+        }
+
+        if (normalizedRecruitersMap.current.has(lower)) {
+            return normalizedRecruitersMap.current.get(lower)!;
+        }
+
+        // Find if there's an exact or close match in allStaff
+        const found = allStaff.find(u => {
+            const staffNameLower = u.full_name.toLowerCase();
+            if (staffNameLower === lower) return true;
+
+            const inputWords = lower.split(/\s+/).filter(Boolean);
+            if (inputWords.length > 1 && inputWords.every(w => staffNameLower.includes(w))) {
+                return true;
+            }
+            return false;
+        });
+
+        const result = found ? found.full_name : trimmed;
+        normalizedRecruitersMap.current.set(lower, result);
+        return result;
+    }, [allStaff]);
+
+    const getApplicantTabs = useCallback((app: Application): ModalTab[] => {
+        const dept = (app.department || '').toUpperCase();
+        const metadata = app.metadata || {};
+        const failedAccounts = metadata.failed_accounts || [];
+        const failedSet = new Set(failedAccounts.map((f: any) => String(f).trim().toUpperCase()));
+
+        const selectedDepts = (app.department || '')
+            .split(',')
+            .map(s => s.trim().toUpperCase())
+            .filter(Boolean);
+        const activeDepts = selectedDepts.filter(d => !failedSet.has(d));
+        const targetDept = activeDepts[0] || selectedDepts[0] || '';
+
+        const isKellerPostman = targetDept.includes('KELLER POSTMAN');
+        const requiredProcesses: string[] | undefined = app.pis?.required_processes || app.metadata?.required_processes;
+
+        let processOrder: string[] = [...(app.pis?.process_order || app.metadata?.process_order || [
+            'TYPING_TEST',
+            'INITIAL_INTERVIEW',
+            'ACCOUNT_ASSIGNMENT',
+            'ASSESSMENT',
+            'CLIENT_ASSESSMENT',
+            'CLIENT_INTERVIEW'
+        ])];
+
+        const isEnercare = targetDept.includes('ENERCARE') || (app.department || '').toUpperCase().includes('ENERCARE');
+        const isRegency = targetDept.includes('REGENCY') || (app.department || '').toUpperCase().includes('REGENCY');
+        const hasSecondTest = (isEnercare || isRegency) && (
+            app.metadata?.force_second_test ||
+            app.metadata?.assessment_ii_score !== undefined ||
+            processOrder.includes('ASSESSMENT_II') ||
+            (requiredProcesses && requiredProcesses.includes('ASSESSMENT_II'))
+        );
+
+        if (hasSecondTest && !processOrder.includes('ASSESSMENT_II')) {
+            const assessIdx = processOrder.indexOf('ASSESSMENT');
+            if (assessIdx !== -1) {
+                processOrder.splice(assessIdx + 1, 0, 'ASSESSMENT_II');
+            } else {
+                processOrder.push('ASSESSMENT_II');
+            }
+        }
+
+        const isSpecializedClient = ['TENNIS CHANNEL', 'THE SAVINGS GROUP', 'ENERCARE', 'AUTO APPROVE', 'PAESLER'].some(d => targetDept.includes(d));
+        const isSpecialized = isKellerPostman || isSpecializedClient;
+
+
+        // Normalize: ensure ACCOUNT_ASSIGNMENT comes right after INITIAL_INTERVIEW
+        if (!isSpecialized && processOrder.includes('ACCOUNT_ASSIGNMENT') && processOrder.includes('INITIAL_INTERVIEW')) {
+            const idxInit = processOrder.indexOf('INITIAL_INTERVIEW');
+            const idxOps = processOrder.indexOf('ACCOUNT_ASSIGNMENT');
+            if (idxOps !== idxInit + 1) {
+                const newOrder = processOrder.filter(s => s !== 'ACCOUNT_ASSIGNMENT');
+                const newIdxInit = newOrder.indexOf('INITIAL_INTERVIEW');
+                newOrder.splice(newIdxInit + 1, 0, 'ACCOUNT_ASSIGNMENT');
+                processOrder = newOrder;
+            }
+        }
+
+        const activeStages = processOrder.filter(stageId => {
+            if (stageId === 'ASSESSMENT_II') {
+                return !!hasSecondTest;
+            }
+            if (requiredProcesses && !requiredProcesses.includes(stageId)) return false;
+            if (stageId === 'CLIENT_ASSESSMENT') {
+                return isKellerPostman;
+            }
+            if (stageId === 'CLIENT_INTERVIEW') {
+                return (isKellerPostman || ['AUTO APPROVE', 'TENNIS CHANNEL', 'THE SAVINGS GROUP', 'ENERCARE', 'REGENCY', 'PAESLER'].some(d => targetDept.includes(d)));
+            }
+            return true;
+        });
+
+        const list: ModalTab[] = ['application'];
+        activeStages.forEach(stageId => {
+            if (stageId === 'TYPING_TEST') list.push('typing');
+            else if (stageId === 'INITIAL_INTERVIEW') list.push('initial');
+            else if (stageId === 'ACCOUNT_ASSIGNMENT') list.push('endorsement');
+            else if (stageId === 'ASSESSMENT') {
+                list.push('assessment');
+                if (!activeStages.includes('ASSESSMENT_II')) {
+                    list.push('scheduling');
+                }
+            } else if (stageId === 'ASSESSMENT_II') {
+                list.push('assessment_ii');
+                list.push('scheduling');
+            } else if (stageId === 'CLIENT_ASSESSMENT') list.push('client_assessment');
+            else if (stageId === 'CLIENT_INTERVIEW') list.push('client_interview');
+        });
+        list.push('verdict');
+        return list;
+    }, []);
+
+    const getTabFromStatus = useCallback((status: string): ModalTab => {
+        const lookup = (status || '').toUpperCase().trim().replace(/\s+/g, '_');
+        const map: Record<string, ModalTab> = {
+            'APPLIED': 'typing',
+            'TYPING_TEST': 'typing',
+            'INITIAL_INTERVIEW': 'initial',
+            'INTERVIEW_IN_PROGRESS': 'initial',
+            'QUEUE_ASSIGNED': 'initial',
+            'ACCOUNT_ASSIGNMENT': 'endorsement',
+            'ASSESSMENT': 'assessment',
+            'FOR_SCHEDULING': 'scheduling',
+            'FINAL_INTERVIEW': 'scheduling',
+            'FINAL_INTERVIEW_SCHEDULED': 'scheduling',
+            'CLIENT_ASSESSMENT': 'client_assessment',
+            'CLIENT_INTERVIEW': 'client_interview',
+            'FINAL_VERDICT': 'verdict',
+            'PASSED': 'verdict',
+            'HIRED': 'verdict',
+            'REJECTED': 'verdict',
+            'FOR_JOB_OFFER': 'verdict',
+            'FOR JOB OFFER': 'verdict',
+            'For Job Offer': 'verdict'
+        };
+        return map[lookup] || 'application';
+    }, []);
+
+    const getInitialTabForApplicant = useCallback((app: Application): ModalTab => {
+        const lookup = (app.current_status || '').toUpperCase().trim().replace(/\s+/g, '_');
+        const map: Record<string, ModalTab> = {
+            'APPLIED': 'typing',
+            'TYPING_TEST': 'typing',
+            'INITIAL_INTERVIEW': 'initial',
+            'INTERVIEW_IN_PROGRESS': 'initial',
+            'QUEUE_ASSIGNED': 'initial',
+            'ACCOUNT_ASSIGNMENT': 'endorsement',
+            'ASSESSMENT': 'assessment',
+            'FOR_SCHEDULING': 'scheduling',
+            'FINAL_INTERVIEW': 'scheduling',
+            'FINAL_INTERVIEW_SCHEDULED': 'scheduling',
+            'CLIENT_ASSESSMENT': 'client_assessment',
+            'CLIENT_INTERVIEW': 'client_interview',
+            'FINAL_VERDICT': 'verdict',
+            'PASSED': 'verdict',
+            'HIRED': 'verdict',
+            'REJECTED': 'verdict',
+            'FOR_JOB_OFFER': 'verdict',
+            'FOR JOB OFFER': 'verdict',
+            'For Job Offer': 'verdict'
+        };
+        let tab = map[lookup] || 'application';
+
+        if (lookup === 'FAILED' || lookup === 'REJECTED') {
+            const fs = app.failure_details?.from_status;
+            const initialResult = String(app.metadata?.initial_interview_result || app.pis?.initial_interview_result || '').toUpperCase();
+            const spec = String(app.pis?.final_specific_status || app.metadata?.final_specific_status || '').toLowerCase();
+
+            if (fs) {
+                const fsLookup = String(fs).toUpperCase().trim().replace(/\s+/g, '_');
+                if (fsLookup.includes('INITIAL') || fsLookup === 'QUEUE_ASSIGNED') {
+                    tab = 'initial';
+                } else if (fsLookup.includes('TYPING')) {
+                    tab = 'typing';
+                } else if (fsLookup.includes('ASSESSMENT') && !fsLookup.includes('CLIENT')) {
+                    tab = 'assessment';
+                } else if (fsLookup.includes('FINAL') || fsLookup.includes('SCHEDULING') || fsLookup.includes('OPS')) {
+                    tab = 'scheduling';
+                } else if (fsLookup.includes('CLIENT_ASSESSMENT')) {
+                    tab = 'client_assessment';
+                } else if (fsLookup.includes('CLIENT_INTERVIEW')) {
+                    tab = 'client_interview';
+                } else {
+                    tab = map[fsLookup] || 'verdict';
+                }
+            } else if (initialResult === 'FAILED' || spec.includes('initial interview') || spec.includes('initial')) {
+                tab = 'initial';
+            } else if (spec.includes('typing')) {
+                tab = 'typing';
+            } else if (spec.includes('client assessment')) {
+                tab = 'client_assessment';
+            } else if (spec.includes('client interview')) {
+                tab = 'client_interview';
+            } else if (spec.includes('ov') || spec.includes('final interview')) {
+                tab = 'scheduling';
+            } else if (spec.includes('account assignment') || spec.includes('endorsement')) {
+                tab = 'endorsement';
+            } else if (spec.includes('assessment')) {
+                tab = 'assessment';
+            } else {
+                tab = 'verdict';
+            }
+        }
+
+        if (lookup.includes('PENDING') || lookup.includes('RESCHEDULED') || lookup.includes('NO_SHOW')) {
+            const fromStatus = String(app.metadata?.pending_from_status || app.metadata?.rescheduled_from_status || app.metadata?.noshow_from_status || '').toUpperCase().trim();
+            if (fromStatus) {
+                const fsLookup = fromStatus.replace(/\s+/g, '_');
+                tab = map[fsLookup] || tab;
+            } else {
+                const spec = String(app.pis?.final_specific_status || app.metadata?.final_specific_status || app.current_status || '').toLowerCase();
+                if (spec.includes('typing')) tab = 'typing';
+                else if (spec.includes('Initial Interview') || spec.includes('initial')) tab = 'initial';
+                else if (spec.includes('client assessment')) tab = 'client_assessment';
+                else if (spec.includes('client interview')) tab = 'client_interview';
+                else if (spec.includes('ov') || spec.includes('final interviewer')) tab = 'scheduling';
+                else if (spec.includes('account assignment') || spec.includes('endorsement')) tab = 'endorsement';
+                else if (spec.includes('assessment')) tab = 'assessment';
+            }
+        }
+
+        if (app.current_status === 'QUEUE_ASSIGNED' && app.queue_type === 'FINAL') {
+            tab = 'endorsement';
+        } else if (app.current_status === 'INTERVIEW_IN_PROGRESS' && app.queue_type === 'FINAL') {
+            tab = 'endorsement';
+        }
+
+        if (tab === 'assessment') {
+            const dept = (app.department || '').toUpperCase();
+            const selectedDepts = dept.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+            const metadata = app.metadata || {};
+            const failedAccounts = metadata.failed_accounts || [];
+            const failedSet = new Set(failedAccounts.map((f: any) => String(f).trim().toUpperCase()));
+            const activeDepts = selectedDepts.filter(d => !failedSet.has(d));
+            const targetDept = activeDepts[0] || selectedDepts[0] || '';
+            const isEnercare = targetDept.includes('ENERCARE') || dept.includes('ENERCARE');
+            const isRegency = targetDept.includes('REGENCY') || dept.includes('REGENCY');
+
+            const hasSecondTest = (isEnercare || isRegency) && (
+                app.metadata?.force_second_test ||
+                app.metadata?.assessment_ii_score !== undefined ||
+                (app.pis?.process_order || app.metadata?.process_order || []).includes('ASSESSMENT_II') ||
+                (app.pis?.required_processes || app.metadata?.required_processes || []).includes('ASSESSMENT_II')
+            );
+            if (hasSecondTest && app.assessment_score != null && app.metadata?.assessment_ii_score === undefined) {
+                tab = 'assessment_ii';
+            }
+        }
+        return tab;
+    }, []);
+
+    // Bulk/Management state
+    const [showQueuePrompt, setShowQueuePrompt] = useState<{
+        id: string;
+        name: string;
+        applicantUserId: string;
+        queueType: 'INITIAL' | 'FINAL';
+        department?: string;
+        opsValidatorId?: string;
+    } | null>(null);
+    const [showQueueSuccess, setShowQueueSuccess] = useState<{
+        name: string;
+        queueType: 'INITIAL' | 'FINAL';
+    } | null>(null);
+    const [deleteConfirmApplicant, setDeleteConfirmApplicant] = useState<{ id: string; name: string } | null>(null);
+    const [deletingApplicantId, setDeletingApplicantId] = useState<string | null>(null);
+    const [isSelectMode, setIsSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+    const stageRanks: Record<string, number> = {
+        'application': 0,
+        'initial': 1,
+        'assessment': 2,
+        'final': 3,
+        'client_assessment': 4,
+        'client_interview': 5,
+        'verdict': 6
+    };
+
+    const getApplicantStatusRank = (status: string, applicant?: Application) => {
+        if ((status === 'OPEN' || !status) && applicant) {
+            const spec = String(applicant.pis?.final_specific_status || (applicant as any).final_specific_status || '').toLowerCase();
+            if (spec.includes('hired')) return 6;
+            if (spec.includes('jo -') || spec.includes('job offer')) return 6;
+            if (spec.includes('client interview')) return 5;
+            if (spec.includes('client assessment')) return 4;
+            if (spec.includes('ov - passed') || spec.includes('Final Interview') || spec.includes('final') || spec.includes('ov -')) return 3;
+            if (spec.includes('wonderlic') || spec.includes('speechx') || spec.includes('personality') || spec.includes('assessment')) return 2;
+            if (spec.includes('Initial Interview') || spec.includes('initial')) return 1;
+            if (spec.includes('typing')) return 0;
+        }
+
+        let processOrder: string[] = applicant?.pis?.process_order || applicant?.metadata?.process_order || [
+            'TYPING_TEST',
+            'INITIAL_INTERVIEW',
+            'ACCOUNT_ASSIGNMENT',
+            'ASSESSMENT',
+            'CLIENT_ASSESSMENT',
+            'CLIENT_INTERVIEW'
+        ];
+
+        const isSpecializedAcc = ['KELLER POSTMAN', 'AUTO APPROVE', 'PAESLER'].some(d => (applicant?.department || '').toUpperCase().includes(d));
+
+        // Normalize: ensure ACCOUNT_ASSIGNMENT comes right after INITIAL_INTERVIEW
+        if (!isSpecializedAcc && processOrder.includes('ACCOUNT_ASSIGNMENT') && processOrder.includes('INITIAL_INTERVIEW')) {
+            const idxInit = processOrder.indexOf('INITIAL_INTERVIEW');
+            const idxOps = processOrder.indexOf('ACCOUNT_ASSIGNMENT');
+            if (idxOps !== idxInit + 1) {
+                const newOrder = processOrder.filter(s => s !== 'ACCOUNT_ASSIGNMENT');
+                const newIdxInit = newOrder.indexOf('INITIAL_INTERVIEW');
+                newOrder.splice(newIdxInit + 1, 0, 'ACCOUNT_ASSIGNMENT');
+                processOrder = newOrder;
+            }
+        }
+
+        const statusToStageMap: Record<string, string> = {
+            'APPLIED': 'TYPING_TEST',
+            'TYPING_TEST': 'TYPING_TEST',
+            'INITIAL_INTERVIEW': 'INITIAL_INTERVIEW',
+            'INTERVIEW_IN_PROGRESS': 'INITIAL_INTERVIEW',
+            'QUEUE_ASSIGNED': 'INITIAL_INTERVIEW',
+            'ASSESSMENT': 'ASSESSMENT',
+            'FOR_SCHEDULING': 'ASSESSMENT',
+            'FINAL_INTERVIEW': 'ACCOUNT_ASSIGNMENT',
+            'FINAL_INTERVIEW_SCHEDULED': 'ACCOUNT_ASSIGNMENT',
+            'CLIENT_ASSESSMENT': 'CLIENT_ASSESSMENT',
+            'CLIENT_INTERVIEW': 'CLIENT_INTERVIEW',
+            'FOR_JOB_OFFER': 'VERDICT',
+            'For Job Offer': 'VERDICT',
+            'FINAL_VERDICT': 'VERDICT',
+            'PASSED': 'VERDICT',
+            'FAILED': 'VERDICT',
+            'CONDITIONAL': 'VERDICT',
+            'WAITLISTED': 'VERDICT',
+            'WITHDRAWN': 'VERDICT',
+            'HIRED': 'VERDICT',
+            'REJECTED': 'VERDICT'
+        };
+
+        const stage = statusToStageMap[status];
+        if (stage === 'VERDICT') return 6;
+
+        const idx = processOrder.indexOf(stage);
+        return idx !== -1 ? idx : 0;
+    };
+
+    const loadData = useCallback(async () => {
+        // Data is now loaded globally in Dashboard wrapper (useGlobalDataStore)
+        // Kept this function reference to avoid breaking dependencies, but it's a no-op locally.
+    }, []);
+
+    useEffect(() => {
+        // Triggered by refreshKey, if they click manual refresh, we can call global refresh
+    }, [refreshKey]);
+
+    useEffect(() => {
+        const socket = socketService.getSocket();
+        let timeoutId: any;
+        const pendingUpdates = new Set<string>();

@@ -21,6 +21,24 @@ auditRouter.get('/', requireAuth, requireRole('admin', 'ops_validator', 'recruit
     }
 });
 
+auditRouter.get('/recent', requireAuth, async (req, res, next) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 6, 20);
+        const result = await query(
+            `SELECT a.id, a.action, a.resource_type, a.user_id,
+                    u.full_name as user_name, u.role as user_role,
+                    a.created_at
+             FROM audit_logs a
+             LEFT JOIN users u ON a.user_id = u.id
+             ORDER BY a.created_at DESC LIMIT $1`,
+            [limit]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        next(error);
+    }
+});
+
 auditRouter.get('/logins', requireAuth, requireRole('admin', 'ops_validator', 'recruiter'), async (req, res, next) => {
     try {
         const result = await query(

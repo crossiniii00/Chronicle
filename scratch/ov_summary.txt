@@ -1,0 +1,18 @@
+﻿ Aldous Jair  Alba      | FINAL_INTERVIEW_SCHEDULED | Jowie Suson                | HAS NOTES    |      5664
+ Care Jhon Hije         | FINAL_INTERVIEW_SCHEDULED | Claer Agan Rubio           | EMPTY        |         0
+ Chamae Loraine Royo    | INTERVIEW_IN_PROGRESS     | Johann Bordario Dela Cerna | HAS NOTES    |      5355
+ Ederick Gaitera        | FINAL_INTERVIEW_SCHEDULED | Miguel Zebediah Alferez    | HAS NOTES    |      3303
+ Franklin Tolorio II    | FINAL_INTERVIEW           | Aldrian Hubahib            | HAS NOTES    |      4666
+ Jahnrey Corvera        | FINAL_INTERVIEW           | Steven Oblena              | HAS NOTES    |      2896
+ Josiela Jean Tuanzon   | INTERVIEW_IN_PROGRESS     | Rodulfo Mendoza Reynes Jr. | HAS NOTES    |      1342
+ Kevin Noval            | INTERVIEW_IN_PROGRESS     | Steven Oblena              | HAS NOTES    |      2488
+ Lyndon Ruiz            | FINAL_INTERVIEW           | Miguel Zebediah Alferez    | HAS NOTES    |      2506
+ Mark Frederick Montes  | INTERVIEW_IN_PROGRESS     | Claer Agan Rubio           | EMPTY        |         0
+ Mark John Paul Narvasa | FINAL_INTERVIEW           | Miguel Zebediah Alferez    | EMPTY        |         0
+ Mark Joseph  Sabuero   | INTERVIEW_IN_PROGRESS     | Claer Agan Rubio           | HAS NOTES    |      2281
+ Mark Justin Dela Cruz  | FINAL_INTERVIEW           | Jowie Suson                | HAS NOTES    |      3053
+ Preel Dacles           | FINAL_INTERVIEW           | Johann Bordario Dela Cerna | HAS NOTES    |      2208
+ Ryan Guarin            | FINAL_INTERVIEW           | Vince Realista             | HAS NOTES    |       106
+ Salrio Cabrera         | FINAL_INTERVIEW_SCHEDULED | Johann Bordario Dela Cerna | HAS NOTES    |      4243
+ Stephanie Jean  Bilar  | FINAL_INTERVIEW           | Claer Agan Rubio           | HAS NOTES    |      1554
+

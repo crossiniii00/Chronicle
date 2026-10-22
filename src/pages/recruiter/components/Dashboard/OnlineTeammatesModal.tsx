@@ -47,7 +47,7 @@ export const OnlineTeammatesModal: React.FC<OnlineTeammatesModalProps> = ({
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by name, role, or page..."
-                        className="w-full pl-9 pr-9 py-2.5 text-[12px] font-medium text-surface-900 placeholder:text-surface-400 placeholder:font-normal bg-surface-50 border border-surface-200 rounded-sm focus:bg-white focus:border-black focus:outline-none transition-colors"
+                        className="w-full pl-9 pr-9 py-2.5 text-[12px] font-medium text-surface-900 placeholder:text-surface-400 placeholder:font-normal bg-surface-50 border border-surface-200 rounded-none focus:bg-white dark:bg-slate-900 focus:border-black focus:outline-none transition-colors"
                     />
                     {search && (
                         <button

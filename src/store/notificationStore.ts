@@ -11,6 +11,7 @@ interface NotificationStore {
     markRead: (id: string) => Promise<void>;
     markAllRead: () => Promise<void>;
     deleteNotification: (id: string) => Promise<void>;
+    deleteBulkNotifications: (ids: string[]) => Promise<void>;
     addNotification: (n: Omit<Notification, 'id' | 'is_read' | 'created_at'>) => Promise<void>;
 }
 
@@ -20,8 +21,9 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
     loadNotifications: async (userId: string) => {
         try {
-            const notifs = await NotificationService.getByUserId(userId);
-            set({ notifications: notifs, unreadCount: notifs.filter(n => !n.is_read).length });
+            // const notifs = await NotificationService.getByUserId(userId);
+            // set({ notifications: notifs, unreadCount: notifs.filter(n => !n.is_read).length });
+            set({ notifications: [], unreadCount: 0 });
         } catch (error) {
             console.error(error);
         }
@@ -60,6 +62,19 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
             if (!userId) return;
             
             await NotificationService.delete(id);
+            get().loadNotifications(userId);
+        } catch (error) {
+            console.error(error);
+        }
+    },
+
+    deleteBulkNotifications: async (ids: string[]) => {
+        try {
+            const authStore = useAuthStore.getState();
+            const userId = authStore.user?.id;
+            if (!userId) return;
+            
+            await NotificationService.deleteBulk(ids);
             get().loadNotifications(userId);
         } catch (error) {
             console.error(error);

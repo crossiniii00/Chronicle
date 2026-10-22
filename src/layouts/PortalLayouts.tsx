@@ -4,28 +4,87 @@ import { Sidebar } from '@/components/common/Sidebar';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useActiveAccountStore, parseAccounts } from '@/store/activeAccountStore';
+import { useGlobalDataStore } from '@/store/globalDataStore';
+import { useToast } from '@/components/common/useToast';
 import {
     LayoutDashboard, UserCheck, Users, FileText, GraduationCap,
     Briefcase, Video, DoorOpen, PieChart, BarChart3, Monitor,
     History as HistoryIcon, User, BookOpen, Building2, Mail, Activity, Database,
     Network, ShieldAlert, CreditCard, ClipboardCheck, UserPlus, Settings,
-    CheckCircle2, MessageSquare, Sparkles, Menu
+    CheckCircle2, MessageSquare, Sparkles, Menu, ArrowUpRight, Bell
 } from 'lucide-react';
 import { Calendar } from 'lucide-react';
 import { GlobalHeader } from '@/components/layouts/Header/GlobalHeader';
 import { useLocation } from 'react-router-dom';
 import { cn } from '@/utils/formatters';
 import { socketService } from '@/services/socketService';
+import { AnimatePresence } from 'framer-motion';
+import { WelcomeIntro } from '@/pages/recruiter/components/Dashboard/WelcomeIntro';
 
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 
+function getNext4AMPHTime(): number {
+    const now = new Date();
+    // Convert current time to UTC+8 (PH) date representation
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const phNow = new Date(utc + (3600000 * 8));
+    
+    // Set target reset to 4:00 AM PH time today
+    const phReset = new Date(phNow);
+    phReset.setHours(4, 0, 0, 0);
+    
+    // If it is already past 4:00 AM PH time, the next reset is 4:00 AM tomorrow
+    if (phNow.getTime() >= phReset.getTime()) {
+        phReset.setDate(phReset.getDate() + 1);
+    }
+    
+    // Convert the PH time representation back to absolute UTC ms
+    return phReset.getTime() - (3600000 * 8);
+}
+
 function LayoutWrapper({ groups }: { groups: any[] }) {
     const { user } = useAuthStore();
+    const { initializeData } = useGlobalDataStore();
+    const [showWelcome, setShowWelcome] = React.useState(false);
     const { loadNotifications } = useNotificationStore();
+    const toast = useToast();
     const location = useLocation();
     const [mobileOpen, setMobileOpen] = React.useState(false);
-    const isTracker = location.pathname.includes('/tracker') || location.pathname.includes('/mhrt') || location.pathname.includes('/hiring/chr');
+    const isTracker = location.pathname.includes('/tracker') || location.pathname.includes('/mhrt') || location.pathname.includes('/hiring/chr') || location.pathname.includes('/settings');
     const isAccounts = location.pathname.includes('/accounts');
+
+    // Initialize global data once when Layout mounts
+    useEffect(() => {
+        if (user?.id) {
+            initializeData();
+            const { setupSocketListeners } = useGlobalDataStore.getState();
+            setupSocketListeners();
+        }
+    }, [user?.id, initializeData]);
+
+    // Run user-specific check once auth credentials load
+    useEffect(() => {
+        if (user?.id) {
+            const role = user.role?.toLowerCase();
+            const isRecruiterOrAdmin = role === 'recruiter' || role === 'admin' || role === 'super_admin' || role === 'recruiter_interviewer';
+            
+            if (!isRecruiterOrAdmin) {
+                setShowWelcome(false);
+                return;
+            }
+
+            try {
+                const until = localStorage.getItem(`welcome_intro_last_shown_until_${user.id}`);
+                if (!until || Date.now() > Number(until)) {
+                    setShowWelcome(false); // Hidden for now
+                } else {
+                    setShowWelcome(false);
+                }
+            } catch {
+                setShowWelcome(false); // Hidden for now
+            }
+        }
+    }, [user?.id]);
 
     const fetchNotifications = React.useCallback(() => {
         if (user?.id) {
@@ -38,7 +97,12 @@ function LayoutWrapper({ groups }: { groups: any[] }) {
     useEffect(() => {
         if (user?.id) {
             const socket = socketService.getSocket();
-            const handleNewNotification = () => {
+            const handleNewNotification = (data?: { title: string; message: string; userIds?: string[] }) => {
+                if (data?.userIds && Array.isArray(data.userIds)) {
+                    if (!data.userIds.includes(user.id)) {
+                        return; // Not targeted to this user
+                    }
+                }
                 console.log('[Socket] New notification, reloading notifications...');
                 loadNotifications(user.id);
             };
@@ -57,6 +121,22 @@ function LayoutWrapper({ groups }: { groups: any[] }) {
 
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-surface-50 font-sans text-left">
+            <AnimatePresence>
+                {showWelcome && (
+                    <WelcomeIntro
+                        user={user}
+                        onClose={() => {
+                            setShowWelcome(false);
+                            try {
+                                if (user?.id) {
+                                    const nextReset = getNext4AMPHTime();
+                                    localStorage.setItem(`welcome_intro_last_shown_until_${user.id}`, nextReset.toString());
+                                }
+                            } catch {}
+                        }}
+                    />
+                )}
+            </AnimatePresence>
             <div className="flex flex-1 overflow-hidden text-left relative">
                 <Sidebar 
                     groups={groups} 
@@ -83,11 +163,25 @@ function LayoutWrapper({ groups }: { groups: any[] }) {
 
 export function RecruiterLayout() {
     const groups = [
+        {
+            header: 'Quick Access',
+            items: [
+                {
+                    path: '/recruiter/quick-settings', label: 'Quick Settings', icon: Sparkles, glow: true
+                }
+            ]
+        },
         { 
             header: 'Overview', 
             items: [
-                { path: '/recruiter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                { path: '/recruiter/forums', label: 'Forums', icon: MessageSquare }
+                {
+                    path: '/recruiter/dashboard', label: 'Overview', icon: LayoutDashboard,
+                    subItems: [
+                        { path: '/recruiter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                        { path: '/recruiter/calendar', label: 'Calendar', icon: Calendar },
+                        { path: '/recruiter/profile', label: 'My Profile', icon: User }
+                    ]
+                }
             ] 
         },
         {
@@ -99,8 +193,7 @@ export function RecruiterLayout() {
                         { path: '/recruiter/tracker/management', label: 'Application Management', icon: Users },
                         { path: '/recruiter/tracker/interview-form', label: 'Interview Form', icon: FileText },
                         { path: '/recruiter/tracker/masterlist', label: 'Masterlist', icon: GraduationCap },
-                        { path: '/recruiter/tracker/typing-test-tracker', label: 'Tests Tracker', icon: Activity },
-                        { path: '/recruiter/tracker/scheduling', label: 'Scheduling', icon: Calendar },
+                        { path: '/recruiter/tracker/scheduling', label: 'For Ops Val Scheduling', icon: Calendar },
                     ]
                 },
                 {
@@ -113,53 +206,39 @@ export function RecruiterLayout() {
                 {
                     path: '/recruiter/hiring', label: 'Hiring and Accounts', icon: Building2,
                     subItems: [
-                        { path: '/recruiter/settings/job-postings', label: 'Job Postings', icon: Briefcase },
-                        { path: '/recruiter/settings/accounts', label: 'Account System', icon: Building2 },
+                        { path: '/recruiter/hiring/job-postings', label: 'Job Postings', icon: FileText },
+                        { path: '/recruiter/hiring/accounts', label: 'Hiring & Accounts Hub', icon: Building2 },
                     ]
                 },
+
             ]
         },
         {
-            header: 'References',
+            header: 'Insights',
             items: [
                 {
-                    path: '/recruiter/mhrt', label: 'MHRT', icon: ClipboardCheck,
+                    path: '/recruiter/reports', label: 'Reports', icon: BarChart3,
                     subItems: [
-                        { path: '/recruiter/mhrt/salary', label: 'Salary', icon: CreditCard },
-                        { path: '/recruiter/mhrt/accounts', label: 'Accounts', icon: Building2 },
-                        { path: '/recruiter/mhrt/h2r-creation', label: 'H2R Creation Hub', icon: UserPlus },
-                        { path: '/recruiter/mhrt/directory', label: 'Directory', icon: BookOpen },
-                    ]
-                },
-            ]
-        },
-        {
-            header: 'System',
-            items: [
-                {
-                    path: '/recruiter/intelligence', label: 'Analytics', icon: PieChart,
-                    subItems: [
-                        { path: '/recruiter/reports', label: 'Reports', icon: BarChart3 },
+                        { path: '/recruiter/reports', label: 'Report Dashboard', icon: BarChart3 },
+                        { path: '/recruiter/tracker/typing-test-tracker', label: 'Tests Tracker', icon: Activity },
+                        { path: '/recruiter/employee-tracker', label: 'Employee Tracker', icon: Network },
                         { path: '/recruiter/audit', label: 'Activity Logs', icon: HistoryIcon },
                     ]
                 },
             ]
         },
         {
-            header: 'System Setup',
+            dividerTop: true,
+            header: 'System & References',
             items: [
                 {
-                    path: '/recruiter/settings', label: 'Project R Settings', icon: Settings,
-                    subItems: [
-                        { path: '/recruiter/settings/questions', label: 'Question Bank', icon: BookOpen },
-                        { path: '/recruiter/settings/typing-test', label: 'Typing Test', icon: Activity },
-                        { path: '/recruiter/settings/email-templates', label: 'Email Templates', icon: Mail },
-                        { path: '/recruiter/settings/ai', label: 'AI Settings', icon: Sparkles },
-                    ]
+                    path: '/recruiter/mhrt', label: 'MHRT', icon: ClipboardCheck
                 },
+                {
+                    path: '/recruiter/settings', label: 'CRM Settings', icon: Settings
+                }
             ]
-        },
-        { header: 'Account', items: [{ path: '/recruiter/profile', label: 'My Profile', icon: User }] }
+        }
     ];
     return <LayoutWrapper groups={groups} />;
 }
@@ -178,7 +257,7 @@ export function GuestInterviewerLayout() {
             header: 'Overview',
             items: [
                 { path: '/final-interview/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                { path: '/final-interview/forums', label: 'Forums', icon: MessageSquare }
+                { path: '/final-interview/profile', label: 'Profile', icon: User }
             ]
         },
         {
@@ -195,12 +274,11 @@ export function GuestInterviewerLayout() {
                     label: currentAccount.toUpperCase(),
                     icon: Building2,
                     subItems: [
-                        { path: '/final-interview/analysis', label: 'Analysis', icon: PieChart },
+                        { path: '/final-interview/analysis', label: 'Account Analysis', icon: PieChart },
                         { path: '/final-interview/schedules', label: 'Calendar', icon: Calendar },
                         { path: '/final-interview/team', label: 'Team', icon: Users }
                     ]
-                },
-                { path: '/final-interview/profile', label: 'Profile', icon: User }
+                }
             ]
         }
     ];
@@ -209,12 +287,25 @@ export function GuestInterviewerLayout() {
 
 export function AdminLayout() {
     const groups = [
+        {
+            header: 'Quick Access',
+            items: [
+                {
+                    path: '/admin/quick-settings', label: 'Quick Settings', icon: Sparkles, glow: true
+                }
+            ]
+        },
         { 
             header: 'Main', 
             items: [
-                { path: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
-                { path: '/admin/forums', label: 'Forums', icon: MessageSquare },
-                { path: '/admin/calendar', label: 'Calendar', icon: Calendar }
+                {
+                    path: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard,
+                    subItems: [
+                        { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                        { path: '/admin/calendar', label: 'Calendar', icon: Calendar },
+                        { path: '/admin/profile', label: 'Profile', icon: User }
+                    ]
+                }
             ] 
         },
         {
@@ -226,8 +317,7 @@ export function AdminLayout() {
                         { path: '/admin/tracker/management', label: 'Application Management', icon: Users },
                         { path: '/admin/tracker/interview-form', label: 'Interview Form', icon: FileText },
                         { path: '/admin/tracker/masterlist', label: 'Masterlist', icon: GraduationCap },
-                        { path: '/admin/tracker/typing-test-tracker', label: 'Tests Tracker', icon: Activity },
-                        { path: '/admin/tracker/scheduling', label: 'Scheduling', icon: Calendar },
+                        { path: '/admin/tracker/scheduling', label: 'For Ops Val Scheduling', icon: Calendar },
                     ]
                 },
                 {
@@ -240,52 +330,39 @@ export function AdminLayout() {
                 {
                     path: '/admin/hiring', label: 'Hiring and Accounts', icon: Building2,
                     subItems: [
-                        { path: '/admin/settings/job-postings', label: 'Job Postings', icon: Briefcase },
-                        { path: '/admin/settings/accounts', label: 'Account System', icon: Building2 },
+                        { path: '/admin/hiring/job-postings', label: 'Job Postings', icon: FileText },
+                        { path: '/admin/hiring/accounts', label: 'Hiring & Accounts Hub', icon: Building2 },
                     ]
                 },
-            ]
-        },
-        {
-            header: 'References',
-            items: [
-                {
-                    path: '/admin/mhrt', label: 'MHRT', icon: ClipboardCheck,
-                    subItems: [
-                        { path: '/admin/mhrt/salary', label: 'Salary', icon: CreditCard },
-                        { path: '/admin/mhrt/accounts', label: 'Accounts', icon: Building2 },
-                        { path: '/admin/mhrt/h2r-creation', label: 'H2R Creation Hub', icon: UserPlus },
-                        { path: '/admin/mhrt/directory', label: 'Directory', icon: BookOpen },
-                    ]
-                },
-            ]
-        },
-        {
-            header: 'System Setup',
-            items: [
-                {
-                    path: '/admin/settings', label: 'Project R Settings', icon: Settings,
-                    subItems: [
-                        { path: '/admin/settings/questions', label: 'Question Bank', icon: BookOpen },
-                        { path: '/admin/settings/typing-test', label: 'Typing Test', icon: Activity },
-                        { path: '/admin/settings/email-templates', label: 'Email Templates', icon: Mail },
-                        { path: '/admin/settings/ai', label: 'AI Settings', icon: Sparkles },
-                        { path: '/admin/queue-settings', label: 'Active Tasks', icon: Activity },
-                        { path: '/admin/backup', label: 'Backups', icon: Database },
-                        { path: '/admin/users', label: 'Users', icon: Users }
-                    ]
-                },
-                { path: '/admin/employee-tracker', label: 'Employee Tracker', icon: Network }
+
             ]
         },
         {
             header: 'Insights',
             items: [
-                { path: '/admin/reports', label: 'Reports', icon: BarChart3 },
-                { path: '/admin/audit', label: 'Security Logs', icon: ShieldAlert },
+                {
+                    path: '/admin/reports', label: 'Reports', icon: BarChart3,
+                    subItems: [
+                        { path: '/admin/reports', label: 'Report Dashboard', icon: BarChart3 },
+                        { path: '/admin/tracker/typing-test-tracker', label: 'Tests Tracker', icon: Activity },
+                        { path: '/admin/employee-tracker', label: 'Employee Tracker', icon: Network },
+                        { path: '/admin/audit', label: 'Security Logs', icon: ShieldAlert },
+                    ]
+                },
             ]
         },
-        { header: 'Identity', items: [{ path: '/admin/profile', label: 'Profile', icon: User }] }
+        {
+            dividerTop: true,
+            header: 'System & References',
+            items: [
+                {
+                    path: '/admin/mhrt', label: 'MHRT', icon: ClipboardCheck
+                },
+                {
+                    path: '/admin/settings', label: 'CRM Settings', icon: Settings
+                }
+            ]
+        }
     ];
     return <LayoutWrapper groups={groups} />;
 }

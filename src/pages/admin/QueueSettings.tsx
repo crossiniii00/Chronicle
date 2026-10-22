@@ -175,14 +175,14 @@ export function QueueSettings() {
                     </h1>
                     <p className="text-surface-500 mt-1">Configure queue flow, audio announcements, alerts, and monitor displays.</p>
                 </div>
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase tracking-[0.18em] rounded-sm">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase tracking-[0.18em] rounded-none">
                     <BadgeCheck size={12} />
                     Service Online
                 </span>
             </div>
 
             {/* Display URL and Controls */}
-            <div className="bg-white border border-surface-200 rounded-lg shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h3 className="text-sm font-bold text-surface-900 uppercase tracking-wider">Queue Display URL</h3>
                     <p className="text-xs text-surface-500 mt-0.5 font-medium">Use this URL on an external screen or monitor for candidate queuing.</p>
@@ -192,21 +192,21 @@ export function QueueSettings() {
                         type="text"
                         value={queueDisplayUrl}
                         readOnly
-                        className="px-3 py-1.5 bg-surface-50 border border-surface-200 rounded-sm text-xs font-mono text-surface-700 w-64 focus:outline-none"
+                        className="px-3 py-1.5 bg-surface-50 border border-surface-200 rounded-none text-xs font-mono text-surface-700 w-64 focus:outline-none"
                     />
                     <button
                         onClick={() => {
                             navigator.clipboard.writeText(queueDisplayUrl);
                             success('Copied!', 'URL copied to clipboard');
                         }}
-                        className="p-2 text-surface-600 hover:text-primary-600 hover:bg-primary-50 border border-surface-200 rounded-sm transition-all"
+                        className="p-2 text-surface-600 hover:text-primary-600 hover:bg-primary-50 border border-surface-200 rounded-none transition-all"
                         title="Copy Link"
                     >
                         <Copy size={14} />
                     </button>
                     <button
                         onClick={() => window.open(queueDisplayUrl, '_blank')}
-                        className="p-2 text-surface-600 hover:text-primary-600 hover:bg-primary-50 border border-surface-200 rounded-sm transition-all"
+                        className="p-2 text-surface-600 hover:text-primary-600 hover:bg-primary-50 border border-surface-200 rounded-none transition-all"
                         title="Open in New Tab"
                     >
                         <ExternalLink size={14} />
@@ -216,14 +216,14 @@ export function QueueSettings() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 {/* Configuration Tabs Form */}
-                <div className="lg:col-span-2 bg-white border border-surface-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
+                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-surface-200 rounded-none shadow-sm overflow-hidden flex flex-col">
                     {/* Tab Selectors */}
                     <div className="flex border-b border-surface-200 bg-surface-50">
                         <button
                             onClick={() => setActiveTab('counter')}
                             className={`flex-1 py-3.5 px-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 border-b-2 transition-colors ${
                                 activeTab === 'counter'
-                                    ? 'border-primary-600 text-primary-600 bg-white'
+                                    ? 'border-primary-600 text-primary-600 bg-white dark:bg-slate-900'
                                     : 'border-transparent text-surface-500 hover:text-surface-800'
                             }`}
                         >
@@ -234,7 +234,7 @@ export function QueueSettings() {
                             onClick={() => setActiveTab('acoustics')}
                             className={`flex-1 py-3.5 px-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 border-b-2 transition-colors ${
                                 activeTab === 'acoustics'
-                                    ? 'border-primary-600 text-primary-600 bg-white'
+                                    ? 'border-primary-600 text-primary-600 bg-white dark:bg-slate-900'
                                     : 'border-transparent text-surface-500 hover:text-surface-800'
                             }`}
                         >
@@ -245,7 +245,7 @@ export function QueueSettings() {
                             onClick={() => setActiveTab('visuals')}
                             className={`flex-1 py-3.5 px-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 border-b-2 transition-colors ${
                                 activeTab === 'visuals'
-                                    ? 'border-primary-600 text-primary-600 bg-white'
+                                    ? 'border-primary-600 text-primary-600 bg-white dark:bg-slate-900'
                                     : 'border-transparent text-surface-500 hover:text-surface-800'
                             }`}
                         >
@@ -269,7 +269,7 @@ export function QueueSettings() {
                                             type="text"
                                             value={prefix}
                                             onChange={(e) => setPrefix(e.target.value.toUpperCase())}
-                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                             placeholder="e.g. Q-"
                                         />
                                     </div>
@@ -279,7 +279,7 @@ export function QueueSettings() {
                                             type="number"
                                             value={currentNumber}
                                             onChange={(e) => setCurrentNumber(Math.max(1, parseInt(e.target.value) || 1))}
-                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         />
                                     </div>
                                     <div>
@@ -287,7 +287,7 @@ export function QueueSettings() {
                                         <select
                                             value={autoReset}
                                             onChange={(e) => setAutoReset(e.target.value)}
-                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white dark:bg-slate-900"
                                         >
                                             <option value="daily">Reset Daily</option>
                                             <option value="weekly">Reset Weekly</option>
@@ -300,7 +300,7 @@ export function QueueSettings() {
                                             type="number"
                                             value={maxActiveQueues}
                                             onChange={(e) => setMaxActiveQueues(Math.max(1, parseInt(e.target.value) || 1))}
-                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         />
                                     </div>
                                 </div>
@@ -322,7 +322,7 @@ export function QueueSettings() {
                                                 onChange={(e) => setAutoAdvance(e.target.checked)}
                                                 className="sr-only peer"
                                             />
-                                            <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                                            <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-slate-900 after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                                         </label>
                                     </div>
 
@@ -331,7 +331,7 @@ export function QueueSettings() {
                                         <select
                                             value={bufferTime}
                                             onChange={(e) => setBufferTime(Number(e.target.value))}
-                                            className="w-full md:w-1/2 px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+                                            className="w-full md:w-1/2 px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white dark:bg-slate-900"
                                         >
                                             <option value={0}>Immediate (No buffer)</option>
                                             <option value={30}>30 Seconds</option>
@@ -361,7 +361,7 @@ export function QueueSettings() {
                                             onChange={(e) => setSoundEnabled(e.target.checked)}
                                             className="sr-only peer"
                                         />
-                                        <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                                        <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-slate-900 after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                                     </label>
                                 </div>
 
@@ -372,7 +372,7 @@ export function QueueSettings() {
                                             value={audioTone}
                                             onChange={(e) => setAudioTone(e.target.value)}
                                             disabled={!soundEnabled}
-                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white disabled:opacity-55"
+                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white dark:bg-slate-900 disabled:opacity-55"
                                         >
                                             <option value="modern">Modern Ping (Recommended)</option>
                                             <option value="classic">Classic Chime</option>
@@ -408,7 +408,7 @@ export function QueueSettings() {
                                         <select
                                             value={announcementVoice}
                                             onChange={(e) => setAnnouncementVoice(e.target.value)}
-                                            className="w-full appearance-none pl-3 pr-8 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+                                            className="w-full appearance-none pl-3 pr-8 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white dark:bg-slate-900"
                                         >
                                             <option value="">Default System Voice (Auto)</option>
                                             {voices.map((voice) => (
@@ -421,14 +421,14 @@ export function QueueSettings() {
                                     </div>
                                 </div>
 
-                                <div className="p-4 bg-surface-50 border border-surface-200 rounded-sm flex items-center justify-between">
+                                <div className="p-4 bg-surface-50 border border-surface-200 rounded-none flex items-center justify-between">
                                     <div>
                                         <span className="text-xs font-bold text-surface-800">Test Voice Engine</span>
                                         <span className="text-[11px] text-surface-400 block mt-0.5">Listen to a sample queue announcement using the current settings.</span>
                                     </div>
                                     <button
                                         onClick={playTestAudio}
-                                        className="h-8 px-4 inline-flex items-center gap-2 bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 text-xs font-bold uppercase tracking-wider rounded-sm transition-all"
+                                        className="h-8 px-4 inline-flex items-center gap-2 bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 text-xs font-bold uppercase tracking-wider rounded-none transition-all"
                                     >
                                         <Play size={12} />
                                         Test Audio
@@ -449,7 +449,7 @@ export function QueueSettings() {
                                         <select
                                             value={theme}
                                             onChange={(e) => setTheme(e.target.value)}
-                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white dark:bg-slate-900"
                                         >
                                             <option value="emerald">Vibrant Emerald (Standard)</option>
                                             <option value="sapphire">Deep Sapphire</option>
@@ -464,7 +464,7 @@ export function QueueSettings() {
                                             type="number"
                                             value={highTrafficThreshold}
                                             onChange={(e) => setHighTrafficThreshold(Math.max(5, parseInt(e.target.value) || 5))}
-                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         />
                                     </div>
                                 </div>
@@ -475,7 +475,7 @@ export function QueueSettings() {
                                         value={bannerMessage}
                                         onChange={(e) => setBannerMessage(e.target.value)}
                                         rows={2}
-                                        className="w-full px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                        className="w-full px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         placeholder="Enter announcements for display..."
                                     />
                                 </div>
@@ -497,7 +497,7 @@ export function QueueSettings() {
                                                 onChange={(e) => setShowWaitTime(e.target.checked)}
                                                 className="sr-only peer"
                                             />
-                                            <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                                            <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-slate-900 after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                                         </label>
                                     </div>
 
@@ -513,7 +513,7 @@ export function QueueSettings() {
                                                 onChange={(e) => setShowTotalApplicants(e.target.checked)}
                                                 className="sr-only peer"
                                             />
-                                            <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                                            <div className="w-9 h-5 bg-surface-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-slate-900 after:border-surface-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                                         </label>
                                     </div>
 
@@ -523,7 +523,7 @@ export function QueueSettings() {
                                             type="number"
                                             value={targetWaitTime}
                                             onChange={(e) => setTargetWaitTime(Math.max(1, parseInt(e.target.value) || 1))}
-                                            className="w-full md:w-1/2 px-3 py-1.5 border border-surface-200 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            className="w-full md:w-1/2 px-3 py-1.5 border border-surface-200 rounded-none text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         />
                                     </div>
                                 </div>
@@ -541,7 +541,7 @@ export function QueueSettings() {
                         </button>
                         <button
                             onClick={handleSave}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white hover:bg-primary-700 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white hover:bg-primary-700 text-xs font-bold uppercase tracking-wider rounded-none transition-colors"
                         >
                             <RefreshCw size={12} className="animate-spin-hover" />
                             Update Settings
@@ -551,16 +551,16 @@ export function QueueSettings() {
 
                 {/* Right Preview Panel */}
                 <div className="space-y-6">
-                    <div className="bg-white border border-surface-200 rounded-lg shadow-sm p-5 space-y-4">
+                    <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none shadow-sm p-5 space-y-4">
                         <div className="flex items-center gap-2 pb-2 border-b border-surface-100">
                             <Sparkles size={16} className="text-amber-500 animate-pulse" />
                             <h4 className="text-xs font-bold uppercase tracking-wider text-surface-700">Display Layout Preview</h4>
                         </div>
 
                         {/* Simulated Monitor Display */}
-                        <div className="border border-surface-300 rounded-md overflow-hidden bg-surface-50 shadow-inner flex flex-col h-52 text-[10px]">
+                        <div className="border border-surface-300 rounded-none overflow-hidden bg-surface-50 shadow-inner flex flex-col h-52 text-[10px]">
                             {/* Simulator header */}
-                            <div className="bg-white border-b border-surface-200 py-1.5 px-3 flex items-center justify-between">
+                            <div className="bg-white dark:bg-slate-900 border-b border-surface-200 py-1.5 px-3 flex items-center justify-between">
                                 <span className="font-bold tracking-tight text-surface-800">Primary Interview</span>
                                 <div className={`w-3 h-3 rounded-full ${themeStyles.bg}`} />
                             </div>
@@ -575,7 +575,7 @@ export function QueueSettings() {
                             </div>
 
                             {/* Stats overlay */}
-                            <div className="bg-white border-t border-surface-200 py-1 px-3 flex items-center justify-between text-[9px] text-surface-500">
+                            <div className="bg-white dark:bg-slate-900 border-t border-surface-200 py-1 px-3 flex items-center justify-between text-[9px] text-surface-500">
                                 {showWaitTime && (
                                     <span>Avg Wait: <strong className="text-surface-700">12m</strong></span>
                                 )}
@@ -592,7 +592,7 @@ export function QueueSettings() {
                         <p className="text-[10px] text-surface-400 italic text-center">Simulated appearance of the public monitor view.</p>
                     </div>
 
-                    <div className="bg-white border border-surface-200 rounded-lg shadow-sm p-5 space-y-4">
+                    <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none shadow-sm p-5 space-y-4">
                         <div className="flex items-center gap-2 pb-2 border-b border-surface-100">
                             <Activity size={16} className="text-primary-600" />
                             <h4 className="text-xs font-bold uppercase tracking-wider text-surface-700">System Metrics</h4>
@@ -627,8 +627,6 @@ export function BackupRestore() {
     const [selectedBackup, setSelectedBackup] = useState<SelectedBackup | null>(null);
     const [restoreConfirm, setRestoreConfirm] = useState<BackupHistoryEntry | null>(null);
     const [backupType, setBackupType] = useState<'full' | 'incremental' | 'settings'>('full');
-    const [compression, setCompression] = useState(true);
-    const [encryption, setEncryption] = useState(false);
 
     const fetchHistory = async () => {
         try {
@@ -655,13 +653,13 @@ export function BackupRestore() {
         try {
             const res = await BackupService.createBackup(backupType);
             await fetchHistory();
-            success('Backup created', 'System backup has been created successfully.');
-            if (res && res.filename) {
+            success('Backup created', `${backupType.charAt(0).toUpperCase() + backupType.slice(1)} backup saved successfully.`);
+            if (res?.filename) {
                 BackupService.downloadBackup(res.filename);
             }
         } catch (err) {
             const e = err as { response?: { data?: { message?: string } }; message?: string };
-            error('Backup failed', e.response?.data?.message || e.message || 'Failed to create system backup.');
+            error('Backup failed', e.response?.data?.message || e.message || 'Failed to create backup.');
         } finally {
             setLoading(false);
         }
@@ -672,13 +670,14 @@ export function BackupRestore() {
         setLoading(true);
         try {
             await BackupService.restoreBackup(selectedBackup.filename);
-            success('Restore completed', 'System has been restored from backup successfully.');
+            success('Restore completed', 'Database restored successfully.');
             setRestoreModal(false);
             setSelectedBackup(null);
             await fetchHistory();
+            setTimeout(() => window.location.reload(), 1000);
         } catch (err) {
             const e = err as { response?: { data?: { message?: string } }; message?: string };
-            error('Restore failed', e.response?.data?.message || e.message || 'Failed to restore system from backup.');
+            error('Restore failed', e.response?.data?.message || e.message || 'Failed to restore.');
         } finally {
             setLoading(false);
         }
@@ -688,10 +687,10 @@ export function BackupRestore() {
         try {
             await BackupService.deleteBackup(backup.filename);
             await fetchHistory();
-            success('Backup deleted', 'Backup has been deleted successfully.');
+            success('Deleted', 'Backup removed.');
         } catch (err) {
             const e = err as { response?: { data?: { message?: string } }; message?: string };
-            error('Delete failed', e.response?.data?.message || e.message || 'Failed to delete backup.');
+            error('Delete failed', e.response?.data?.message || e.message || 'Failed to delete.');
         } finally {
             setRestoreConfirm(null);
         }
@@ -700,698 +699,266 @@ export function BackupRestore() {
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         setLoading(true);
         try {
             await BackupService.importBackup(file);
             await fetchHistory();
-            success('Backup imported', 'Backup file has been uploaded successfully.');
+            success('Imported', 'Backup file uploaded.');
         } catch (err) {
             const e = err as { response?: { data?: { message?: string } }; message?: string };
-            error('Import failed', e.response?.data?.message || e.message || 'Failed to upload backup file.');
+            error('Import failed', e.response?.data?.message || e.message || 'Failed to upload.');
         } finally {
             setLoading(false);
             e.target.value = '';
         }
     };
 
-    // Calculate dynamic stats
-    const totalBackups = backupHistory.length;
-    const totalSizeFormatted = (() => {
-        const totalBytes = backupHistory.reduce((sum, b) => sum + b.size, 0);
-        if (totalBytes > 1024 * 1024 * 1024) {
-            return `${(totalBytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-        }
-        return `${(totalBytes / 1024 / 1024).toFixed(1)} MB`;
-    })();
-
-    const lastWeek = new Date();
-    lastWeek.setDate(lastWeek.getDate() - 7);
-    const backupsThisWeek = backupHistory.filter(b => new Date(b.created_at) >= lastWeek).length;
-
-    const latestBackup = backupHistory[0];
-    const lastBackupDaysFormatted = (() => {
-        if (!latestBackup) return 'N/A';
-        const diffTime = Math.abs(new Date().getTime() - new Date(latestBackup.created_at).getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return `${diffDays}d ago`;
-    })();
-
-    const BACKUP_SCHEMAS = {
-        full: {
-            name: 'Full Backup',
-            description: 'Comprehensive snapshot of all tables, schema structures, and data. Best for full server migrations or critical disaster recovery.',
-            color: 'border-cyan-200 bg-cyan-50/20 text-cyan-800',
-            iconColor: 'text-cyan-600',
-            bgIcon: 'bg-cyan-50 border-cyan-100',
-            categories: [
-                { name: 'Identity & Accounts', icon: '👤', tables: ['users', 'audit_logs'], status: 'included' },
-                { name: 'Recruitment & Applications', icon: '📄', tables: ['applications', 'work_experience', 'typing_test_results', 'status_history'], status: 'included' },
-                { name: 'System Configurations', icon: '⚙️', tables: ['email_templates', 'interview_questions', 'report_configs', 'positions'], status: 'included' },
-                { name: 'Support & Operations', icon: '🏥', tables: ['departments', 'mhrt_accounts', 'mhrt_h2r_records', 'mhrt_directory', 'mhrt_division_mappings', 'mhrt_time_off_assignments', 'queue', 'interview_rooms'], status: 'included' },
-                { name: 'Community & Forum', icon: '💬', tables: ['forum_posts', 'forum_comments', 'forum_reactions', 'forum_polls', 'forum_poll_options', 'forum_poll_votes', 'notifications'], status: 'included' }
-            ],
-            exclusions: ['user_sessions (to prevent active user disconnects)']
-        },
-        incremental: {
-            name: 'Incremental Backup',
-            description: 'Wipes/restores active application records and log queues. Retains system configurations and setup.',
-            color: 'border-emerald-200 bg-emerald-50/20 text-emerald-800',
-            iconColor: 'text-emerald-600',
-            bgIcon: 'bg-emerald-50 border-emerald-100',
-            categories: [
-                { name: 'Identity & Accounts', icon: '👤', tables: ['users', 'audit_logs'], status: 'included' },
-                { name: 'Recruitment & Applications', icon: '📄', tables: ['applications', 'work_experience', 'typing_test_results', 'status_history'], status: 'included' },
-                { name: 'System Configurations', icon: '⚙️', tables: ['email_templates', 'interview_questions', 'report_configs', 'positions'], status: 'excluded' },
-                { name: 'Support & Operations', icon: '🏥', tables: ['queue', 'interview_rooms'], status: 'included' },
-                { name: 'Community & Forum', icon: '💬', tables: ['forum_posts', 'forum_comments', 'forum_reactions', 'forum_polls', 'forum_poll_options', 'forum_poll_votes', 'notifications'], status: 'included' }
-            ],
-            exclusions: ['user_sessions', 'departments config', 'mhrt support records', 'positions parameters']
-        },
-        settings: {
-            name: 'Settings Only',
-            description: 'Configuration-only backup. Exports templates, questions, forms and settings. Safe for transfer between staging platforms.',
-            color: 'border-purple-200 bg-purple-50/20 text-purple-800',
-            iconColor: 'text-purple-600',
-            bgIcon: 'bg-purple-50 border-purple-100',
-            categories: [
-                { name: 'Identity & Accounts', icon: '👤', tables: ['users', 'audit_logs'], status: 'excluded' },
-                { name: 'Recruitment & Applications', icon: '📄', tables: ['applications', 'work_experience', 'typing_test_results', 'status_history'], status: 'excluded' },
-                { name: 'System Configurations', icon: '⚙️', tables: ['email_templates', 'interview_questions', 'report_configs', 'positions'], status: 'included' },
-                { name: 'Support & Operations', icon: '🏥', tables: ['departments', 'mhrt_accounts', 'mhrt_division_mappings', 'mhrt_time_off_assignments'], status: 'included' },
-                { name: 'Community & Forum', icon: '💬', tables: ['forum_posts', 'forum_comments', 'forum_reactions', 'forum_polls', 'forum_poll_options', 'forum_poll_votes', 'notifications'], status: 'excluded' }
-            ],
-            exclusions: ['all application records', 'user credentials', 'audit logs', 'forums', 'queues list', 'user_sessions']
-        }
+    const formatSize = (bytes: number) => {
+        if (bytes > 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
     };
 
-    const activeSchema = BACKUP_SCHEMAS[backupType];
+    const formatDate = (iso: string) => {
+        const d = new Date(iso);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    };
+
+    const backupTypeLabels: Record<string, { label: string; desc: string }> = {
+        full: { label: 'Full', desc: 'All tables and data' },
+        incremental: { label: 'Incremental', desc: 'Data only, keeps configs' },
+        settings: { label: 'Settings', desc: 'Config tables only' }
+    };
 
     return (
-        <div className="text-left bg-surface-50/30 min-h-screen pb-12">
+        <div className="text-left bg-white dark:bg-slate-900 min-h-screen font-sans text-neutral-800">
             {/* Header */}
-            <div className="bg-white border-b border-surface-200 shadow-sm">
-                <div className="max-w-7xl mx-auto px-6 py-6 md:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-primary-50 rounded-lg flex items-center justify-center border border-primary-100">
-                                <ArchiveRestore size={18} className="text-primary-600" />
-                            </div>
-                            <h1 className="text-2xl md:text-3xl font-black text-surface-900 tracking-tight">
-                                Backup & Restore Dashboard
-                            </h1>
-                        </div>
-                        <p className="text-xs text-surface-500 font-medium">
-                            Create secure database snapshots, manage historical backup restore points, and inspect database parameters.
-                        </p>
+            <div className="border-b border-neutral-200">
+                <div className="max-w-[1200px] mx-auto px-6 py-5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <ArchiveRestore size={20} className="text-blue-600" />
+                        <h1 className="text-lg font-semibold text-neutral-900 tracking-tight">Backup & Restore</h1>
                     </div>
-                    
-                    <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            Database active
-                        </span>
-                        
-                        <label className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white border border-surface-200 hover:bg-surface-50 text-surface-700 text-xs font-bold uppercase tracking-wider rounded-sm cursor-pointer transition-all shadow-sm">
-                            <Upload size={13} className="text-primary-600" />
-                            Import SQL backup
-                            <input
-                                type="file"
-                                accept=".sql"
-                                onChange={handleImport}
-                                className="hidden"
-                            />
-                        </label>
-                    </div>
+                    <label className="flex items-center gap-2 px-3 py-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-xs font-medium cursor-pointer transition-colors rounded">
+                        <Upload size={14} />
+                        Import
+                        <input type="file" accept=".sql" onChange={handleImport} className="hidden" />
+                    </label>
                 </div>
             </div>
 
-            {/* Dashboard Content Container */}
-            <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-
-                {/* Dynamic Stats Row */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Total Backups */}
-                    <div className="bg-white border border-surface-200 rounded-sm p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-                        <div>
-                            <span className="text-2xl font-black text-surface-900 leading-none tracking-tight tabular-nums">{totalBackups}</span>
-                            <h4 className="text-[11px] font-bold text-surface-400 uppercase tracking-wider mt-1.5">Total Backups</h4>
-                        </div>
-                        <div className="w-10 h-10 bg-cyan-50 rounded-sm flex items-center justify-center border border-cyan-100">
-                            <Database size={18} className="text-cyan-600" />
-                        </div>
-                    </div>
-
-                    {/* Total Size */}
-                    <div className="bg-white border border-surface-200 rounded-sm p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-                        <div>
-                            <span className="text-2xl font-black text-surface-900 leading-none tracking-tight tabular-nums">{totalSizeFormatted}</span>
-                            <h4 className="text-[11px] font-bold text-surface-400 uppercase tracking-wider mt-1.5">Total Storage</h4>
-                        </div>
-                        <div className="w-10 h-10 bg-purple-50 rounded-sm flex items-center justify-center border border-purple-100">
-                            <HardDrive size={18} className="text-purple-600" />
-                        </div>
-                    </div>
-
-                    {/* Created This Week */}
-                    <div className="bg-white border border-surface-200 rounded-sm p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-                        <div>
-                            <span className="text-2xl font-black text-surface-900 leading-none tracking-tight tabular-nums">{backupsThisWeek}</span>
-                            <h4 className="text-[11px] font-bold text-surface-400 uppercase tracking-wider mt-1.5">This Week</h4>
-                        </div>
-                        <div className="w-10 h-10 bg-emerald-50 rounded-sm flex items-center justify-center border border-emerald-100">
-                            <Calendar size={18} className="text-emerald-600" />
-                        </div>
-                    </div>
-
-                    {/* Days since Last Backup */}
-                    <div className="bg-white border border-surface-200 rounded-sm p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-                        <div>
-                            <span className="text-2xl font-black text-surface-900 leading-none tracking-tight">{lastBackupDaysFormatted}</span>
-                            <h4 className="text-[11px] font-bold text-surface-400 uppercase tracking-wider mt-1.5">Last Sync</h4>
-                        </div>
-                        <div className="w-10 h-10 bg-orange-50 rounded-sm flex items-center justify-center border border-orange-100">
-                            <Clock size={18} className="text-orange-600" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Active Backup Banner */}
-                <div className="bg-white border border-surface-200 rounded-sm overflow-hidden shadow-sm">
-                    <div className="px-5 py-3 border-b border-surface-100 bg-surface-50/50 flex items-center gap-2">
-                        <CheckCircle2 size={15} className="text-emerald-600 animate-pulse" />
-                        <h3 className="font-bold text-surface-800 text-xs uppercase tracking-wider">Active State Pointer</h3>
-                    </div>
-                    {activeBackup ? (
-                        <div className="p-5 bg-emerald-50/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-white border border-surface-200 rounded-sm flex items-center justify-center text-emerald-600 shadow-sm">
-                                    <Database size={18} />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-sm font-bold text-surface-800 font-mono tracking-tight">{activeBackup.filename}</p>
-                                    <p className="text-xs text-surface-500 font-medium">
-                                        Restored on {new Date(activeBackup.restored_at).toLocaleString()} &bull; {(activeBackup.size / 1024 / 1024).toFixed(2)} MB
+            <div className="max-w-[1200px] mx-auto px-6 py-6 space-y-5">
+                {/* Active Backup */}
+                <div className="border border-neutral-200 rounded bg-white dark:bg-slate-900">
+                    <div className="px-4 py-3 flex items-center justify-between">
+                        {activeBackup ? (
+                            <div className="flex items-center gap-3 min-w-0">
+                                <Database size={16} className="text-blue-500 shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-neutral-800 truncate">{activeBackup.filename}</p>
+                                    <p className="text-[11px] text-neutral-500">
+                                        Restored {formatDate(activeBackup.restored_at)} · {formatSize(activeBackup.size)}
                                     </p>
                                 </div>
                             </div>
+                        ) : (
                             <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold rounded-full">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    Active Database State
-                                </span>
+                                <AlertTriangle size={14} className="text-amber-500" />
+                                <span className="text-sm text-neutral-600">No active restore point</span>
+                            </div>
+                        )}
+                        {activeBackup && (
+                            <button onClick={() => BackupService.downloadBackup(activeBackup.filename)} className="p-1.5 text-neutral-400 hover:text-blue-600 transition-colors" title="Download active backup">
+                                <Download size={14} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Create Backup */}
+                <div className="border border-neutral-200 rounded bg-white dark:bg-slate-900">
+                    <div className="px-4 py-3 border-b border-neutral-100">
+                        <h3 className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">Create Backup</h3>
+                    </div>
+                    <div className="p-4 space-y-4">
+                        <div className="flex gap-2">
+                            {Object.entries(backupTypeLabels).map(([key, { label, desc }]) => (
                                 <button
-                                    onClick={() => BackupService.downloadBackup(activeBackup.filename)}
-                                    className="h-8 w-8 inline-flex items-center justify-center text-surface-500 hover:text-cyan-600 hover:bg-cyan-50 border border-surface-200 hover:border-cyan-200 rounded-sm transition-all"
-                                    title="Download SQL File"
+                                    key={key}
+                                    onClick={() => setBackupType(key as 'full' | 'incremental' | 'settings')}
+                                    className={`flex-1 px-3 py-2.5 border rounded text-left transition-all ${
+                                        backupType === key
+                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                            : 'border-neutral-200 hover:border-neutral-300'
+                                    }`}
                                 >
-                                    <Download size={14} />
+                                    <span className={`block text-xs font-semibold ${backupType === key ? 'text-blue-700' : 'text-neutral-700'}`}>{label}</span>
+                                    <span className="block text-[10px] text-neutral-500 mt-0.5">{desc}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={createBackup}
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 h-9 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded disabled:bg-neutral-300 transition-colors"
+                        >
+                            {loading ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                            {loading ? 'Processing...' : 'Run Backup'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Scheduler */}
+                {scheduleSettings && (
+                    <div className="border border-neutral-200 rounded bg-white dark:bg-slate-900">
+                        <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+                            <h3 className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">Auto-Backup</h3>
+                            <input
+                                type="checkbox"
+                                checked={scheduleSettings.enabled}
+                                onChange={(e) => setScheduleSettings({ ...scheduleSettings, enabled: e.target.checked })}
+                                className="rounded border-neutral-300 text-blue-600 focus:ring-0 w-3.5 h-3.5 cursor-pointer"
+                            />
+                        </div>
+                        {scheduleSettings.enabled && (
+                            <div className="p-4 flex flex-wrap items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-neutral-500">Every</span>
+                                    <select
+                                        value={scheduleSettings.frequency}
+                                        onChange={(e) => setScheduleSettings({ ...scheduleSettings, frequency: e.target.value as 'daily' | 'weekly' | 'monthly' })}
+                                        className="border border-neutral-200 bg-white dark:bg-slate-900 px-2 py-1 text-xs rounded outline-none focus:border-blue-500"
+                                    >
+                                        <option value="daily">Day</option>
+                                        <option value="weekly">Week (Sunday)</option>
+                                        <option value="monthly">Month (1st)</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-neutral-500">at</span>
+                                    <input
+                                        type="time"
+                                        value={scheduleSettings.time}
+                                        onChange={(e) => setScheduleSettings({ ...scheduleSettings, time: e.target.value })}
+                                        className="border border-neutral-200 bg-white dark:bg-slate-900 px-2 py-1 text-xs rounded outline-none focus:border-blue-500 font-mono"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-neutral-500">Keep last</span>
+                                    <input
+                                        type="number" min={1} max={100}
+                                        value={scheduleSettings.keepLast}
+                                        onChange={(e) => setScheduleSettings({ ...scheduleSettings, keepLast: parseInt(e.target.value) || 3 })}
+                                        className="w-14 border border-neutral-200 bg-white dark:bg-slate-900 px-2 py-1 text-xs rounded outline-none focus:border-blue-500 text-center font-mono"
+                                    />
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        setLoading(true);
+                                        try { await BackupService.saveSettings(scheduleSettings); success('Saved', 'Scheduler updated.'); }
+                                        catch { error('Failed', 'Could not save scheduler settings.'); }
+                                        finally { setLoading(false); }
+                                    }}
+                                    disabled={loading}
+                                    className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium border border-neutral-200 rounded transition-colors"
+                                >
+                                    Save
                                 </button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3.5 p-5">
-                            <AlertTriangle size={18} className="text-amber-500 shrink-0" />
-                            <div className="space-y-0.5">
-                                <p className="text-sm font-bold text-surface-800">Operating Live (No Restored Backup Pointer)</p>
-                                <p className="text-xs text-surface-500">The application is running directly on the live PostgreSQL server database state.</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
 
-                {/* Primary Panel Configuration Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    {/* Console & Payload Detail Breakdown - 2 Columns */}
-                    <div className="lg:col-span-2 space-y-6">
-
-                        {/* Backup Console Card */}
-                        <div className="bg-white border border-surface-200 rounded-sm shadow-sm p-6 space-y-6">
-                            
-                            {/* Card Header */}
-                            <div className="flex items-center gap-3 border-b border-surface-100 pb-3">
-                                <div className="w-8 h-8 bg-primary-50 rounded-sm flex items-center justify-center border border-primary-100">
-                                    <Sliders size={15} className="text-primary-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-surface-900 text-sm uppercase tracking-wider">Backup Creator</h3>
-                                    <p className="text-[11px] text-surface-400 mt-0.5">Configure snapshot params and build your backup.</p>
-                                </div>
-                            </div>
-
-                            {/* Select Options via Card Grid */}
-                            <div className="space-y-4">
-                                <label className="block text-[11px] font-bold text-surface-500 uppercase tracking-wider">Select Backup Profile</label>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {Object.entries(BACKUP_SCHEMAS).map(([key, schema]) => {
-                                        const isSelected = backupType === key;
-                                        return (
-                                            <button
-                                                key={key}
-                                                type="button"
-                                                onClick={() => setBackupType(key as 'full' | 'incremental' | 'settings')}
-                                                className={`p-3.5 rounded-sm border text-left transition-all ${
-                                                    isSelected
-                                                        ? 'border-primary-600 bg-primary-50/20 ring-1 ring-primary-600'
-                                                        : 'border-surface-200 hover:border-surface-300 bg-white'
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className={`text-[12px] font-bold ${isSelected ? 'text-primary-700' : 'text-surface-800'}`}>
-                                                        {schema.name}
-                                                    </span>
-                                                    <span className={`text-xs ${schema.iconColor}`}>
-                                                        {key === 'full' ? '📂' : key === 'incremental' ? '⏱️' : '⚙️'}
-                                                    </span>
-                                                </div>
-                                                <p className="text-[10px] text-surface-400 leading-normal line-clamp-2">
-                                                    {schema.description}
-                                                </p>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Detailed Table Matrix (Interactive Breakdown) */}
-                            <div className="space-y-3 bg-surface-50 p-4 rounded-sm border border-surface-200/60">
-                                <div className="flex justify-between items-center pb-2 border-b border-surface-200">
-                                    <div>
-                                        <h4 className="text-xs font-bold text-surface-800 uppercase tracking-wider">Payload Breakdown</h4>
-                                        <p className="text-[10px] text-surface-400 mt-0.5">Below is a breakdown of what data will be written into this backup file.</p>
-                                    </div>
-                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm border ${activeSchema.color}`}>
-                                        {activeSchema.name} Profile
-                                    </span>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                                    {activeSchema.categories.map((cat, i) => {
-                                        const isIncluded = cat.status === 'included';
-                                        return (
-                                            <div 
-                                                key={i} 
-                                                className={`p-2.5 rounded-sm border flex items-start gap-3 transition-colors ${
-                                                    isIncluded 
-                                                        ? 'bg-white border-surface-200 shadow-sm' 
-                                                        : 'bg-surface-100/40 border-surface-200/40 opacity-50'
-                                                }`}
-                                            >
-                                                <span className="text-base shrink-0 mt-0.5">{cat.icon}</span>
-                                                <div className="space-y-1 min-w-0 flex-1">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-[11px] font-bold text-surface-700 truncate">{cat.name}</span>
-                                                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-sm ${
-                                                            isIncluded 
-                                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                                                : 'bg-rose-50 text-rose-700 border border-rose-200'
-                                                        }`}>
-                                                            {isIncluded ? 'INCLUDED' : 'EXCLUDED'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {cat.tables.map((table, tIdx) => (
-                                                            <span 
-                                                                key={tIdx} 
-                                                                className={`text-[9px] font-mono px-1 rounded-sm ${
-                                                                    isIncluded 
-                                                                        ? 'bg-surface-50 text-surface-600 border border-surface-200/60' 
-                                                                        : 'bg-transparent text-surface-400 line-through'
-                                                                }`}
-                                                            >
-                                                                {table}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {activeSchema.exclusions && activeSchema.exclusions.length > 0 && (
-                                    <div className="pt-2 text-[10.5px] text-surface-500 font-medium flex items-start gap-1.5">
-                                        <span className="text-rose-500">⚠️</span>
-                                        <span>
-                                            <strong>Strict Exclusions:</strong> {activeSchema.exclusions.join(', ')}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Additional Options */}
-                            <div className="flex flex-wrap gap-6 pt-2 border-t border-surface-100">
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        checked={compression}
-                                        onChange={(e) => setCompression(e.target.checked)}
-                                        className="rounded-sm border-surface-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5 bg-white"
-                                    />
-                                    <span className="text-xs font-bold text-surface-600 group-hover:text-surface-900 transition-colors tracking-tight">Compress GZIP</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        checked={encryption}
-                                        onChange={(e) => setEncryption(e.target.checked)}
-                                        className="rounded-sm border-surface-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5 bg-white"
-                                    />
-                                    <span className="text-xs font-bold text-surface-600 group-hover:text-surface-900 transition-colors tracking-tight">Encrypt AES-256</span>
-                                </label>
-                            </div>
-
-                            {/* Backup Action Trigger */}
-                            <button
-                                onClick={createBackup}
-                                disabled={loading}
-                                className="w-full flex items-center justify-center gap-2 h-9 px-4 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-all shadow-sm disabled:opacity-50"
-                            >
-                                {loading ? (
-                                    <RefreshCw size={14} className="animate-spin" />
+                {/* Backup History */}
+                <div className="border border-neutral-200 rounded bg-white dark:bg-slate-900">
+                    <div className="px-4 py-3 border-b border-neutral-100">
+                        <h3 className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">
+                            Backup History ({backupHistory.length})
+                        </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead>
+                                <tr className="border-b border-neutral-100 text-[10px] font-medium text-neutral-500 uppercase tracking-wide">
+                                    <th className="px-4 py-2.5">Filename</th>
+                                    <th className="px-4 py-2.5">Type</th>
+                                    <th className="px-4 py-2.5">Size</th>
+                                    <th className="px-4 py-2.5">Date</th>
+                                    <th className="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-50">
+                                {backupHistory.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-4 py-6 text-center text-xs text-neutral-400">No backups yet.</td>
+                                    </tr>
                                 ) : (
-                                    <Download size={14} />
-                                )}
-                                {loading ? 'Running Process...' : 'Run Backup Engine'}
-                            </button>
-
-                        </div>
-
-                        {/* History Log Registry */}
-                        <div className="bg-white border border-surface-200 rounded-sm overflow-hidden shadow-sm">
-                            <div className="px-5 py-4 border-b border-surface-100 bg-surface-50/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                <div>
-                                    <h3 className="font-bold text-surface-900 text-xs uppercase tracking-wider">Backup Registry</h3>
-                                    <p className="text-[11px] text-surface-400 mt-0.5">Historical database restore points stored locally on server disk.</p>
-                                </div>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full border-collapse text-left">
-                                    <thead>
-                                        <tr className="text-left text-[10px] font-bold text-surface-400 uppercase tracking-wider border-b border-surface-200 bg-surface-50/50">
-                                            <th className="px-5 py-3">Filename</th>
-                                            <th className="px-5 py-3">Profile</th>
-                                            <th className="px-5 py-3">Size</th>
-                                            <th className="px-5 py-3">Generated Date</th>
-                                            <th className="px-5 py-3">Status</th>
-                                            <th className="px-5 py-3 text-right">Actions</th>
+                                    backupHistory.map(b => (
+                                        <tr key={b.id} className="hover:bg-neutral-50/50">
+                                            <td className="px-4 py-2.5 text-xs font-medium text-neutral-700 max-w-[300px] truncate">{b.filename}</td>
+                                            <td className="px-4 py-2.5">
+                                                <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                                                    b.type === 'full' ? 'bg-blue-50 text-blue-700' :
+                                                    b.type === 'incremental' ? 'bg-amber-50 text-amber-700' :
+                                                    b.type === 'settings' ? 'bg-purple-50 text-purple-700' :
+                                                    'bg-neutral-50 text-neutral-600'
+                                                }`}>
+                                                    {b.type}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-2.5 text-xs text-neutral-600">{formatSize(b.size)}</td>
+                                            <td className="px-4 py-2.5 text-xs text-neutral-500">{formatDate(b.created_at)}</td>
+                                            <td className="px-4 py-2.5 text-right">
+                                                <div className="flex items-center justify-end gap-0.5">
+                                                    <button onClick={() => { setSelectedBackup({ id: b.id, filename: b.filename }); setRestoreModal(true); }} className="p-1.5 text-neutral-400 hover:text-blue-600 transition-colors rounded" title="Restore">
+                                                        <Upload size={13} />
+                                                    </button>
+                                                    <button onClick={() => BackupService.downloadBackup(b.filename)} className="p-1.5 text-neutral-400 hover:text-neutral-700 transition-colors rounded" title="Download">
+                                                        <Download size={13} />
+                                                    </button>
+                                                    <button onClick={() => setRestoreConfirm(b)} className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors rounded" title="Delete">
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-surface-100">
-                                        {backupHistory.filter(b => b.filename !== activeBackup?.filename).length === 0 ? (
-                                            <tr>
-                                                <td colSpan={6} className="px-5 py-12 text-center text-xs font-semibold text-surface-400 tracking-tight">
-                                                    📦 No other backup files located in directory.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            backupHistory
-                                                .filter(b => b.filename !== activeBackup?.filename)
-                                                .map(backup => (
-                                                    <tr key={backup.id} className="hover:bg-surface-50/50 transition-colors">
-                                                        <td className="px-5 py-3.5">
-                                                            <div className="flex items-center gap-2.5">
-                                                                <Database size={13} className="text-surface-400 shrink-0" />
-                                                                <span className="text-[12px] font-bold text-surface-800 font-mono tracking-tight">{backup.filename}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-5 py-3.5">
-                                                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                                                                backup.type === 'full'
-                                                                    ? 'bg-cyan-50 text-cyan-700 border-cyan-150'
-                                                                    : backup.type === 'incremental'
-                                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-150'
-                                                                        : 'bg-purple-50 text-purple-700 border-purple-150'
-                                                            }`}>
-                                                                {backup.type}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-5 py-3.5 text-xs font-medium text-surface-700 font-mono tabular-nums">
-                                                            {(backup.size / 1024 / 1024).toFixed(2)} MB
-                                                        </td>
-                                                        <td className="px-5 py-3.5 text-xs font-medium text-surface-500">
-                                                            {new Date(backup.created_at).toLocaleString()}
-                                                        </td>
-                                                        <td className="px-5 py-3.5">
-                                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                                Success
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-5 py-3.5">
-                                                            <div className="flex items-center justify-end gap-1.5">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedBackup({
-                                                                            id: backup.id,
-                                                                            filename: backup.filename
-                                                                        });
-                                                                        setRestoreModal(true);
-                                                                    }}
-                                                                    className="h-7 w-7 inline-flex items-center justify-center text-surface-500 hover:text-orange-600 hover:bg-orange-50 border border-surface-200 hover:border-orange-200 rounded-sm transition-all shadow-sm"
-                                                                    title="Restore Database from Backup"
-                                                                >
-                                                                    <Upload size={13} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => BackupService.downloadBackup(backup.filename)}
-                                                                    className="h-7 w-7 inline-flex items-center justify-center text-surface-500 hover:text-cyan-600 hover:bg-cyan-50 border border-surface-200 hover:border-cyan-200 rounded-sm transition-all shadow-sm"
-                                                                    title="Download Backup SQL"
-                                                                >
-                                                                    <Download size={13} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setRestoreConfirm(backup)}
-                                                                    className="h-7 w-7 inline-flex items-center justify-center text-surface-400 hover:text-rose-600 hover:bg-rose-50 border border-surface-200 hover:border-rose-200 rounded-sm transition-all shadow-sm"
-                                                                    title="Delete Backup File"
-                                                                >
-                                                                    <Trash2 size={13} />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-
-                    {/* Database Health & Scheduler Panel - 1 Column */}
-                    <div className="space-y-6">
-
-                        {/* Database Info Console */}
-                        <div className="bg-white border border-surface-200 rounded-sm shadow-sm p-5 space-y-4">
-                            <div className="flex items-center gap-2.5 pb-2 border-b border-surface-100">
-                                <div className="w-8 h-8 bg-cyan-50 rounded-sm flex items-center justify-center border border-cyan-100">
-                                    <Activity size={14} className="text-cyan-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-surface-900 text-xs uppercase tracking-wider">Database Status</h3>
-                                    <p className="text-[10px] text-surface-400 mt-0.5">Connection parameters to local engine.</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2.5 bg-surface-50/70 p-4 rounded-sm border border-surface-200/50">
-                                <div className="flex items-center justify-between py-1 border-b border-surface-200/40">
-                                    <span className="text-xs text-surface-500 font-semibold tracking-tight">Database Type</span>
-                                    <span className="text-xs font-black text-surface-800">PostgreSQL Server</span>
-                                </div>
-                                <div className="flex items-center justify-between py-1 border-b border-surface-200/40">
-                                    <span className="text-xs text-surface-500 font-semibold tracking-tight">Status</span>
-                                    <span className="text-xs font-black text-emerald-600 flex items-center gap-1.5">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                                        Active (5432)
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between py-1 border-b border-surface-200/40">
-                                    <span className="text-xs text-surface-500 font-semibold tracking-tight">SSL Enforcer</span>
-                                    <span className="text-xs font-black text-emerald-600">Active / Enforced</span>
-                                </div>
-                                <div className="flex items-center justify-between py-1">
-                                    <span className="text-xs text-surface-500 font-semibold tracking-tight">Tables Integrity</span>
-                                    <span className="text-xs font-black text-emerald-600 flex items-center gap-1">
-                                        Verified (OK)
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="p-3 bg-emerald-50/50 border border-emerald-200/60 rounded-sm flex items-center gap-2.5">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">Local Instance Online</p>
-                            </div>
-                        </div>
-
-                        {/* Automatic Scheduler Console */}
-                        <div className="bg-white border border-surface-200 rounded-sm shadow-sm p-5 space-y-4">
-                            <div className="flex items-center gap-2.5 pb-2 border-b border-surface-100">
-                                <div className="w-8 h-8 bg-purple-50 rounded-sm flex items-center justify-center border border-purple-100">
-                                    <Clock size={14} className="text-purple-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-surface-900 text-xs uppercase tracking-wider">Automated Scheduler</h3>
-                                    <p className="text-[10px] text-surface-400 mt-0.5">Setup daily, weekly, or monthly CRON runs.</p>
-                                </div>
-                            </div>
-
-                            {scheduleSettings ? (
-                                <div className="space-y-3">
-                                    <div className="space-y-2.5 bg-surface-50/70 p-4 rounded-sm border border-surface-200/50">
-                                        <div className="flex items-center justify-between py-1 border-b border-surface-200/40">
-                                            <span className="text-xs text-surface-500 font-semibold">Toggle Auto-Backup</span>
-                                            <input
-                                                type="checkbox"
-                                                checked={scheduleSettings.enabled}
-                                                onChange={(e) => setScheduleSettings({ ...scheduleSettings, enabled: e.target.checked })}
-                                                className="rounded-sm border-surface-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5 bg-white cursor-pointer"
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between py-1 border-b border-surface-200/40">
-                                            <span className="text-xs text-surface-500 font-semibold">Frequency Profile</span>
-                                            <select
-                                                value={scheduleSettings.frequency}
-                                                onChange={(e) => setScheduleSettings({ ...scheduleSettings, frequency: e.target.value as 'daily' | 'weekly' | 'monthly' })}
-                                                className="appearance-none px-2 h-7 bg-white border border-surface-200 rounded-sm text-xs font-bold tracking-tight text-surface-700 focus:outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer"
-                                                disabled={!scheduleSettings.enabled}
-                                            >
-                                                <option value="daily">Daily Cycle</option>
-                                                <option value="weekly">Weekly (Sunday)</option>
-                                                <option value="monthly">Monthly (1st)</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex items-center justify-between py-1 border-b border-surface-200/40">
-                                            <span className="text-xs text-surface-500 font-semibold">Local Launch Time</span>
-                                            <input
-                                                type="time"
-                                                value={scheduleSettings.time}
-                                                onChange={(e) => setScheduleSettings({ ...scheduleSettings, time: e.target.value })}
-                                                className="px-2 h-7 bg-white border border-surface-200 rounded-sm text-xs font-mono font-bold text-surface-700 focus:outline-none"
-                                                disabled={!scheduleSettings.enabled}
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between py-1">
-                                            <span className="text-xs text-surface-500 font-semibold">Keep Last Snapshots</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                max={100}
-                                                value={scheduleSettings.keepLast}
-                                                onChange={(e) => setScheduleSettings({ ...scheduleSettings, keepLast: parseInt(e.target.value) || 30 })}
-                                                className="w-12 px-1.5 h-7 bg-white border border-surface-200 rounded-sm text-xs font-mono font-bold text-surface-700 focus:outline-none text-center"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col gap-2 pt-1">
-                                        <button
-                                            onClick={async () => {
-                                                setLoading(true);
-                                                try {
-                                                    await BackupService.saveSettings(scheduleSettings);
-                                                    success('Scheduler updated', 'Auto backup configuration updated.');
-                                                } catch {
-                                                    error('Update failed', 'Failed to configure database scheduler.');
-                                                } finally {
-                                                    setLoading(false);
-                                                }
-                                            }}
-                                            disabled={loading}
-                                            className="w-full flex items-center justify-center gap-1.5 h-8 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-all shadow-sm disabled:opacity-50"
-                                        >
-                                            Save Schedule Parameters
-                                        </button>
-                                        <div className="px-3 py-2 bg-purple-50 border border-purple-200/60 rounded-sm flex items-center gap-2">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${scheduleSettings.enabled ? 'bg-purple-500 animate-pulse' : 'bg-surface-400'}`} />
-                                            <p className="text-[10.5px] text-purple-700 font-semibold tracking-tight">
-                                                {scheduleSettings.enabled ? `Enabled: ${scheduleSettings.frequency} @ ${scheduleSettings.time}` : 'Auto-Backup Service Disabled'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-xs text-surface-400 font-medium text-center py-6">
-                                    Loading scheduler settings...
-                                </div>
-                            )}
-                        </div>
-
-                    </div>
-
                 </div>
-
             </div>
 
-            {/* Restore Confirmation Modal */}
-            <Modal
-                open={restoreModal}
-                onClose={() => setRestoreModal(false)}
-                title="Restore Database from Backup"
-                size="md"
-            >
+            {/* Restore Modal */}
+            <Modal open={restoreModal} onClose={() => setRestoreModal(false)} title="Restore Database" size="md">
                 {selectedBackup && (
-                    <div className="space-y-5 text-left">
-                        <div className="p-4 bg-orange-50 border border-orange-200/60 rounded-sm">
-                            <div className="flex items-start gap-3">
-                                <AlertTriangle size={18} className="text-orange-600 mt-0.5 shrink-0" />
-                                <div>
-                                    <h4 className="font-bold text-orange-700 text-xs uppercase tracking-wider">Destructive Restore Process</h4>
-                                    <p className="text-xs text-surface-600 mt-1 leading-relaxed">
-                                        Wiping database and writing back data records. This action completely replaces your active application workspace, records and logs. This process cannot be undone.
-                                    </p>
-                                </div>
+                    <div className="space-y-4 p-2">
+                        <div className="bg-red-50 border border-red-200 p-3 rounded flex gap-3">
+                            <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="text-xs font-semibold text-red-800">This will replace your current database</h4>
+                                <p className="text-[11px] text-red-700 mt-1">All current data will be overwritten with the backup contents. This cannot be undone.</p>
                             </div>
                         </div>
-
-                        <div className="space-y-2.5 bg-surface-50 p-4 rounded-sm border border-surface-200">
-                            <div className="flex items-center justify-between text-xs py-1 border-b border-surface-200/50">
-                                <span className="text-surface-500 font-semibold">Selected SQL file</span>
-                                <span className="font-bold text-surface-800 font-mono">{selectedBackup.filename}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs py-1">
-                                <span className="text-surface-500 font-semibold">Restore Date</span>
-                                <span className="font-bold text-surface-800">
-                                    {new Date().toLocaleString()}
-                                </span>
-                            </div>
+                        <div className="border border-neutral-200 bg-neutral-50 p-3 rounded text-xs space-y-1">
+                            <div className="flex justify-between"><span className="text-neutral-500">File</span><span className="font-medium text-neutral-800 truncate max-w-[250px]">{selectedBackup.filename}</span></div>
                         </div>
-
-                        <div className="flex justify-end gap-2 pt-1">
-                            <button
-                                onClick={() => setRestoreModal(false)}
-                                className="h-8 px-4 border border-surface-200 text-surface-700 hover:bg-surface-50 text-xs font-bold uppercase tracking-wider rounded-sm transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (selectedBackup) {
-                                        restoreBackup();
-                                    }
-                                }}
-                                disabled={loading}
-                                className="h-8 px-4 bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 text-xs font-bold uppercase tracking-wider rounded-sm transition-all shadow-sm"
-                            >
-                                {loading ? 'Restoring Schema...' : 'Verify & Launch Restore'}
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setRestoreModal(false)} className="px-4 py-1.5 border border-neutral-200 hover:bg-neutral-50 text-xs font-medium text-neutral-600 rounded transition-colors">Cancel</button>
+                            <button onClick={restoreBackup} disabled={loading} className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded disabled:bg-neutral-300 transition-colors">
+                                {loading ? 'Restoring...' : 'Restore'}
                             </button>
                         </div>
                     </div>
                 )}
             </Modal>
 
-            {/* Delete Confirmation */}
+            {/* Delete Confirm */}
             <ConfirmDialog
                 open={!!restoreConfirm}
-                title="Delete backup"
-                message={`Are you sure you want to delete the backup "${restoreConfirm?.filename}"? This action cannot be undone.`}
-                onConfirm={() => {
-                    if (restoreConfirm) {
-                        deleteBackup(restoreConfirm);
-                    }
-                }}
+                title="Delete Backup"
+                message={`Permanently delete "${restoreConfirm?.filename}"?`}
+                onConfirm={() => { if (restoreConfirm) deleteBackup(restoreConfirm); }}
                 onClose={() => setRestoreConfirm(null)}
             />
         </div>

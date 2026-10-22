@@ -5,7 +5,7 @@ import { ApplicationService } from '@/services/ApplicationService';
 import { socketService } from '@/services/socketService';
 
 // Initialize real-time synchronization
-const setupSocketListeners = (store: any) => {
+const setupSocketListeners = (store: QueueStore) => {
     const socket = socketService.getSocket();
     
     socket.on('queue:updated', () => {
@@ -34,13 +34,15 @@ interface QueueStore {
         roomName: string,
         recruiterId: string,
         applicantUserId: string,
-        queueType?: 'INITIAL' | 'FINAL'
+        queueType?: 'INITIAL' | 'FINAL',
+        queuePrefix?: string
     ) => Promise<{ queueNumber?: number; error?: string }>;
     callNext: (callerId: string, queueType?: 'INITIAL' | 'FINAL', roomName?: string, interviewerName?: string, interviewerId?: string) => Promise<QueueEntry | null>;
     callSpecific: (queueId: string, recruiterId: string, roomName?: string, interviewerName?: string, interviewerId?: string) => Promise<QueueEntry | null>;
     skipApplicant: (queueId: string, reason: string) => Promise<void>;
     deleteApplicant: (queueId: string) => Promise<void>;
     terminateSession: (queueId: string) => Promise<void>; // Replaces clearCurrentCall
+    resetQueue: () => Promise<void>;
 }
 
 export const useQueueStore = create<QueueStore>((set, get) => ({
@@ -49,18 +51,19 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     callHistory: [],
 
     loadQueue: () => {
-        QueueService.getTodayActive().then(entries => {
+        QueueService.getTodayActive().then((entries: QueueEntry[]) => {
             const filtered = entries
-                .filter((e: any) => e.status === 'WAITING' || e.status === 'CALLED')
+                .filter(e => e.status === 'WAITING' || e.status === 'CALLED' || e.status === 'DRAFT' || e.status === 'RESCHEDULED')
                 .sort(sortByQueueNumber);
 
-            const calledEntries = entries.filter((e: any) => e.status === 'CALLED');
+            const calledEntries = entries.filter(e => e.status === 'CALLED');
 
             // Map all CALLED entries to activeSessions
-            const mappedActive = calledEntries.map((e: any) => ({
+            const mappedActive = calledEntries.map(e => ({
                 id: e.id,
                 application_id: e.application_id,
                 queue_number: e.queue_number,
+                queue_prefix: e.queue_prefix,
                 applicant_name: e.applicant_name,
                 room: e.assigned_room_name || 'TBD',
                 timestamp: e.called_at || new Date().toISOString(),
@@ -73,7 +76,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
         }).catch(console.error);
     },
 
-    assignQueueNumber: async (applicationId, applicantName, roomId, roomName, recruiterId, _applicantUserId, queueType = 'INITIAL') => {
+    assignQueueNumber: async (applicationId, applicantName, roomId, roomName, recruiterId, _applicantUserId, queueType = 'INITIAL', queuePrefix?: string) => {
         const { queue } = get();
         const existingQueue = queue.find(q => q.application_id === applicationId && q.status === 'WAITING');
         if (existingQueue) {
@@ -86,7 +89,8 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
                 applicantName,
                 interviewerId: recruiterId,
                 interviewerName: 'Admin',
-                queueType
+                queueType,
+                queuePrefix
             });
 
             get().loadQueue();
@@ -134,7 +138,10 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
             patch: {
                 assigned_interview_room_name: actualRoom,
                 assigned_recruiter_name: interviewerName || 'System',
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                metadata: {
+                    active_interview_type: entry.queue_type === 'FINAL' ? 'FINAL' : 'INITIAL'
+                }
             }
         });
 
@@ -142,6 +149,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
             id: entry.id,
             application_id: entry.application_id,
             queue_number: entry.queue_number,
+            queue_prefix: entry.queue_prefix,
             applicant_name: entry.applicant_name,
             room: actualRoom,
             timestamp: calledAt,
@@ -184,14 +192,39 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     },
 
     skipApplicant: async (queueId: string) => {
-        await QueueService.update(queueId, { status: 'SKIPPED' });
-        get().loadQueue();
+        try {
+            await QueueService.update(queueId, { status: 'SKIPPED' });
+            get().loadQueue();
+        } catch (err: unknown) {
+            console.error('[queueStore] skipApplicant failed:', err);
+        }
     },
 
     deleteApplicant: async (queueId) => {
-        await QueueService.delete(queueId);
-        get().loadQueue();
+        try {
+            await QueueService.delete(queueId);
+            set(state => ({
+                activeSessions: state.activeSessions.filter(s => s.id !== queueId)
+            }));
+            get().loadQueue();
+        } catch (err: unknown) {
+            console.error('[queueStore] deleteApplicant failed:', err);
+            // If it's a 404, it means it's already deleted in the backend, so we should still remove it locally
+            set(state => ({
+                activeSessions: state.activeSessions.filter(s => s.id !== queueId)
+            }));
+            get().loadQueue();
+        }
     },
+
+    resetQueue: async () => {
+        try {
+            await QueueService.resetQueue();
+            get().loadQueue();
+        } catch (err: unknown) {
+            console.error('[queueStore] resetQueue failed:', err);
+        }
+    }
 }));
 
 // Initialize real-time synchronization immediately

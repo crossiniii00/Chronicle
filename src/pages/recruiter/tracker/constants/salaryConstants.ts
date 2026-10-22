@@ -246,7 +246,7 @@ export const SALARY_DATA: AccountSalary[] = [
         ]
     },
     {
-        account: "Exact Sciences | Health Care",
+        account: "Abbott | Health Care",
         tiers: [
             {
                 name: "Tier 1",

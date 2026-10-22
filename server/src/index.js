@@ -1,4 +1,4 @@
-// Triggering hot-reload to restart port binding - listen
+// Triggering hot-reload to bind port
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -9,6 +9,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { rateLimit } from 'express-rate-limit';
+import compression from 'compression';
 import { config } from './config.js';
 import { pool } from './db.js';
 import { errorHandler } from './middleware/error-handler.js';
@@ -28,9 +29,18 @@ import { mhrtRouter } from './routes/mhrt.routes.js';
 import { aiRouter } from './routes/ai.routes.js';
 import { reportConfigsRouter } from './routes/report-configs.routes.js';
 import { backupRouter } from './routes/backup.routes.js';
-import forumsRouter from './routes/forums.routes.js';
 import { jobCategoriesRouter } from './routes/job-categories.routes.js';
 import { createSocketServer } from './socket.js';
+import { statsRouter } from './routes/stats.routes.js';
+
+// Global error handlers to prevent the server from crashing
+process.on('uncaughtException', (error) => {
+    console.error('UNCAUGHT EXCEPTION! 💥 Shutting down gracefully is recommended, but keeping server alive...', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION! 💥 Keeping server alive...', reason);
+});
 
 const PgSession = connectPgSimple(session);
 const app = express();
@@ -73,6 +83,7 @@ fs.mkdirSync(config.uploadDir, { recursive: true });
 app.use(helmet({
     crossOriginResourcePolicy: false,
 }));
+app.use(compression());
 app.use(cors({
     origin: (origin, callback) => {
         // Allow any origin for local deployment to support both localhost and network IPs
@@ -81,17 +92,24 @@ app.use(cors({
     credentials: true,
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+
+const sessionStore = new PgSession({
+    pool,
+    tableName: 'user_sessions',
+});
+
+sessionStore.on('error', (err) => {
+    console.error('[Session Store Error]', err);
+});
 
 app.use(session({
-    store: new PgSession({
-        pool,
-        tableName: 'user_sessions',
-    }),
+    store: sessionStore,
     secret: config.sessionSecret,
     resave: true,
     saveUninitialized: false,
+    rolling: true,
     cookie: {
         httpOnly: true,
         sameSite: 'lax',
@@ -102,14 +120,19 @@ app.use(session({
 
 app.use('/uploads/resumes', express.static(path.resolve(config.uploadDir)));
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+app.use('/api/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 app.use('/health', healthRouter);
 
-// Rate Limiter for API endpoints (Allows 300 requests per IP per minute)
+// Rate Limiter for API endpoints (Allows configurable limit and tracks per-user session to avoid office NAT IP blocks)
 const limiter = rateLimit({
     windowMs: 1 * 60 * 1000,
-    limit: 300,
+    limit: process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : 1000,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
+    validate: false,
+    keyGenerator: (req) => {
+        return req.session?.user?.id || req.ip || 'unknown';
+    },
     message: { error: 'Too many requests, please try again later.' },
 });
 app.use('/api', limiter);
@@ -130,8 +153,8 @@ app.use('/api/ai', aiRouter);
 console.log('[Server] Registering /api/report-configs route');
 app.use('/api/report-configs', reportConfigsRouter);
 app.use('/api/backups', backupRouter);
-app.use('/api/forums', forumsRouter);
 app.use('/api/job-categories', jobCategoriesRouter);
+app.use('/api/stats', statsRouter);
 app.use(errorHandler);
 
 const server = http.createServer(app);
@@ -142,28 +165,71 @@ io._trafficLog = trafficLog; // Expose to ALLMIND socket events
 // Self-healing DB check
 import { ensureDatabaseTables } from './db-init.js';
 ensureDatabaseTables().then(() => {
+    let retries = 5;
+    const startServer = () => {
+        server.listen(config.port, '0.0.0.0', () => {
+            console.log(`[Server] Running on port ${config.port}`);
+            // Start automatic backup scheduler
+            import('./services/scheduler.service.js').then(({ BackupScheduler }) => {
+                BackupScheduler.start();
+            }).catch(err => {
+                console.error('[Scheduler Error] Failed to start backup scheduler:', err);
+            });
+        });
+    };
+
     server.on('error', (e) => {
         if (e.code === 'EADDRINUSE') {
-            console.error(`[FATAL] Port ${config.port} is already in use. Please kill the process using this port and restart.`);
-            process.exit(1);
+            if (retries > 0) {
+                console.warn(`[Server] Port ${config.port} is busy. Retrying in 1000ms... (${retries} retries remaining)`);
+                retries--;
+                setTimeout(() => {
+                    try {
+                        server.close((err) => {
+                            if (err) {
+                                console.warn('[Server] Error while closing server on retry:', err.message);
+                            }
+                            startServer();
+                        });
+                    } catch (closeErr) {
+                        startServer();
+                    }
+                }, 1000);
+            } else {
+                console.error(`[FATAL] Port ${config.port} is already in use. Max retries reached. Exiting.`);
+                process.exit(1);
+            }
         } else {
             console.error('[FATAL] Server error:', e);
             process.exit(1);
         }
     });
 
-    server.listen(config.port, () => {
-        console.log(`[Server] Running on port ${config.port}`);
-        // Start automatic backup scheduler
-        import('./services/scheduler.service.js').then(({ BackupScheduler }) => {
-            BackupScheduler.start();
-        }).catch(err => {
-            console.error('[Scheduler Error] Failed to start backup scheduler:', err);
-        });
-    });
+    startServer();
 }).catch(err => {
     console.error('[FATAL] Failed to initialize database:', err);
     process.exit(1);
 });
+
+const gracefulShutdown = (signal) => {
+    console.log(`[Server] Received ${signal}. Starting graceful shutdown...`);
+    server.close(() => {
+        console.log('[Server] HTTP/Socket server closed.');
+        pool.end(() => {
+            console.log('[Server] Database pool connections ended.');
+            process.exit(0);
+        });
+    });
+
+    // Force shutdown after 5 seconds if connection cleanup hangs
+    setTimeout(() => {
+        console.error('[Server] Graceful shutdown timed out. Force exiting...');
+        process.exit(1);
+    }, 5000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 // Watcher reload trigger 3
 

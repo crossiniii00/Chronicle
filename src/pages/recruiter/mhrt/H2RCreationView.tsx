@@ -43,7 +43,7 @@ export function H2RCreationView() {
     return (
         <div className="flex flex-col gap-6 animate-fade-in translate-y-[-8px]">
             {/* H2R Creation Hub Header & Tabs */}
-            <div className="bg-white border-b border-surface-200 -mx-10 px-10 pt-6 pb-0 shadow-sm relative z-10">
+            <div className="bg-white dark:bg-slate-900 border-b border-surface-200 -mx-10 px-10 pt-6 pb-0 shadow-sm relative z-10">
                 <div className="flex flex-col gap-6 max-w-[1600px] mx-auto">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest">

@@ -5,7 +5,7 @@ export interface DemoCharacter {
     company: string;
     position: string;
     description: string;
-    gender: 'Male' | 'Female' | 'Other';
+    sex: 'Male' | 'Female' | 'Other';
 }
 
 export const DEMO_CHARACTERS: DemoCharacter[] = [
@@ -17,7 +17,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Van der Linde Gang',
         position: 'Enforcer',
         description: 'Managed camp security, collected outstanding debts, and coordinated heavy transport logistics in frontier environments.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'John Marston',
@@ -26,7 +26,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Marston Ranching',
         position: 'Operations Manager',
         description: 'Oversaw daily agricultural operations, livestock transportation, and property maintenance in demanding rural settings.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Carl Johnson',
@@ -35,7 +35,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Grove Street Families',
         position: 'Logistics Supervisor',
         description: 'Coordinated territories, managed asset acquisition, and oversaw transport logistics across Los Santos, San Fierro, and Las Venturas.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Niko Bellic',
@@ -44,7 +44,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Roman Cab Services',
         position: 'Senior Dispatcher',
         description: 'Assisted in VIP transport, fleet dispatching, and handled resolution of difficult customer interactions in Liberty City.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Trevor Philips',
@@ -53,7 +53,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Trevor Philips Industries',
         position: 'Chief Executive Officer',
         description: 'Directed import-export distribution chains, conducted strategic negotiations, and supervised hazardous materials transport.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Michael De Santa',
@@ -62,7 +62,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'De Santa Productions',
         position: 'Executive Producer',
         description: 'Managed large budgets, coordinated complex project schedules, and directed large creative teams for entertainment media.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Franklin Clinton',
@@ -71,7 +71,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Premium Deluxe Motorsport',
         position: 'Asset Recovery Specialist',
         description: 'Managed customer collections, vehicle inspections, and resolved billing disputes for a high-volume automotive dealer.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Kratos of Sparta',
@@ -80,7 +80,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Nine Realms Security',
         position: 'Crisis Management Director',
         description: 'Specialized in high-stakes dispute resolution, structural risk mitigation, and youth mentorship programs in hostile terrains.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Aloy of the Nora',
@@ -89,7 +89,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Gaia Prime Systems',
         position: 'Hardware Field Engineer',
         description: 'Performed hardware diagnostic testing, environmental data analysis, and restored robotic systems to operational compliance.',
-        gender: 'Female'
+        sex: 'Female'
     },
     {
         full_name: 'Nathan Drake',
@@ -98,7 +98,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Drake Acquisitions',
         position: 'Senior Archaeologist & Recovery Specialist',
         description: 'Conducted international field research, catalogued historical artifacts, and successfully negotiated complex logistical permits.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Joel Miller',
@@ -107,7 +107,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Jackson Settlement Security',
         position: 'Logistics Specialist',
         description: 'Coordinated supply chain distributions, fortified community perimeters, and led emergency rescue patrols.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Ellie Williams',
@@ -116,7 +116,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Jackson Settlement Security',
         position: 'Junior Security Officer',
         description: 'Conducted perimeter patrols, analyzed localized surveillance data, and maintained emergency response communications.',
-        gender: 'Female'
+        sex: 'Female'
     },
     {
         full_name: 'Jin Sakai',
@@ -125,7 +125,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Tsushima Defense Union',
         position: 'Strategic Defense Consultant',
         description: 'Developed asymmetrical defense strategies, trained civilian volunteers, and managed relations between diverse local factions.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Peter Parker',
@@ -134,7 +134,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Daily Bugle',
         position: 'Photojournalist',
         description: 'Captured high-profile events, edited digital media, and worked under tight daily publishing deadlines.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Miles Morales',
@@ -143,7 +143,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Brooklyn Community Outreach',
         position: 'Event Coordinator',
         description: 'Organized community murals, managed youth sports events, and assisted in local crisis response efforts.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Ranni the Witch',
@@ -152,7 +152,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Carian Royal Academy',
         position: 'Dean of Astronomy & Magic',
         description: 'Supervised advanced theoretical research, curated celestial archives, and managed public relations for the lunar house.',
-        gender: 'Female'
+        sex: 'Female'
     },
     {
         full_name: 'Malenia the Severed',
@@ -161,7 +161,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Haligtree Royal Guard',
         position: 'Operations Commander',
         description: 'Led large-scale organizational initiatives, oversaw defense personnel, and designed combat simulation training.',
-        gender: 'Female'
+        sex: 'Female'
     },
     {
         full_name: 'Solaire of Astora',
@@ -170,7 +170,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Warriors of Sunlight',
         position: 'Community Engagement Lead',
         description: 'Organized cross-regional volunteer cooperatives, promoted optimistic culture, and coordinated relief distribution.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Sekiro Wolf',
@@ -179,7 +179,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Ashina Protection Agency',
         position: 'Executive Bodyguard',
         description: 'Provided round-the-clock close protection, performed structural threat assessments, and executed rapid tactical extractions.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Geralt of Rivia',
@@ -188,7 +188,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Witchers Cooperative',
         position: 'Environmental Specialist',
         description: 'Conducted ecological hazard surveys, neutralized dangerous invasive species, and resolved disputes between local authorities.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Abby Anderson',
@@ -197,7 +197,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Washington Liberation Front',
         position: 'Physical Trainer & Squad Leader',
         description: 'Developed rigorous athletic conditioning curricula, supervised tactical field squads, and analyzed regional patrol reports.',
-        gender: 'Female'
+        sex: 'Female'
     },
     {
         full_name: 'Cole Phelps',
@@ -206,7 +206,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Los Angeles Police Department',
         position: 'Detective (Homicide)',
         description: 'Conducted witness interrogations, cross-referenced forensic reports, and prepared comprehensive case filings for trial.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Lara Croft',
@@ -215,7 +215,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Croft Historical Research',
         position: 'Principal Investigator',
         description: 'Oversaw field expeditions, translated archaic scripts, and authored peer-reviewed archaeological reports.',
-        gender: 'Female'
+        sex: 'Female'
     },
     {
         full_name: 'Solid Snake',
@@ -224,7 +224,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Philanthropy NGO',
         position: 'Field Operations Specialist',
         description: 'Executed stealth infiltrations, gathered intelligence on weapons proliferation, and assisted in tactical extractions.',
-        gender: 'Male'
+        sex: 'Male'
     },
     {
         full_name: 'Leon S. Kennedy',
@@ -233,7 +233,7 @@ export const DEMO_CHARACTERS: DemoCharacter[] = [
         company: 'Division of Security Operations',
         position: 'Federal Special Agent',
         description: 'Coordinated presidential security protocols, investigated international bio-terror networks, and executed high-risk rescue missions.',
-        gender: 'Male'
+        sex: 'Male'
     }
 ];
 

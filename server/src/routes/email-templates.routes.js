@@ -11,6 +11,7 @@ const templateSchema = z.object({
     body: z.string().min(10),
     type: z.enum(['REJECTION_INITIAL', 'REJECTION_FINAL', 'INTERVIEW_INVITE', 'INTERVIEW_INVITE_ONLINE', 'OFFER', 'NBI', 'PEME', 'NEO', 'RCBC', 'BGC', 'OTHER']),
     isActive: z.boolean().or(z.string().transform(val => val === 'true')).default(true),
+    cc_emails: z.string().optional().nullable(),
 });
 
 export const emailTemplatesRouter = Router();
@@ -21,7 +22,7 @@ const canManageTemplates = [requireAuth, requireRole('admin', 'recruiter', 'ops_
 emailTemplatesRouter.get('/', ...canManageTemplates, async (req, res, next) => {
     try {
         const result = await query(
-            'SELECT id, name, subject, body, type, is_active as "isActive", attachment_name, attachment_path, created_at, updated_at FROM email_templates ORDER BY created_at DESC'
+            'SELECT id, name, subject, body, type, is_active as "isActive", attachment_name, attachment_path, cc_emails, created_at, updated_at FROM email_templates ORDER BY created_at DESC'
         );
         res.json(result.rows);
     } catch (error) {
@@ -45,10 +46,10 @@ emailTemplatesRouter.post('/', ...canManageTemplates, templateUpload.single('att
         }
 
         const result = await query(
-            `INSERT INTO email_templates (name, subject, body, type, is_active, attachment_name, attachment_path)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING id, name, subject, body, type, is_active as "isActive", attachment_name, attachment_path`,
-            [payload.name, payload.subject, payload.body, payload.type, payload.isActive, attachmentName, attachmentPath]
+            `INSERT INTO email_templates (name, subject, body, type, is_active, attachment_name, attachment_path, cc_emails)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id, name, subject, body, type, is_active as "isActive", attachment_name, attachment_path, cc_emails`,
+            [payload.name, payload.subject, payload.body, payload.type, payload.isActive, attachmentName, attachmentPath, payload.cc_emails || null]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -68,6 +69,7 @@ emailTemplatesRouter.patch('/:id', ...canManageTemplates, templateUpload.single(
         if (payload.body !== undefined) { fields.push(`body = $${idx++}`); values.push(payload.body); }
         if (payload.type !== undefined) { fields.push(`type = $${idx++}`); values.push(payload.type); }
         if (payload.isActive !== undefined) { fields.push(`is_active = $${idx++}`); values.push(payload.isActive); }
+        if (payload.cc_emails !== undefined) { fields.push(`cc_emails = $${idx++}`); values.push(payload.cc_emails || null); }
 
         if (req.file) {
             fields.push(`attachment_name = $${idx++}`); values.push(req.file.originalname);
@@ -107,7 +109,7 @@ emailTemplatesRouter.post('/send', ...canManageTemplates, async (req, res, next)
 
         // Find the active template for this type
         const templateRes = await query(
-            `SELECT id, name, subject, body, type, attachment_name, attachment_path 
+            `SELECT id, name, subject, body, type, attachment_name, attachment_path, cc_emails 
              FROM email_templates 
              WHERE type = $1 AND is_active = true 
              ORDER BY updated_at DESC LIMIT 1`,
@@ -153,6 +155,7 @@ emailTemplatesRouter.post('/send', ...canManageTemplates, async (req, res, next)
 
         await emailService.sendEmail({
             to: applicantEmail,
+            cc: template.cc_emails || undefined,
             subject: parsedSubject,
             html: isHtml ? parsedBody : undefined,
             text: !isHtml ? parsedBody : undefined,

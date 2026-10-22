@@ -2,37 +2,56 @@ import React from 'react';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-function Field({ label, value, onChange, type = 'text', textarea = false, placeholder = '' }: {
+function renderLabel(label: string) {
+    if (!label) return null;
+    if (label.includes('*')) {
+        const parts = label.split('*');
+        return (
+            <span className="text-[10px] font-black uppercase tracking-widest text-surface-400 inline-flex items-center gap-0.5">
+                {parts[0]}
+                <span className="text-red-500 font-black text-[13px] leading-none animate-pulse ml-0.5" title="Mandatory field">*</span>
+                {parts.slice(1).join('*')}
+            </span>
+        );
+    }
+    return <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">{label}</span>;
+}
+
+function Field({ label, value, onChange, type = 'text', textarea = false, placeholder = '', id }: {
     label: string;
     value: string | number;
     onChange: (value: string) => void;
     type?: string;
     textarea?: boolean;
     placeholder?: string;
+    id?: string;
 }) {
-    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white text-surface-900 shadow-sm';
+    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white dark:bg-slate-900 text-surface-900 shadow-sm';
+    const fieldId = id || `field_${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     return (
         <label className="block space-y-1.5 text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">{label}</span>
+            {renderLabel(label)}
             {textarea
-                ? <textarea value={value as string} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={`${className} min-h-24`} />
-                : <input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={className} />
+                ? <textarea id={fieldId} value={value as string} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={`${className} min-h-24`} />
+                : <input id={fieldId} type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={className} />
             }
         </label>
     );
 }
 
-function SelectField({ label, value, onChange, options }: {
+function SelectField({ label, value, onChange, options, id }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
     options: string[];
+    id?: string;
 }) {
-    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white text-surface-900 shadow-sm';
+    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white dark:bg-slate-900 text-surface-900 shadow-sm';
+    const fieldId = id || `field_${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     return (
         <label className="block space-y-1.5 text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">{label}</span>
-            <select value={value} onChange={(event) => onChange(event.target.value)} className={className}>
+            {renderLabel(label)}
+            <select id={fieldId} value={value} onChange={(event) => onChange(event.target.value)} className={className}>
                 <option value="">Select...</option>
                 {options.map((option) => (
                     <option key={option} value={option}>{option}</option>
@@ -58,7 +77,8 @@ const SHS_STRANDS = [
     'TVL - IA (Industrial Arts)',
     'TVL - AFA (Agri-Fishery Arts)',
     'Arts and Design Track',
-    'Sports Track'
+    'Sports Track',
+    'N/A'
 ];
 
 const COMMON_DEGREES = [
@@ -80,12 +100,13 @@ const COMMON_DEGREES = [
     'Bachelor of Science in Marine Engineering (BSMarE)'
 ];
 
-function AutocompleteField({ label, value, onChange, options, placeholder = '' }: {
+function AutocompleteField({ label, value, onChange, options, placeholder = '', id }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
     options: string[];
     placeholder?: string;
+    id?: string;
 }) {
     const [isOpen, setIsOpen] = React.useState(false);
     const [filteredOptions, setFilteredOptions] = React.useState<string[]>([]);
@@ -112,12 +133,14 @@ function AutocompleteField({ label, value, onChange, options, placeholder = '' }
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white text-surface-900 shadow-sm';
+    const className = 'w-full rounded-md border border-surface-200 px-4 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white dark:bg-slate-900 text-surface-900 shadow-sm';
+    const fieldId = id || `field_${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
     return (
         <div ref={containerRef} className="relative block space-y-1.5 text-left w-full">
-            <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">{label}</span>
+            {renderLabel(label)}
             <input
+                id={fieldId}
                 type="text"
                 value={value}
                 onChange={(event) => {
@@ -129,7 +152,7 @@ function AutocompleteField({ label, value, onChange, options, placeholder = '' }
                 className={className}
             />
             {isOpen && filteredOptions.length > 0 && (
-                <ul className="absolute z-50 left-0 right-0 max-h-60 overflow-y-auto bg-white border border-surface-200 rounded-md shadow-lg mt-1 text-surface-900">
+                <ul className="absolute z-50 left-0 right-0 max-h-60 overflow-y-auto bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-lg mt-1 text-surface-900">
                     {filteredOptions.map((opt) => (
                         <li
                             key={opt}
@@ -155,7 +178,7 @@ function PlanDropdownField({ label, value, onChange }: {
 }) {
     const [isOpen, setIsOpen] = React.useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
-    
+
     const isTypedValue = value !== '' && value !== 'No';
     const [isEnteringDetails, setIsEnteringDetails] = React.useState(isTypedValue);
 
@@ -197,15 +220,15 @@ function PlanDropdownField({ label, value, onChange }: {
 
     return (
         <div ref={containerRef} className="block space-y-1.5 text-left relative">
-            <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">{label}</span>
-            
+            {renderLabel(label)}
+
             {isEnteringDetails ? (
                 <div className="relative flex items-center">
                     <input
                         type="text"
                         value={value === 'Yes' ? '' : value}
                         onChange={(e) => onChange(e.target.value)}
-                        className="w-full rounded-md border border-surface-200 pl-4 pr-10 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white text-surface-900 shadow-sm"
+                        className="w-full rounded-md border border-surface-200 pl-4 pr-10 py-3 text-sm focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white dark:bg-slate-900 text-surface-900 shadow-sm"
                         placeholder={`Details about plans...`}
                         autoFocus
                     />
@@ -223,7 +246,7 @@ function PlanDropdownField({ label, value, onChange }: {
                     <button
                         type="button"
                         onClick={() => setIsOpen(!isOpen)}
-                        className="w-full rounded-md border border-surface-200 px-4 py-3 text-sm text-left focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white text-surface-900 shadow-sm flex justify-between items-center select-none"
+                        className="w-full rounded-md border border-surface-200 px-4 py-3 text-sm text-left focus:border-brand-red focus:ring-1 focus:ring-brand-red focus:outline-none transition-all bg-white dark:bg-slate-900 text-surface-900 shadow-sm flex justify-between items-center select-none"
                     >
                         <span className={displayValue ? "text-surface-900 font-medium" : "text-surface-400"}>
                             {displayValue || 'Choose option'}
@@ -246,7 +269,7 @@ function PlanDropdownField({ label, value, onChange }: {
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: -5 }}
                                 transition={{ duration: 0.15 }}
-                                className="absolute left-0 right-0 mt-1 bg-white border border-surface-200 rounded-md shadow-lg overflow-hidden z-50 py-1"
+                                className="absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-lg overflow-hidden z-50 py-1"
                             >
                                 {['Yes', 'No'].map((opt) => (
                                     <button
@@ -267,11 +290,11 @@ function PlanDropdownField({ label, value, onChange }: {
     );
 }
 
-export function Education({ form, updateForm, onBack, onNext }: { 
-    form: any; 
-    updateForm: (f: string, v: any) => void; 
-    onBack: () => void; 
-    onNext: () => void; 
+export function Education({ form, updateForm, onBack, onNext }: {
+    form: any;
+    updateForm: (f: string, v: any) => void;
+    onBack: () => void;
+    onNext: () => void;
 }) {
     const handleEducationChange = (value: string) => {
         updateForm('highest_education', value);
@@ -295,9 +318,9 @@ export function Education({ form, updateForm, onBack, onNext }: {
     };
 
     return (
-        <div 
+        <div
             className="min-h-screen w-full relative text-white pt-36 pb-16 px-4 overflow-x-hidden brand-gradient flex flex-col items-center justify-start"
-            style={{ 
+            style={{
                 fontFamily: "'Mulish', 'Segoe UI', 'Inter', sans-serif"
             }}
         >
@@ -310,13 +333,11 @@ export function Education({ form, updateForm, onBack, onNext }: {
             {/* Premium Transparent Header */}
             <header className="fixed top-0 left-0 w-full z-[100] flex items-center justify-between px-6 md:px-10 py-5 bg-black/20 backdrop-blur-xl border-b border-white/10">
                 <div className="flex items-center gap-4 cursor-pointer group">
-                    <div className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
-                        <img src="/contactpoint-logo.png?v=2" alt="CP360" className="w-7 h-7 object-contain" />
+                    <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-white/20">
+                        <img src="/contactpoint-logo.png?v=2" alt="ContactPoint 360" className="w-7 h-7 object-contain" />
                     </div>
                     <div className="flex flex-col text-left">
-                        <h1 className="text-white font-black text-[15px] tracking-[0.1em] uppercase leading-none">
-                             ContactPoint<span className="text-[#ef3e36]">360</span>
-                        </h1>
+                        <h1 className="text-white font-black text-[15px] tracking-[0.15em] uppercase leading-none">ContactPoint<span className="text-[#ef3e36]">360</span></h1>
                         <span className="text-white/60 font-black text-[9px] tracking-[0.3em] uppercase mt-1">
                             Talent Acquisition
                         </span>
@@ -324,14 +345,14 @@ export function Education({ form, updateForm, onBack, onNext }: {
                 </div>
 
                 <div className="flex items-center gap-4 md:gap-6">
-                    <button 
-                        onClick={onBack} 
+                    <button
+                        onClick={onBack}
                         className="inline-flex items-center gap-2 text-white/70 hover:text-white text-xs font-black uppercase tracking-widest transition-colors"
                     >
                         <ArrowLeft size={14} />
                         <span className="hidden sm:inline">Back</span>
                     </button>
-                    <div className="h-4 w-[1px] bg-white/20" />
+                    <div className="h-4 w-[1px] bg-white/20 dark:bg-slate-900/20" />
                     <div className="text-[10px] font-black uppercase tracking-widest text-[#ef3e36] bg-[#ef3e36]/10 px-3.5 py-2 border border-[#ef3e36]/20 rounded-full">
                         Step 3 of 6: Education
                     </div>
@@ -342,85 +363,84 @@ export function Education({ form, updateForm, onBack, onNext }: {
 
 
                 {/* Form Card */}
-                <div className="w-full bg-white rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
+                <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
                     {/* Brand Top Border */}
                     <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#ef3e36]" />
-                    
+
                     <h2 className="mb-8 text-3xl font-black text-surface-900 tracking-tight uppercase border-b border-surface-100 pb-4">
                         Educational Background
                     </h2>
 
                     <div className="grid gap-6 md:grid-cols-2">
                         <div className="md:col-span-2">
-                            <SelectField 
-                                label="Highest Educational Attained" 
-                                value={form.highest_education || ''} 
-                                onChange={handleEducationChange} 
-                                options={EDUCATION_ATTAINMENT_OPTIONS} 
+                            <SelectField
+                                label="Highest Educational Attained"
+                                value={form.highest_education || ''}
+                                onChange={handleEducationChange}
+                                options={EDUCATION_ATTAINMENT_OPTIONS}
                             />
                         </div>
 
                         <Field label="School" value={form.school_name || ''} onChange={(value) => updateForm('school_name', value)} />
                         <Field label="School Year Attended" value={form.school_year_attended || ''} onChange={(value) => updateForm('school_year_attended', value)} />
-                        
+
                         <div className="flex flex-col space-y-1.5 text-left">
                             <span className="text-[10px] font-black uppercase tracking-widest text-surface-400">Graduated</span>
                             <div className="flex gap-4">
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => handleGraduatedChange(true)}
-                                    className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                        form.is_graduated === true 
-                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20' 
+                                    className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.is_graduated === true
+                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20'
                                             : 'bg-surface-50 border-surface-200 text-surface-400 hover:bg-surface-100 hover:text-surface-600'
-                                    }`}
+                                        }`}
                                 > YES </button>
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => handleGraduatedChange(false)}
-                                    className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${
-                                        form.is_graduated === false 
-                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20' 
+                                    className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest rounded-md border transition-all ${form.is_graduated === false
+                                            ? 'bg-[#ef3e36] border-[#ef3e36] text-white shadow-md shadow-[#ef3e36]/20'
                                             : 'bg-surface-50 border-surface-200 text-surface-400 hover:bg-surface-100 hover:text-surface-600'
-                                    }`}
+                                        }`}
                                 > NO </button>
                             </div>
                         </div>
 
                         {form.highest_education === 'Senior High School Level' && (
                             <>
-                                <SelectField 
-                                    label="Strand" 
-                                    value={form.course_strand || ''} 
-                                    onChange={(value) => updateForm('course_strand', value)} 
+                                <SelectField
+                                    label="Strand *"
+                                    value={form.course_strand || ''}
+                                    onChange={(value) => updateForm('course_strand', value)}
                                     options={SHS_STRANDS}
+                                    id="course_strand"
                                 />
-                                <Field 
-                                    label="Year Level" 
-                                    value={form.course_year || ''} 
-                                    onChange={(value) => updateForm('course_year', value)} 
+                                <Field
+                                    label="Year Level"
+                                    value={form.course_year || ''}
+                                    onChange={(value) => updateForm('course_year', value)}
                                 />
                             </>
                         )}
 
                         {form.highest_education === 'College Graduate / Level' && (
                             <>
-                                <AutocompleteField 
-                                    label="Degree / Course" 
-                                    value={form.course_strand || ''} 
-                                    onChange={(value) => updateForm('course_strand', value)} 
+                                <AutocompleteField
+                                    label="Degree / Course *"
+                                    value={form.course_strand || ''}
+                                    onChange={(value) => updateForm('course_strand', value)}
                                     options={COMMON_DEGREES}
                                     placeholder="Type to search e.g. Computer Science"
                                 />
-                                <Field 
-                                    label="Year Level" 
-                                    value={form.course_year || ''} 
-                                    onChange={(value) => updateForm('course_year', value)} 
+                                <Field
+                                    label="Year Level"
+                                    value={form.course_year || ''}
+                                    onChange={(value) => updateForm('course_year', value)}
                                 />
                             </>
                         )}
                         <Field label="Number of Semesters Finished" type="number" value={form.num_semesters || 0} onChange={(value) => updateForm('num_semesters', parseInt(value) || 0)} />
-                        
+
                         <div className="md:col-span-2 grid md:grid-cols-2 gap-6 pt-6 border-t border-surface-100">
                             <PlanDropdownField label="Plans to Pursue Studies" value={form.plans_to_pursue_studies || ''} onChange={(value) => updateForm('plans_to_pursue_studies', value)} />
                             <PlanDropdownField label="Plans to go Abroad" value={form.plans_to_go_abroad || ''} onChange={(value) => updateForm('plans_to_go_abroad', value)} />

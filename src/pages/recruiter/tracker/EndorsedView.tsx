@@ -92,17 +92,17 @@ export function EndorsedView() {
                             placeholder="SEARCH PRIORITY CHANNEL..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-surface-200 text-[11px] font-bold placeholder-surface-400 focus:border-primary-500 transition-all outline-none uppercase tracking-tight shadow-sm rounded-none"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 text-[11px] font-bold placeholder-surface-400 focus:border-primary-500 transition-all outline-none uppercase tracking-tight shadow-sm rounded-none"
                         />
                     </div>
-                    <button onClick={loadData} className="p-2.5 bg-white border border-surface-200 rounded-none hover:bg-surface-50 transition-colors shadow-sm">
+                    <button onClick={loadData} className="p-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none hover:bg-surface-50 transition-colors shadow-sm">
                         <Clock size={16} className="text-surface-600" />
                     </button>
                 </div>
             </div>
 
             {filteredList.length === 0 ? (
-                <div className="bg-white border-2 border-dashed border-surface-200 rounded-none p-20 text-center">
+                <div className="bg-white dark:bg-slate-900 border-2 border-dashed border-surface-200 rounded-none p-20 text-center">
                     <div className="w-16 h-16 bg-surface-50 rounded-none flex items-center justify-center mx-auto mb-4">
                         <User size={32} className="text-surface-300" />
                     </div>
@@ -119,7 +119,7 @@ export function EndorsedView() {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="bg-white border border-surface-200 rounded-none shadow-sm hover:shadow-md hover:border-primary-300 transition-all group relative overflow-hidden"
+                                className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none shadow-sm hover:shadow-md hover:border-primary-300 transition-all group relative overflow-hidden"
                             >
                                 {app.recruiter_s_scheduling_status === 'SCHEDULED' && (
                                     <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black uppercase px-2 py-1 z-10">
@@ -166,7 +166,7 @@ export function EndorsedView() {
                                             <Calendar size={14} /> 
                                             {app.recruiter_s_scheduling_status === 'SCHEDULED' ? 'Scheduled' : 'Schedule in Outlook'}
                                         </button>
-                                        <button className="p-2.5 bg-white border border-surface-200 rounded-none hover:text-primary-600 hover:border-primary-600 transition-all shadow-sm group-hover:bg-primary-50/50">
+                                        <button className="p-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none hover:text-primary-600 hover:border-primary-600 transition-all shadow-sm group-hover:bg-primary-50/50">
                                             <ExternalLink size={14} />
                                         </button>
                                     </div>

@@ -18,7 +18,7 @@ export const RecruiterActivityModal: React.FC<RecruiterActivityModalProps> = ({
     const filteredData = useMemo(() => {
         const term = search.trim().toLowerCase();
         if (!term) return recruiterData;
-        return recruiterData.filter(r => r.name.toLowerCase().includes(term));
+        return recruiterData.filter(r => (r.name || '').toLowerCase().includes(term));
     }, [recruiterData, search]);
 
     return (
@@ -43,7 +43,7 @@ export const RecruiterActivityModal: React.FC<RecruiterActivityModalProps> = ({
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search recruiter…"
-                    className="w-full pl-9 pr-9 py-2 bg-white border border-surface-200 text-[12px] font-medium placeholder:text-surface-400 focus:border-black transition-all outline-none rounded-none"
+                    className="w-full pl-9 pr-9 py-2 bg-white dark:bg-slate-900 border border-surface-200 text-[12px] font-medium placeholder:text-surface-400 focus:border-black transition-all outline-none rounded-none"
                 />
                 {search && (
                     <button

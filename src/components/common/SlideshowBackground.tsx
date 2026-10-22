@@ -63,7 +63,7 @@ export function SlideshowBackground() {
                 {[...Array(20)].map((_, i) => (
                     <div
                         key={i}
-                        className="absolute bg-white/30 w-[1px] h-[30px]"
+                        className="absolute bg-white/30 dark:bg-slate-900/30 w-[1px] h-[30px]"
                         style={{
                             left: `${Math.random() * 100}%`,
                             top: `-${Math.random() * 100}px`,

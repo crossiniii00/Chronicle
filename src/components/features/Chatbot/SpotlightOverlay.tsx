@@ -234,7 +234,7 @@ function ArrowIndicator({ rect, message, onDismiss }: { rect: Rect; message?: st
                 className="absolute pointer-events-auto"
                 style={{ top: bubbleTop, left: bubbleLeft, width: 320 }}
             >
-                <div className="bg-white border border-[#0078d4]/30 rounded-lg shadow-2xl overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 border border-[#0078d4]/30 rounded-lg shadow-2xl overflow-hidden">
                     <div className="flex items-start gap-2 px-3.5 py-2.5 bg-gradient-to-r from-[#0f1941] to-[#0078d4] text-white">
                         <ChevronRight size={14} className="shrink-0 mt-0.5" />
                         <p className="text-[12px] leading-snug font-medium min-w-0 flex-1">
@@ -242,7 +242,7 @@ function ArrowIndicator({ rect, message, onDismiss }: { rect: Rect; message?: st
                         </p>
                         <button
                             onClick={onDismiss}
-                            className="shrink-0 p-0.5 rounded hover:bg-white/15 transition-colors"
+                            className="shrink-0 p-0.5 rounded hover:bg-white/15 dark:hover:bg-slate-900/15 transition-colors"
                             title="Dismiss (Esc)"
                         >
                             <X size={12} />

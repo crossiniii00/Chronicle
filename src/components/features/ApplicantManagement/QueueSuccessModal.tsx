@@ -30,17 +30,17 @@ export function QueueSuccessModal({
                 initial={{ opacity: 0, scale: 0.98, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 10 }}
-                className="relative w-full max-w-md bg-white border border-[#edebe9] shadow-[0_16px_40px_-8px_rgba(0,0,0,0.3)] rounded-sm overflow-hidden"
+                className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-surface-200 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.3)] rounded-sm overflow-hidden"
             >
                 <div className="p-8 space-y-6">
                     <div className="space-y-3 text-center">
                         <div className="w-12 h-12 bg-emerald-50 rounded-sm flex items-center justify-center mx-auto border border-emerald-100 mb-1">
                             <CheckCircle2 size={22} className="text-emerald-600" />
                         </div>
-                        <h2 className="text-lg font-semibold text-[#323130] tracking-[-0.005em]">
+                        <h2 className="text-lg font-semibold text-[#323130] dark:text-slate-300 tracking-[-0.005em]">
                             Added to queue
                         </h2>
-                        <p className="text-[#605e5c] font-medium text-[12px] leading-relaxed">
+                        <p className="text-[#605e5c] dark:text-slate-400 font-medium text-[12px] leading-relaxed">
                             <span className="text-[#0078d4] font-semibold">{showQueueSuccess.name}</span> has been added to the {showQueueSuccess.queueType.toLowerCase()} interview queue.
                         </p>
                     </div>
@@ -55,7 +55,7 @@ export function QueueSuccessModal({
                     <div className="flex gap-3 pt-1">
                         <button
                             onClick={onStay}
-                            className="flex-1 h-9 px-4 text-[11.5px] font-medium tracking-[-0.005em] text-[#605e5c] border border-[#edebe9] rounded-sm hover:bg-[#f3f2f1] transition-colors"
+                            className="flex-1 h-9 px-4 text-[11.5px] font-medium tracking-[-0.005em] text-[#605e5c] dark:text-slate-400 border border-surface-200 rounded-sm hover:bg-[#f3f2f1] transition-colors"
                         >
                             Stay here
                         </button>

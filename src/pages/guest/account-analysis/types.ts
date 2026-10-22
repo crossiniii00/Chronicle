@@ -3,13 +3,23 @@ import type { Application } from '@/types';
 // ── Outcome Classification ──────────────────────────────────────────────────
 export type Outcome = 'PASSED' | 'FAILED' | 'PENDING';
 
-export const PASSED_STATUSES = ['HIRED', 'HIRED_PROCESSED', 'PASSED', 'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'FINAL_VERDICT', 'FOR_JOB_OFFER', 'For Job Offer'];
+export const PASSED_STATUSES = ['HIRED', 'HIRED_PROCESSED', 'PASSED', 'CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'FINAL_VERDICT', 'FOR_JOB_OFFER', 'For Job Offer', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'SENT_JO_AND_BGC'];
 export const FAILED_STATUSES = ['REJECTED', 'FAILED', 'NOT_ELIGIBLE_FOR_REHIRE', 'WITHDRAWN', 'CLOSED', 'DISQUALIFIED', 'Withdrawn', 'Withdrawn by Applicant'];
 
-export function classify(status: string | undefined): Outcome {
-    if (!status) return 'PENDING';
-    if (PASSED_STATUSES.includes(status)) return 'PASSED';
-    if (FAILED_STATUSES.includes(status)) return 'FAILED';
+export function classify(status: string | undefined, app?: any): Outcome {
+    const statusUpper = String(status || '').toUpperCase();
+    const verdictUpper = String(app?.final_verdict || app?.metadata?.final_verdict || '').toUpperCase();
+    const opsValUpper = String(app?.metadata?.ops_validator_status || app?.pis?.ops_validator_status || '').toUpperCase();
+    const specUpper = String(app?.final_specific_status || app?.pis?.final_specific_status || app?.metadata?.final_specific_status || '').toUpperCase();
+
+    if (verdictUpper === 'FAILED' || opsValUpper === 'FAILED' || specUpper.includes('FAILED') || FAILED_STATUSES.includes(statusUpper)) {
+        return 'FAILED';
+    }
+
+    if (verdictUpper === 'PASSED' || verdictUpper === 'HIRED' || opsValUpper === 'PASSED' || PASSED_STATUSES.includes(statusUpper)) {
+        return 'PASSED';
+    }
+
     return 'PENDING';
 }
 

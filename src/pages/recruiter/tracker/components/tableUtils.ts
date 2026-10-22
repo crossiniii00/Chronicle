@@ -1,6 +1,75 @@
 import type { Application } from '@/types/application';
 import { SHEET_COLUMNS } from '../constants';
 import * as helpers from '../utils/tableHelpers';
+import { DepartmentService } from '@/services/DepartmentService';
+import { UserService } from '@/services/UserService';
+
+let cachedAccounts: string[] = [];
+let isFetchingAccounts = false;
+
+export const loadAccountOptions = async () => {
+    if (isFetchingAccounts || cachedAccounts.length > 0) return;
+    isFetchingAccounts = true;
+    try {
+        const depts = await DepartmentService.getAll();
+        const allNames = new Set<string>();
+        depts.forEach(d => {
+            if (d.name) {
+                d.name.split(',').forEach(part => {
+                    const trimmed = part.trim();
+                    if (trimmed) allNames.add(trimmed);
+                });
+            }
+        });
+        cachedAccounts = Array.from(allNames);
+    } catch (e) {
+        console.error('Failed to load accounts for dropdown', e);
+    } finally {
+        isFetchingAccounts = false;
+    }
+};
+
+let cachedRecruiters: string[] = [];
+let isFetchingRecruiters = false;
+
+export const restrictedRecruiters = new Set<string>();
+
+export const loadRecruiterOptions = async () => {
+    if (cachedRecruiters.length > 0) return cachedRecruiters;
+    if (isFetchingRecruiters) {
+        // Wait for it to finish if already fetching
+        while (isFetchingRecruiters) {
+            await new Promise(r => setTimeout(r, 100));
+        }
+        return cachedRecruiters;
+    }
+    isFetchingRecruiters = true;
+    try {
+        const users = await UserService.getAll();
+        const recruiterNames = new Set<string>();
+        users.forEach((u: any) => {
+            const role = (u.role || '').toLowerCase();
+            if (role.includes('recruiter') || role === 'admin' || role === 'super_admin') {
+                const name = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+                if (name) {
+                    recruiterNames.add(name);
+                    if (u.is_active === false) {
+                        restrictedRecruiters.add(name);
+                    }
+                }
+            }
+        });
+        cachedRecruiters = Array.from(recruiterNames).sort();
+    } catch (e) {
+        console.error('Failed to load recruiters for dropdown', e);
+    } finally {
+        isFetchingRecruiters = false;
+    }
+    return cachedRecruiters;
+};
+
+// Kick off fetch early
+loadAccountOptions();
 
 export const REQUIREMENT_COLUMN_HEADERS: Record<string, string> = {
     'Status': 'STATUS',
@@ -76,7 +145,10 @@ export const evaluateChecklistItem = (app: Application, rowLocalChanges: any, it
         const cleaned = normalizedVal.replace(/[-\s]/g, '');
         return cleaned !== '' && !isNaN(parseFloat(cleaned)) && isFinite(Number(cleaned));
     } else {
-        return normalizedVal !== '' && normalizedVal !== '---' && normalizedVal.toLowerCase() !== 'n/a' && normalizedVal.toLowerCase() !== 'null' && normalizedVal.toLowerCase() !== 'undefined';
+        const lower = normalizedVal.toLowerCase();
+        return normalizedVal !== '' && normalizedVal !== '---' && 
+               lower !== 'n/a' && lower !== 'null' && lower !== 'undefined' && 
+               !lower.includes('to follow') && lower !== 'pending' && lower !== 'none';
     }
 };
 
@@ -138,6 +210,7 @@ export const computeHireEligibility = (
                 ? normalizeStatusText(effectivePis.final_specific_status) === normalizeStatusText(eligibilitySettings.standardSettings['Final Specific Status'])
                 : (
                     normalizeStatusText(effectivePis.final_specific_status).includes('ov - passed') || 
+                    normalizeStatusText(effectivePis.final_specific_status).includes('client assessment - passed') ||
                     normalizeStatusText(effectivePis.final_specific_status).includes('client interview - passed') ||
                     normalizeStatusText(effectivePis.final_specific_status).includes('jo - offered') ||
                     normalizeStatusText(effectivePis.final_specific_status).includes('jo - hired') ||
@@ -231,7 +304,7 @@ export const buildMissingTooltip = (eligibility: ReturnType<typeof computeHireEl
 
 export const getColumnWidth = (label: string) => {
     const l = label.toLowerCase();
-    if (l === 'id' || l === '#') return 90;
+    if (l === 'id' || l === '#') return 130;
     if (l.includes('hire eligibility')) return 170;
     if ((l.includes('time') || l.includes('date')) && !l.includes('candidate')) return 160;
     if (l.includes('email')) return 240;
@@ -250,17 +323,47 @@ export const getDefaultOptionsForColKey = (colKey: string, colName: string): str
     const name = colName.toLowerCase();
     const key = colKey.toLowerCase();
     
+    if ((name.includes('remarks') || key.includes('remarks') || key === 'final_interview_notes') && 
+        !name.includes('gov') && !key.includes('gov') && !name.includes('id remarks') && !key.includes('id_remarks')) {
+        return ['Confirmed Training', 'Withdrawn', 'PAN Approved', 'PAN Completed', 'Training Details Sent', 'Final Interview Passed'];
+    }
+
     if (key === 'pis_overall_status' || key === 'overall_status' || name === 'overall status') {
         return ['OPEN', 'CLOSED', 'HIRED'];
     }
-    if (key === 'current_status' || key === 'master_status' || name === 'application status' || key === 'master_status_col' || name === 'status') {
+    // LOB options based on assigned Account name (case-insensitive)
+    if (key === 'pis.custom_lob' || name === 'lob') {
+        return ['Technical Support', 'Agent - Backoffice', 'Agent - Case Manager', 'Case Manager', 'BDR', 'DIA'];
+    }
+    
+    if (key === 'department' || key === 'final_account' || key === 'endorsement_account' || name === 'account' || name === 'department') {
+        loadAccountOptions(); // Ensure it tries to load if it hasn't
+        if (cachedAccounts.length > 0) {
+            return [...cachedAccounts, 'Support & Leadership'];
+        }
         return [
-            'Applicant Form',
-            'Assessment',
+            'Auto Approve',
+            'ENERCARE',
+            'KELLER POSTMAN',
+            'TENNIS CHANNEL',
+            'THE SAVINGS GROUP',
+            'WORKX',
+            'PRIORITY',
+            'REGENCY',
+            'Support & Leadership'
+        ];
+    }
+
+    if (key === 'current_status' || key === 'master_status' || name === 'application status' || name === 'current step' || key === 'master_status_col' || name === 'status') {
+        return [
             'Sent JO and BGC',
             'For Job Offer',
+            'Accepted Offer',
             'For PAN',
-            'Hired',
+            'PAN Completed',
+            'PAN Issued; for Signature',
+            'PAN For Approval',
+            'For PAN and BI',
             'Lateral Transfer',
             'Withdrawn'
         ];
@@ -286,10 +389,10 @@ export const getDefaultOptionsForColKey = (colKey: string, colName: string): str
     if (key.includes('peme_result') || name.includes('peme result')) {
         return ['Class A', 'Class B', 'Class C', 'Pending'];
     }
-    if (key.includes('sss_status') || key.includes('philhealth_status') || key.includes('pagibig_status') || key.includes('sss_no') || key.includes('philhealth_no') || key.includes('pagibig_no') || name.includes('sss no') || name.includes('philhealth no') || name.includes('pag-ibig no')) {
+    if (key.includes('sss_status') || key.includes('philhealth_status') || key.includes('pagibig_status')) {
         return ['Yes / No. to be followed', 'No'];
     }
-    if (key.includes('tin_no') || key.includes('tin') || name.includes('tin')) {
+    if (key.includes('tin_status')) {
         return ['Yes / No. to be followed', 'No'];
     }
     if (key.includes('bi_endorsement') || name.includes('bi status') || name.includes('bi endorsement')) {
@@ -317,17 +420,18 @@ export const getDefaultOptionsForColKey = (colKey: string, colName: string): str
             'OFFLINE ADS'
         ];
     }
-    if (key === 'initial_interview_results' || name === 'initial interview results' || key.includes('cefr') || name.includes('cefr') || key.includes('ops_val_status') || name.includes('ops val status') || key.includes('client_interview_status') || name.includes('client interview status')) {
-        return [
-            'Hired',
-            'For Job Offer',
-            'Withdrawn',
-            'For PAN',
-            'Applicant Form',
-            'Lateral Transfer',
-            'Sent JO and BGC',
-            'Assessment'
-        ];
+    if (key.includes('cefr') || name.includes('cefr')) {
+        return ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    }
+    if (key === 'initial_interview_results' || name === 'initial interview results' || key.includes('ops_val_status') || name.includes('ops val status') || key.includes('client_interview_status') || name.includes('client interview status')) {
+        return ['Passed', 'Failed', 'Pending', '---'];
+    }
+    if (key === 'interviewer_name' || key === 'assigned_recruiter_name' || name.includes('recruiter') || name.includes('interviewer')) {
+        loadRecruiterOptions();
+        if (cachedRecruiters.length > 0) {
+            return cachedRecruiters;
+        }
+        return [];
     }
     return [];
 };

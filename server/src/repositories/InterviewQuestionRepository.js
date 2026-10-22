@@ -14,7 +14,10 @@ export class InterviewQuestionRepository {
                     question_order as "questionOrder",
                     options,
                     max_rating as "maxRating",
-                    is_active as "is_active"
+                    is_active as "is_active",
+                    allow_notes as "allow_notes",
+                    COALESCE(account, 'ALL') as "account",
+                    COALESCE(lob, 'ALL') as "lob"
              FROM interview_questions 
              WHERE is_active = true 
              ORDER BY category ASC, question_order ASC`
@@ -34,7 +37,10 @@ export class InterviewQuestionRepository {
             question_order: data.question_order ?? data.questionOrder ?? 0,
             options: data.options ? (typeof data.options === 'string' ? data.options : JSON.stringify(data.options)) : null,
             max_rating: data.max_rating ?? data.maxRating ?? 5,
-            is_active: true
+            is_active: true,
+            allow_notes: data.allow_notes ?? data.allowNotes ?? false,
+            account: data.account || 'ALL',
+            lob: data.lob || 'ALL'
         };
         const build = buildInsert('interview_questions', mapped);
         const result = await query(build.text, build.values);
@@ -61,6 +67,12 @@ export class InterviewQuestionRepository {
             mapped.max_rating = data.max_rating ?? data.maxRating;
         if (data.is_active !== undefined || data.isActive !== undefined) 
             mapped.is_active = data.is_active ?? data.isActive;
+        if (data.allow_notes !== undefined || data.allowNotes !== undefined) 
+            mapped.allow_notes = data.allow_notes ?? data.allowNotes;
+        if (data.account !== undefined)
+            mapped.account = data.account;
+        if (data.lob !== undefined)
+            mapped.lob = data.lob;
 
         const build = buildUpdate('interview_questions', mapped, id);
         if (!build) return null;

@@ -11,9 +11,11 @@ export class QueueService {
         queueType?: 'INITIAL' | 'FINAL';
         interviewerId?: string;
         interviewerName?: string;
+        queuePrefix?: string;
     }) {
         const response = await apiClient.post(`/applications/${payload.applicationId}/queue`, {
             queueType: payload.queueType || 'INITIAL',
+            queuePrefix: payload.queuePrefix,
             interviewerId: payload.interviewerId,
             interviewerName: payload.interviewerName
         });
@@ -36,5 +38,10 @@ export class QueueService {
 
     static async update(id: string, patch: Partial<QueueEntry> & Record<string, unknown>) {
         await apiClient.patch(`/queue/${id}`, patch);
+    }
+
+    static async resetQueue() {
+        const response = await apiClient.post('/queue/reset');
+        return response.data;
     }
 }

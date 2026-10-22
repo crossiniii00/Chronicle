@@ -119,7 +119,7 @@ export function AnalyticsDashboard() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    className="bg-white rounded-xl shadow-2xl w-[min(960px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden border border-[#edebe9]"
+                    className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-[min(960px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden border border-[#edebe9] dark:border-slate-800"
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="flex items-start justify-between gap-4 px-5 py-4 bg-gradient-to-r from-[#0f1941] to-[#1e3a8a] text-white">
@@ -134,7 +134,7 @@ export function AnalyticsDashboard() {
                             {Object.keys(state.config.filters).filter(k => state.config!.filters[k]).length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                     {Object.entries(state.config.filters).filter(([, v]) => v).map(([k, v]) => (
-                                        <span key={k} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-white/10 border border-white/20 rounded">
+                                        <span key={k} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-white/10 dark:bg-slate-900/10 border border-white/20 rounded">
                                             <Filter size={9} />
                                             <span className="font-mono">{k}</span>
                                             <span className="text-white/60">=</span>
@@ -147,7 +147,7 @@ export function AnalyticsDashboard() {
                         <button
                             onClick={close}
                             title="Close (Esc)"
-                            className="shrink-0 p-1.5 rounded hover:bg-white/10 transition-colors"
+                            className="shrink-0 p-1.5 rounded hover:bg-white/10 dark:hover:bg-slate-900/10 transition-colors"
                         >
                             <X size={16} />
                         </button>
@@ -168,7 +168,7 @@ export function AnalyticsDashboard() {
                                 <p className="text-[13px] text-red-700">{state.error}</p>
                                 <button
                                     onClick={() => setState(prev => ({ ...prev, data: null, error: null }))}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold bg-white border border-red-200 text-red-700 rounded hover:bg-red-50 transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold bg-white dark:bg-slate-900 border border-red-200 text-red-700 rounded hover:bg-red-50 transition-colors"
                                 >
                                     <RefreshCw size={12} /> Retry
                                 </button>
@@ -194,16 +194,16 @@ export function AnalyticsDashboard() {
                     </div>
 
                     {state.data && !state.loading && !state.error && (
-                        <div className="border-t border-[#edebe9] bg-white px-5 py-2.5 flex items-center justify-between text-[10px] text-surface-500">
+                        <div className="border-t border-[#edebe9] dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-2.5 flex items-center justify-between text-[10px] text-surface-500">
                             <div className="flex items-center gap-3">
-                                <span>Total: <span className="font-mono font-semibold text-[#201f1e]">
+                                <span>Total: <span className="font-mono font-semibold text-[#201f1e] dark:text-slate-200">
                                     {totalForFooter(state.data)}
                                 </span></span>
                                 {(state.data as AggregateResponse).totalGroups !== undefined && (
-                                    <span>Groups: <span className="font-mono font-semibold text-[#201f1e]">{(state.data as AggregateResponse).totalGroups}</span></span>
+                                    <span>Groups: <span className="font-mono font-semibold text-[#201f1e] dark:text-slate-200">{(state.data as AggregateResponse).totalGroups}</span></span>
                                 )}
                                 {(state.data as FunnelResponse).stages && (
-                                    <span>Stages: <span className="font-mono font-semibold text-[#201f1e]">{(state.data as FunnelResponse).stages.length}</span></span>
+                                    <span>Stages: <span className="font-mono font-semibold text-[#201f1e] dark:text-slate-200">{(state.data as FunnelResponse).stages.length}</span></span>
                                 )}
                             </div>
                             <span>AI-generated dashboard</span>
@@ -276,7 +276,7 @@ function KpiView({ config, data }: { config: AnalyticsConfig; data: AggregateRes
 
 function MiniMetric({ label, value, color }: { label: string; value: number; color: string }) {
     return (
-        <div className="bg-white border border-[#edebe9] rounded-lg px-3 py-2 text-center">
+        <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-lg px-3 py-2 text-center">
             <div className="text-[9px] font-bold uppercase tracking-widest text-surface-400">{label}</div>
             <div className={cn('text-[20px] font-black tabular-nums', color)}>{value}</div>
         </div>
@@ -299,7 +299,7 @@ function BarView({ config, data }: { config: AnalyticsConfig; data: AggregateRes
             <div className="text-[10px] font-bold uppercase tracking-widest text-surface-500 flex items-center gap-1.5">
                 <BarChart3 size={11} /> {metricLabel(config.metric)} by {data.groupBy}
             </div>
-            <div className="bg-white border border-[#edebe9] rounded-lg p-3" style={{ height: 360 }}>
+            <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-lg p-3" style={{ height: 360 }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 50 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#edebe9" />
@@ -337,7 +337,7 @@ function PieView({ config, data }: { config: AnalyticsConfig; data: AggregateRes
             <div className="text-[10px] font-bold uppercase tracking-widest text-surface-500 flex items-center gap-1.5">
                 <PieIcon size={11} /> {metricLabel(config.metric)} by {data.groupBy}
             </div>
-            <div className="bg-white border border-[#edebe9] rounded-lg p-3" style={{ height: 360 }}>
+            <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-lg p-3" style={{ height: 360 }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
@@ -388,7 +388,7 @@ function LineView({ config, data }: { config: AnalyticsConfig; data: AggregateRe
             <div className="text-[10px] font-bold uppercase tracking-widest text-surface-500 flex items-center gap-1.5">
                 <LineIcon size={11} /> {metricLabel(config.metric)} by {data.groupBy} ({isArea ? 'area' : 'line'})
             </div>
-            <div className="bg-white border border-[#edebe9] rounded-lg p-3" style={{ height: 360 }}>
+            <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-lg p-3" style={{ height: 360 }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <Chart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 50 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#edebe9" />
@@ -428,7 +428,7 @@ function FunnelStageRow({ stage, idx, maxCount, prevCount }: {
             <div className="flex items-center justify-between text-[12px] gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#0f1941] text-white text-[10px] font-bold shrink-0">{idx + 1}</span>
-                    <span className="font-semibold text-[#201f1e] truncate">{stage.label}</span>
+                    <span className="font-semibold text-[#201f1e] dark:text-slate-200 truncate">{stage.label}</span>
                 </div>
                 <div className="flex items-center gap-3 text-right tabular-nums shrink-0">
                     <span className={`font-bold text-[14px] ${stage.count === 0 ? 'text-surface-400' : 'text-[#0078d4]'}`}>
@@ -566,7 +566,7 @@ function TableView({ data }: { data: AggregateResponse }) {
             <div className="text-[10px] font-bold uppercase tracking-widest text-surface-500 flex items-center gap-1.5">
                 <Table2 size={11} /> {data.groupBy ? `Breakdown by ${data.groupBy}` : 'Aggregate'}
             </div>
-            <div className="bg-white border border-[#edebe9] rounded-lg overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-lg overflow-hidden">
                 <table className="w-full text-[12px]">
                     <thead>
                         <tr className="bg-[#f3f2f1] text-left">
@@ -580,7 +580,7 @@ function TableView({ data }: { data: AggregateResponse }) {
                     </thead>
                     <tbody>
                         {groups.map((g, i) => (
-                            <tr key={i} className="border-t border-[#edebe9] hover:bg-[#faf9f8]">
+                            <tr key={i} className="border-t border-[#edebe9] dark:border-slate-800 hover:bg-[#faf9f8]">
                                 <td className="px-3 py-2 font-medium">{g.group}</td>
                                 <td className="px-3 py-2 text-right tabular-nums">{g.count}</td>
                                 <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{g.hired}</td>
@@ -676,10 +676,10 @@ const APPLICANT_COLUMNS: Record<string, ColumnDef> = {
             <div className="truncate max-w-[140px]">{a.department || '—'}</div>
         ),
     },
-    gender: {
-        key: 'gender', label: 'Gender', align: 'left',
+    sex: {
+        key: 'sex', label: 'Sex', align: 'left',
         render: (a) => (
-            <div className="text-[11px]">{a.gender || '—'}</div>
+            <div className="text-[11px]">{a.sex || '—'}</div>
         ),
     },
     rating: {
@@ -768,7 +768,7 @@ function ApplicantListView({ data, config, onOpenApplicant, onNavigate }: {
                     </span>
                 )}
             </div>
-            <div className="bg-white border border-[#edebe9] rounded-lg overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 rounded-lg overflow-hidden">
                 <div className="max-h-[480px] overflow-y-auto">
                     <table className="w-full text-[12px]">
                         <thead className="sticky top-0 bg-[#f3f2f1] z-10">
@@ -786,7 +786,7 @@ function ApplicantListView({ data, config, onOpenApplicant, onNavigate }: {
                                 <tr
                                     key={a.id || i}
                                     onClick={() => onOpenApplicant(a)}
-                                    className="border-t border-[#edebe9] hover:bg-[#faf9f8] cursor-pointer transition-colors group"
+                                    className="border-t border-[#edebe9] dark:border-slate-800 hover:bg-[#faf9f8] cursor-pointer transition-colors group"
                                     title="Click to open applicant profile"
                                 >
                                     {displayColumns.map(c => (
@@ -805,7 +805,7 @@ function ApplicantListView({ data, config, onOpenApplicant, onNavigate }: {
             </div>
             <button
                 onClick={() => onNavigate(interviewPath)}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[11.5px] font-semibold bg-white border border-[#edebe9] hover:border-[#0078d4] hover:text-[#0078d4] text-surface-600 rounded transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[11.5px] font-semibold bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 hover:border-[#0078d4] hover:text-[#0078d4] text-surface-600 rounded transition-colors"
             >
                 <ExternalLink size={11} /> Open interview form
             </button>

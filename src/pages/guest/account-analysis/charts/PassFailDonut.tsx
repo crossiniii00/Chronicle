@@ -76,10 +76,10 @@ export const PassFailDonut = React.memo(function PassFailDonut({
                     onClick={(e) => { e.stopPropagation(); onSelect?.('ALL'); }}
                     className="absolute inset-0 flex flex-col items-center justify-center text-center cursor-pointer hover:opacity-80 transition-opacity"
                 >
-                    <span className="text-xl font-bold text-[#201f1e] tabular-nums">
+                    <span className="text-xl font-bold text-[#201f1e] dark:text-slate-200 tabular-nums">
                         {concluded > 0 ? `${Math.round(passRate)}%` : '0%'}
                     </span>
-                    <span className="text-[9px] font-bold text-[#605e5c] uppercase tracking-wider">Pass Rate</span>
+                    <span className="text-[9px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-wider">Pass Rate</span>
                 </div>
             </div>
 
@@ -90,9 +90,9 @@ export const PassFailDonut = React.memo(function PassFailDonut({
                 >
                     <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-sm bg-[#107c10]" />
-                        <span className="text-[#323130] font-medium">Passed</span>
+                        <span className="text-[#323130] dark:text-slate-300 font-medium">Passed</span>
                     </div>
-                    <span className="font-semibold text-[#201f1e]">{passed}</span>
+                    <span className="font-semibold text-[#201f1e] dark:text-slate-200">{passed}</span>
                 </div>
                 <div 
                     onClick={(e) => { e.stopPropagation(); onSelect?.('FAILED'); }}
@@ -100,9 +100,9 @@ export const PassFailDonut = React.memo(function PassFailDonut({
                 >
                     <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-sm bg-[#a4262c]" />
-                        <span className="text-[#323130] font-medium">Failed</span>
+                        <span className="text-[#323130] dark:text-slate-300 font-medium">Failed</span>
                     </div>
-                    <span className="font-semibold text-[#201f1e]">{failed}</span>
+                    <span className="font-semibold text-[#201f1e] dark:text-slate-200">{failed}</span>
                 </div>
                 <div 
                     onClick={(e) => { e.stopPropagation(); onSelect?.('PENDING'); }}
@@ -110,16 +110,16 @@ export const PassFailDonut = React.memo(function PassFailDonut({
                 >
                     <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-sm bg-[#ffb900]" />
-                        <span className="text-[#323130] font-medium">Pending</span>
+                        <span className="text-[#323130] dark:text-slate-300 font-medium">Pending</span>
                     </div>
-                    <span className="font-semibold text-[#201f1e]">{pending}</span>
+                    <span className="font-semibold text-[#201f1e] dark:text-slate-200">{pending}</span>
                 </div>
                 <div 
                     onClick={(e) => { e.stopPropagation(); onSelect?.('ALL'); }}
                     className="flex items-center justify-between text-xs pt-0.5 font-bold cursor-pointer hover:bg-[#f3f2f1]/50 px-1.5 py-0.5 rounded transition-colors"
                 >
-                    <span className="text-[#323130]">Total Candidates</span>
-                    <span className="text-[#201f1e]">{total}</span>
+                    <span className="text-[#323130] dark:text-slate-300">Total Candidates</span>
+                    <span className="text-[#201f1e] dark:text-slate-200">{total}</span>
                 </div>
             </div>
         </div>

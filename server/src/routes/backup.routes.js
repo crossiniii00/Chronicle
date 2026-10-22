@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import multer from 'multer';
 import { BackupService, getFormalTimestamp } from '../services/backup.service.js';
 import { BackupScheduler } from '../services/scheduler.service.js';
+import { getIO } from '../socket.js';
 
 export const backupRouter = express.Router();
 
@@ -29,7 +30,7 @@ const backupUpload = multer({
         callback(null, true);
     },
     limits: {
-        fileSize: 100 * 1024 * 1024, // 100MB
+        fileSize: 200 * 1024 * 1024, // 200MB
         files: 1
     }
 });
@@ -109,7 +110,7 @@ backupRouter.get('/:filename/download', async (req, res, next) => {
 backupRouter.post('/:filename/restore', async (req, res, next) => {
     try {
         const { filename } = req.params;
-        await BackupService.restoreBackup(filename);
+        await BackupService.restoreBackup(filename, getIO());
         res.status(200).json({ message: 'Database restored successfully' });
     } catch (err) {
         next(err);

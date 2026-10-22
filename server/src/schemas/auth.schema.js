@@ -14,7 +14,7 @@ export const provisionSchema = z.object({
         'admin', 
         'super_admin',
         'recruiter_interviewer', 
-        'recruiter_s', 
+
         'recruiter_a', 
         'recruiter_jc', 
         'recruiter_sy', 

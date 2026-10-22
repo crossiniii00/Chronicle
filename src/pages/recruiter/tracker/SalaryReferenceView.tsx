@@ -24,7 +24,7 @@ export default function SalaryReferenceView() {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    <div className="flex items-center justify-between bg-white p-4 border border-surface-200 rounded-none">
+                    <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 border border-surface-200 rounded-none">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setSelectedAccount(null)}
@@ -48,7 +48,7 @@ export default function SalaryReferenceView() {
             )}
 
             {filteredAccounts.length === 0 && (
-                <div className="p-20 text-center flex flex-col items-center gap-4 bg-white border border-dashed border-surface-300 rounded-none">
+                <div className="p-20 text-center flex flex-col items-center gap-4 bg-white dark:bg-slate-900 border border-dashed border-surface-300 rounded-none">
                     <div className="w-16 h-16 bg-surface-100 rounded-none flex items-center justify-center text-surface-400">
                         <Search size={32} />
                     </div>

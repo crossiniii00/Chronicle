@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, Smile } from 'lucide-react';
 
 interface Props {
     children: ReactNode;
@@ -70,25 +70,29 @@ export class ErrorBoundary extends Component<Props, State> {
 
             return (
                 <div className="min-h-screen flex items-center justify-center bg-surface-50 p-4">
-                    <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <AlertTriangle className="w-8 h-8 text-red-600" />
+                    <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8 text-center">
+                        <div className={`w-16 h-16 ${chunkError ? 'bg-emerald-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm`}>
+                            {chunkError ? (
+                                <Smile className="w-9 h-9 text-emerald-600 animate-bounce" />
+                            ) : (
+                                <AlertTriangle className="w-8 h-8 text-red-600" />
+                            )}
                         </div>
 
-                        <h1 className="text-2xl font-bold text-surface-900 mb-4">
-                            {chunkError ? 'A new version is available' : 'Something went wrong'}
+                        <h1 className="text-2xl font-bold text-surface-900 mb-2">
+                            {chunkError ? 'A fresh update is ready! 😊' : 'Something went wrong'}
                         </h1>
 
-                        <p className="text-surface-600 mb-6 leading-relaxed">
+                        <p className="text-surface-600 mb-6 leading-relaxed text-[13.5px]">
                             {chunkError
-                                ? 'This page needs the latest version of the app. Refresh to continue — your work is safe.'
+                                ? 'Exciting news! We just released a brand new version with performance improvements & fixes. Click below to load it up — your work and progress are completely safe!'
                                 : 'We encountered an unexpected error. This has been logged and our team will look into it.'}
                         </p>
 
-                        {import.meta.env.DEV && this.state.error && (
+                        {this.state.error && (
                             <details className="mb-6 text-left">
                                 <summary className="cursor-pointer text-sm font-semibold text-surface-700 mb-2">
-                                    Error Details (Development Only)
+                                    Error Details
                                 </summary>
                                 <div className="bg-surface-100 rounded-lg p-3 text-xs font-mono text-surface-800 overflow-auto max-h-32">
                                     <div className="mb-2">
@@ -110,10 +114,10 @@ export class ErrorBoundary extends Component<Props, State> {
                             {chunkError ? (
                                 <button
                                     onClick={this.handleRefresh}
-                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-brand-red text-white rounded-xl hover:bg-red-600 transition-colors font-semibold"
+                                    className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold shadow-md shadow-emerald-600/20 active:scale-95"
                                 >
-                                    <RefreshCw size={16} />
-                                    Refresh now
+                                    <RefreshCw size={16} className="animate-spin" style={{ animationDuration: '3s' }} />
+                                    Refresh to latest version
                                 </button>
                             ) : (
                                 <button
@@ -127,7 +131,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
                             <button
                                 onClick={this.handleGoHome}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-surface-200 text-surface-700 rounded-xl hover:bg-surface-300 transition-colors font-semibold"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-surface-100 text-surface-700 rounded-xl hover:bg-surface-200 border border-surface-200 transition-colors font-semibold"
                             >
                                 <Home size={16} />
                                 Go Home

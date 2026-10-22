@@ -267,15 +267,15 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
                 initial={{ opacity: 0, scale: 0.98, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 10 }}
-                className="relative w-full max-w-lg bg-white border border-[#edebe9] shadow-[0_16px_40px_-8px_rgba(0,0,0,0.3)] rounded-sm overflow-visible flex flex-col max-h-[85vh]"
+                className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-[#edebe9] dark:border-slate-800 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.3)] rounded-sm overflow-visible flex flex-col max-h-[85vh]"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#edebe9] shrink-0">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#edebe9] dark:border-slate-800 shrink-0">
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 bg-purple-50 rounded-sm flex items-center justify-center border border-purple-100">
                             <Settings size={15} className="text-purple-600" />
                         </div>
-                        <h2 className="text-[15px] font-semibold text-[#323130] tracking-[-0.005em]">
+                        <h2 className="text-[15px] font-semibold text-[#323130] dark:text-slate-300 tracking-[-0.005em]">
                             Queue Lobby Settings
                         </h2>
                     </div>
@@ -291,13 +291,13 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
                 <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar text-left flex-1">
                     {/* Queue System Mode */}
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c]">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c] dark:text-slate-400">
                             Queue System Mode
                         </label>
                         <select
                             value={currentPreset.systemMode || 'standard'}
                             onChange={(e) => updatePresetField('systemMode', e.target.value)}
-                            className="w-full h-9 px-3 bg-white border border-surface-200 rounded-sm text-[12.5px] font-semibold text-slate-700 outline-none focus:border-[#0078d4]"
+                            className="w-full h-9 px-3 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm text-[12.5px] font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-[#0078d4]"
                         >
                             <option value="standard">Standard Sequential Queue (Queue No. & Candidate Name)</option>
                             <option value="standard_number">Standard Sequential Queue (Queue No. Only)</option>
@@ -312,14 +312,14 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
 
                     {/* Sound chime */}
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c]">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c] dark:text-slate-400">
                             Sound Chime Style
                         </label>
                         <div className="flex gap-2">
                             <select
                                 value={currentPreset.chime}
                                 onChange={(e) => updatePresetField('chime', e.target.value)}
-                                className="flex-1 h-9 px-3 bg-white border border-surface-200 rounded-sm text-[12.5px] font-semibold text-slate-700 outline-none focus:border-[#0078d4]"
+                                className="flex-1 h-9 px-3 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm text-[12.5px] font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-[#0078d4]"
                             >
                                 <option value="melodic">Standard Melodic Chime (Double-tone)</option>
                                 <option value="ding">High-Pitch Bell Ding (Single-tone)</option>
@@ -329,7 +329,7 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
                             <button
                                 type="button"
                                 onClick={handleTestChime}
-                                className="h-9 px-3 bg-white border border-surface-200 hover:border-black/40 text-slate-800 rounded-sm flex items-center justify-center gap-1 text-[11px] font-bold uppercase tracking-wider cursor-pointer"
+                                className="h-9 px-3 bg-white dark:bg-slate-900 border border-surface-200 hover:border-black/40 text-slate-800 dark:text-slate-200 rounded-sm flex items-center justify-center gap-1 text-[11px] font-bold uppercase tracking-wider cursor-pointer"
                             >
                                 <Volume2 size={13} /> Test
                             </button>
@@ -353,21 +353,21 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
                                 onChange={(e) => updatePresetField('voiceName', e.target.checked ? '' : 'none')}
                                 className="sr-only peer"
                             />
-                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                            <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-slate-900 after:border-slate-300 dark:border-slate-700 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
                         </label>
                     </div>
 
                     <div className={cn("space-y-4 transition-all duration-200", currentPreset.voiceName === 'none' && "opacity-45 pointer-events-none select-none")}>
                         {/* Pronunciation voice selection */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c]">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c] dark:text-slate-400">
                                 Pronunciation Voice
                             </label>
                             <select
                                 value={currentPreset.voiceName === 'none' ? '' : currentPreset.voiceName}
                                 onChange={(e) => updatePresetField('voiceName', e.target.value)}
                                 disabled={currentPreset.voiceName === 'none'}
-                                className="w-full h-9 px-3 bg-white border border-surface-200 rounded-sm text-[12.5px] font-semibold text-slate-700 outline-none focus:border-[#0078d4]"
+                                className="w-full h-9 px-3 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm text-[12.5px] font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-[#0078d4]"
                             >
                                 <option value="">Browser default voice</option>
                                 {voices.map((v, i) => (
@@ -381,7 +381,7 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
                         {/* Pronunciation speech text template */}
                         <div className="space-y-1.5">
                             <div className="flex justify-between">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c]">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-[#605e5c] dark:text-slate-400">
                                     Pronunciation Announcement Template
                                 </label>
                                 <button
@@ -398,7 +398,7 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
                                 value={currentPreset.template}
                                 onChange={(e) => updatePresetField('template', e.target.value)}
                                 disabled={currentPreset.voiceName === 'none'}
-                                className="w-full h-9 px-3 bg-white border border-surface-200 rounded-sm text-[12.5px] font-medium text-slate-800 outline-none focus:border-[#0078d4]"
+                                className="w-full h-9 px-3 bg-white dark:bg-slate-900 border border-surface-200 rounded-sm text-[12.5px] font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-[#0078d4]"
                                 placeholder="e.g. Queue number {number}, {name}, please proceed to room {room}"
                             />
                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">
@@ -409,11 +409,11 @@ export function QueueSettingsModal({ open, onClose }: QueueSettingsModalProps) {
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-3.5 border-t border-[#edebe9] bg-surface-50/50 flex items-center justify-end gap-2.5 shrink-0">
+                <div className="px-6 py-3.5 border-t border-[#edebe9] dark:border-slate-800 bg-surface-50/50 flex items-center justify-end gap-2.5 shrink-0">
                     <button
                         onClick={onClose}
                         disabled={saving}
-                        className="h-9 px-4 text-[12px] font-medium tracking-[-0.005em] text-[#605e5c] border border-[#edebe9] rounded-sm hover:bg-white transition-colors disabled:opacity-50 cursor-pointer"
+                        className="h-9 px-4 text-[12px] font-medium tracking-[-0.005em] text-[#605e5c] dark:text-slate-400 border border-[#edebe9] dark:border-slate-800 rounded-sm hover:bg-white dark:bg-slate-900 transition-colors disabled:opacity-50 cursor-pointer"
                     >
                         Cancel
                     </button>

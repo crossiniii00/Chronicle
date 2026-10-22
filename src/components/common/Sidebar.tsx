@@ -132,12 +132,12 @@ function getCategoryColor(label: string) {
     }
     
     return {
-        text: 'text-blue-400',
-        hoverText: 'group-hover:text-blue-400',
-        activeBg: 'bg-blue-500/10 text-blue-100 border-l-[3px] border-blue-400',
-        glow: 'shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_0_15px_rgba(59,130,246,0.15)]',
-        bullet: 'bg-blue-400',
-        activeBorder: 'border-blue-400'
+        text: 'text-neutral-200',
+        hoverText: 'group-hover:text-white',
+        activeBg: 'bg-white/10 text-white border-l-[3px] border-white',
+        glow: 'shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_0_15px_rgba(255,255,255,0.1)]',
+        bullet: 'bg-white',
+        activeBorder: 'border-white'
     };
 }
 
@@ -692,22 +692,24 @@ export function Sidebar({ groups, mobileOpen, onMobileClose }: SidebarProps) {
             
             <aside
                 className={cn(
-                    "flex flex-col h-full bg-[#04154D] border-r border-slate-800 shrink-0 z-50 w-64 select-none",
+                    "flex flex-col h-full bg-black border-r border-neutral-800 shrink-0 z-50 w-64 select-none",
                     "fixed inset-y-0 left-0 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:flex",
                     mobileOpen ? "translate-x-0" : "-translate-x-full"
                 )}
             >
-                <div className="px-5 pt-5 pb-4 flex items-center justify-between lg:justify-center">
-                    <PartyLogo
-                        src="/cp360-logo.png"
-                        alt="ContactPoint 360"
-                        className="h-12 w-auto"
-                        accentColor="#ef3e36"
-                    />
+                <div className="px-5 pt-6 pb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-white text-black font-black flex items-center justify-center text-sm shadow-md">
+                            C
+                        </div>
+                        <span className="text-base font-extrabold text-white tracking-tight font-sans">
+                            Chronicle<span className="text-neutral-400">CRM</span>
+                        </span>
+                    </div>
                     {onMobileClose && (
                         <button 
                             onClick={onMobileClose}
-                            className="lg:hidden p-1 text-slate-400 hover:text-white rounded-sm hover:bg-white/5 transition-all"
+                            className="lg:hidden p-1 text-neutral-400 hover:text-white rounded-sm hover:bg-white/5 transition-all"
                         >
                             <X size={18} />
                         </button>

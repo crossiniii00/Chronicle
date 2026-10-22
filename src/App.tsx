@@ -108,22 +108,20 @@ function DataLoadingScreen({ onComplete }: { onComplete: () => void }) {
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="mb-6"
+        className="mb-4"
       >
-        <img
-          src="/contactpoint-logo.png?v=3"
-          alt="Recruitment360 Logo"
-          className="w-20 h-20 rounded-2xl shadow-lg bg-white p-2"
-        />
+        <div className="w-16 h-16 rounded-2xl bg-white text-black font-black flex items-center justify-center text-2xl shadow-2xl">
+          C
+        </div>
       </motion.div>
 
       <motion.h1
         initial={{ y: 15, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.6 }}
-        className="text-xl font-black text-brand-red tracking-widest uppercase italic mb-8"
+        className="text-xl font-black text-white tracking-widest uppercase mb-8"
       >
-        RECRUITMENT360
+        CHRONICLE<span className="text-neutral-400">CRM</span>
       </motion.h1>
 
       {/* Progress bar */}

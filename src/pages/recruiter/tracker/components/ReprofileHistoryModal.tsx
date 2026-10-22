@@ -12,14 +12,38 @@ interface ReprofileHistoryModalProps {
 
 function extractRemarks(notes: string): string {
     if (!notes) return '';
-    const match = notes.match(/Remarks:?\s*\n*([\s\S]*)$/i);
-    if (match && match[1].trim()) {
-        return match[1].trim();
+    
+    let text = notes;
+
+    if (/^\s*\d{4}-\d{2}-\d{2}/.test(text) || text.includes('NO PLANS TO PURSUE STUDIES') || text.includes('OTHER:') || text.includes('COMFORTABLE WITH PEME')) {
+        const match = text.match(/Remarks:?\s*\n*([\s\S]*)$/i);
+        if (match && match[1].trim()) {
+            text = match[1].trim();
+        } else {
+            return '';
+        }
+    } else {
+        const match = text.match(/Remarks:?\s*\n*([\s\S]*)$/i);
+        if (match && match[1].trim()) {
+            text = match[1].trim();
+        } else if (text.includes('INTERVIEWER ASSESSMENT RUBRIC') || text.includes('APPLICANT BACKGROUND & EXP')) {
+            return '';
+        }
     }
-    if (notes.includes('INTERVIEWER ASSESSMENT RUBRIC')) {
+
+    // Strip out initial interview recruiter form / questionnaire blocks
+    text = text.split(/\n\s*\n\d{4}-\d{2}-\d{2}\s*\n/)[0];
+    text = text.split(/\n\s*\n[A-Z\s\(\)-]{5,}\n/)[0];
+    text = text.split(/\n\s*\nNO PLANS TO PURSUE STUDIES/i)[0];
+    text = text.split(/\n\s*\nOTHER:\s*\[/i)[0];
+    text = text.split(/\n\s*\nMEETS EXPECTATIONS/i)[0];
+    text = text.split(/\n\s*\nCOMFORTABLE WITH PEME/i)[0];
+
+    if (/^(NO PLANS TO PURSUE|OTHER:|MEETS EXPECTATIONS|YES,|NO,)/i.test(text.trim())) {
         return '';
     }
-    return notes;
+
+    return text.trim();
 }
 
 export function ReprofileHistoryModal({ app, localChanges, onClose }: ReprofileHistoryModalProps) {
@@ -81,7 +105,7 @@ export function ReprofileHistoryModal({ app, localChanges, onClose }: ReprofileH
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
                     transition={{ duration: 0.2 }}
-                    className="relative w-full max-w-lg bg-white rounded-md shadow-premium border border-surface-200 overflow-hidden flex flex-col"
+                    className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-md shadow-premium border border-surface-200 overflow-hidden flex flex-col"
                     style={{ maxHeight: 'calc(100vh - 4rem)' }}
                 >
                     <div className="flex items-center justify-between p-4 border-b border-surface-100 bg-surface-50 shrink-0">
@@ -137,7 +161,7 @@ export function ReprofileHistoryModal({ app, localChanges, onClose }: ReprofileH
                                                 {isLatest ? <Activity size={12} className="animate-pulse" /> : <Clock size={12} />}
                                             </div>
                                             
-                                            <div className="flex-1 p-3 rounded-sm border border-surface-200 bg-white shadow-sm transition-all hover:border-primary-200 hover:shadow-md">
+                                            <div className="flex-1 p-3 rounded-sm border border-surface-200 bg-white dark:bg-slate-900 shadow-sm transition-all hover:border-primary-200 hover:shadow-md">
                                                 <div className="flex items-center justify-between mb-2">
                                                     <span className="text-[9px] font-bold text-surface-400 uppercase tracking-wider">
                                                         {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -171,7 +195,7 @@ export function ReprofileHistoryModal({ app, localChanges, onClose }: ReprofileH
                                                 {(validatorEmail || isCurrent) && (
                                                       <div className="mt-3 pt-3 border-t border-surface-100 flex flex-col gap-1.5 text-[11px] text-left">
                                                           <div className="text-[9px] font-bold text-surface-400 uppercase tracking-wider flex items-center gap-1.5">
-                                                              Ops Validation Verdict
+                                                              Account Assignment Verdict
                                                               {isCurrent && (
                                                                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-sm animate-pulse">
                                                                       <span className="w-1 h-1 rounded-full bg-yellow-500 animate-ping" />

@@ -8,9 +8,9 @@ import type { AuditLog } from '@/types';
 const ACTION_THEMES: Record<string, { label: string, color: string, icon: LucideIcon }> = {
     'APPLICATION.STATUS.UPDATE': { label: 'Status Update', color: 'text-emerald-700 bg-emerald-50 border-emerald-200', icon: History },
     'AUTH.LOGIN': { label: 'Sign In', color: 'text-blue-700 bg-blue-50 border-blue-200', icon: Shield },
-    'AUTH.LOGOUT': { label: 'Sign Out', color: 'text-slate-600 bg-slate-50 border-slate-200', icon: Shield },
+    'AUTH.LOGOUT': { label: 'Sign Out', color: 'text-slate-600 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-800', icon: Shield },
     'INTERVIEW_ROOM.JOIN': { label: 'Room Access', color: 'text-blue-700 bg-blue-50 border-blue-200', icon: Zap },
-    'INTERVIEW_ROOM.LEAVE': { label: 'Room Exit', color: 'text-slate-600 bg-slate-50 border-slate-200', icon: Zap },
+    'INTERVIEW_ROOM.LEAVE': { label: 'Room Exit', color: 'text-slate-600 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-800', icon: Zap },
     'APPLICATION.DOCUMENT.UPLOAD': { label: 'Document Upload', color: 'text-emerald-700 bg-emerald-50 border-emerald-200', icon: History },
     'SYSTEM.CONFIG.CHANGE': { label: 'System Update', color: 'text-amber-700 bg-amber-50 border-amber-200', icon: AlertTriangle }
 };
@@ -18,7 +18,7 @@ const ACTION_THEMES: Record<string, { label: string, color: string, icon: Lucide
 const getActionTheme = (action: string) => {
     const act = action.toUpperCase().trim();
     const theme = ACTION_THEMES[act] || {
-        color: 'text-slate-700 bg-slate-50 border-slate-200',
+        color: 'text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-800',
         icon: Info
     };
     return {
@@ -27,9 +27,10 @@ const getActionTheme = (action: string) => {
     };
 };
 
+interface AuditHeaderProps { searchTerm: string; onSearchChange: (val: string) => void; }
 export function AuditHeader({ searchTerm, onSearchChange }: AuditHeaderProps) {
     return (
-        <div className="bg-white border-b border-neutral-200 px-6 py-6 flex flex-col items-center justify-center text-center gap-4">
+        <div className="bg-white dark:bg-slate-900 border-b border-neutral-200 px-6 py-6 flex flex-col items-center justify-center text-center gap-4">
             <div className="flex flex-col items-center">
                 <div className="flex items-center gap-2 justify-center">
                     <ShieldAlert size={20} className="text-neutral-500" />
@@ -54,7 +55,7 @@ export function AuditHeader({ searchTerm, onSearchChange }: AuditHeaderProps) {
                     placeholder="Search events..."
                     value={searchTerm}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full h-9 pl-9 pr-3 bg-white border border-neutral-200 rounded-lg text-xs font-medium text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-200 transition-all text-center"
+                    className="w-full h-9 pl-9 pr-3 bg-white dark:bg-slate-900 border border-neutral-200 rounded-lg text-xs font-medium text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-200 transition-all text-center"
                     style={{ fontFamily: 'var(--font-family-sans)' }}
                 />
             </div>
@@ -70,7 +71,7 @@ interface AuditStatsProps {
 export function AuditStats({ stats, onTodayClick }: AuditStatsProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white border border-neutral-200/80 rounded-lg p-5 flex items-center justify-between shadow-sm transition-all duration-200 hover:shadow-md">
+            <div className="bg-white dark:bg-slate-900 border border-neutral-200/80 rounded-lg p-5 flex items-center justify-between shadow-sm transition-all duration-200 hover:shadow-md">
                 <div>
                     <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Total activities</p>
                     <p className="text-[26px] font-bold text-neutral-900 tracking-tight tabular-nums leading-none">{stats.total.toLocaleString()}</p>
@@ -82,7 +83,7 @@ export function AuditStats({ stats, onTodayClick }: AuditStatsProps) {
 
             <button
                 onClick={onTodayClick}
-                className="bg-white border border-neutral-200/80 rounded-lg p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-200 text-left hover:border-neutral-300"
+                className="bg-white dark:bg-slate-900 border border-neutral-200/80 rounded-lg p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-200 text-left hover:border-neutral-300"
             >
                 <div>
                     <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Today's activity</p>
@@ -104,7 +105,7 @@ export function AuditStats({ stats, onTodayClick }: AuditStatsProps) {
 
 const getLogExplanation = (log: AuditLog) => {
     const act = log.action.toLowerCase();
-    const details = (log.details || log.metadata || {}) as Record<string, any>;
+    const details = (log.details || (log as any).metadata || {}) as Record<string, any>;
     
     if (act.includes('status.update') && (details.fromStatus || details.toStatus)) {
         const from = details.fromStatus ? String(details.fromStatus).replace(/_/g, ' ') : 'APPLIED';
@@ -251,7 +252,7 @@ export function AuditTable({ logs, onPreview, selectedIds, onToggleSelection, on
     const isAllSelected = logs.length > 0 && selectedIds.size === logs.length;
 
     return (
-        <div className="bg-white border border-neutral-200/80 rounded-lg overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-neutral-200/80 rounded-lg overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                     <thead>
@@ -318,7 +319,7 @@ export function LogDetailsModal({ log, open, onClose }: LogDetailsModalProps) {
     if (!log) return null;
     const theme = getActionTheme(log.action);
     const ActionIcon = theme.icon;
-    const details = (log.details || log.metadata || {}) as Record<string, any>;
+    const details = (log.details || (log as any).metadata || {}) as Record<string, any>;
     const isStatusUpdate = log.action.toLowerCase().includes('status.update') && (!!details.fromStatus || !!details.toStatus);
 
     // Filter out standard status update fields and system details from the additional details list to avoid duplication

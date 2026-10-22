@@ -23,7 +23,7 @@ export function AccountPerformanceFunnel({ data }: AccountPerformanceFunnelProps
                     <div className="h-4 w-1 bg-amber-500" />
                     <h3 className="text-[11px] font-bold text-surface-400 uppercase tracking-wide">Elite Account Funnel</h3>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-sm">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-none">
                     <Trophy size={12} />
                     TOP PERFORMERS
                 </div>
@@ -59,7 +59,7 @@ export function AccountPerformanceFunnel({ data }: AccountPerformanceFunnelProps
                                 }}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black text-xs">
+                                    <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-slate-900/20 flex items-center justify-center font-black text-xs">
                                         {idx + 1}
                                     </div>
                                     <div>
@@ -77,7 +77,7 @@ export function AccountPerformanceFunnel({ data }: AccountPerformanceFunnelProps
                                         <div className="text-xl font-black leading-none">{account.total.Hired}</div>
                                         <div className="text-[8px] font-bold uppercase opacity-70">Hires</div>
                                     </div>
-                                    <div className="w-px h-8 bg-white/20" />
+                                    <div className="w-px h-8 bg-white/20 dark:bg-slate-900/20" />
                                     <div className="text-right">
                                         <div className="text-xl font-black leading-none">{hiringRate.toFixed(1)}%</div>
                                         <div className="text-[8px] font-bold uppercase opacity-70">Hiring Rate</div>
@@ -93,14 +93,14 @@ export function AccountPerformanceFunnel({ data }: AccountPerformanceFunnelProps
             </div>
 
             <div className="grid grid-cols-3 gap-4 mt-8">
-                <div className="bg-surface-50 p-4 rounded-sm border border-surface-100">
+                <div className="bg-surface-50 p-4 rounded-none border border-surface-100">
                     <div className="flex items-center gap-2 mb-2">
                         <Users size={14} className="text-primary-600" />
                         <span className="text-[9px] font-black text-surface-400 uppercase">Champion Account</span>
                     </div>
                     <div className="text-sm font-bold text-surface-900 uppercase">{topAccounts[0].name}</div>
                 </div>
-                <div className="bg-surface-50 p-4 rounded-sm border border-surface-100">
+                <div className="bg-surface-50 p-4 rounded-none border border-surface-100">
                     <div className="flex items-center gap-2 mb-2">
                         <TrendingUp size={14} className="text-emerald-600" />
                         <span className="text-[9px] font-black text-surface-400 uppercase">Avg. Elite Rate</span>
@@ -109,7 +109,7 @@ export function AccountPerformanceFunnel({ data }: AccountPerformanceFunnelProps
                         {(topAccounts.reduce((acc, curr) => acc + curr.total.yieldRate, 0) / 5).toFixed(1)}%
                     </div>
                 </div>
-                <div className="bg-surface-50 p-4 rounded-sm border border-surface-100">
+                <div className="bg-surface-50 p-4 rounded-none border border-surface-100">
                     <div className="flex items-center gap-2 mb-2">
                         <Trophy size={14} className="text-amber-500" />
                         <span className="text-[9px] font-black text-surface-400 uppercase">Elite Pool Depth</span>

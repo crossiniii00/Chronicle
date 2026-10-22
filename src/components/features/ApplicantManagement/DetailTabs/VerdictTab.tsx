@@ -1,6 +1,8 @@
-import { RotateCcw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Download, User, Mail, Briefcase, FileText, CheckCircle2, Shield, Award, GraduationCap, Activity, Search, Calendar, MapPin, Building2, Terminal } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Application } from '@/types/application';
+import { extractRemarks } from '../utils/evaluationHelpers';
 
 interface VerdictTabProps {
     applicant: Application;
@@ -10,155 +12,249 @@ interface VerdictTabProps {
     setRejectionReasonInput: (reason: string) => void;
     handlePromote: (app: Application, result: 'pass' | 'fail', reason?: string) => void;
     onRegress?: () => void;
+    onClose?: () => void;
 }
 
+const InfoBadge = ({ icon: Icon, label, value }: { icon: any, label: string, value: string | number | undefined }) => (
+    <div className="flex items-start gap-3 p-3 rounded-none bg-surface-50 border border-surface-100 hover:bg-surface-100/80 transition-colors">
+        <div className="p-2 bg-white dark:bg-slate-900 rounded-none shadow-none ring-1 ring-surface-200 shrink-0">
+            <Icon size={16} className="text-surface-500" strokeWidth={2.5} />
+        </div>
+        <div>
+            <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-0.5">{label}</p>
+            <p className="text-[13px] font-semibold text-surface-900 leading-tight">{value || 'N/A'}</p>
+        </div>
+    </div>
+);
+
+const ScoreCard = ({ title, score, subtitle, colorClass }: { title: string, score: string | number | undefined, subtitle?: string, colorClass: string }) => (
+    <div className={`p-5 rounded-none border ${colorClass} bg-white dark:bg-slate-900 shadow-none hover:shadow-none transition-shadow relative overflow-hidden group`}>
+        <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-10 transition-transform group-hover:scale-110 ${colorClass.split(' ')[0].replace('border-', 'bg-')}`} />
+        <p className="text-[10px] font-bold text-surface-500 uppercase tracking-widest mb-2 relative z-10">{title}</p>
+        <p className="text-3xl font-black text-surface-900 relative z-10 tracking-tight">{score || '0'}</p>
+        {subtitle && <p className="text-[11px] font-bold text-surface-400 uppercase mt-1 relative z-10">{subtitle}</p>}
+    </div>
+);
+
 export const VerdictTab: React.FC<VerdictTabProps> = ({
-    applicant, showRejectionPrompt, setShowRejectionPrompt, rejectionReasonInput, setRejectionReasonInput,
-    handlePromote, onRegress
+    applicant,
+    onClose
 }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const isPassed = ['PASSED', 'HIRED', 'CONDITIONAL', 'FOR_JOB_OFFER', 'For Job Offer'].includes(applicant.current_status);
+    const isRejected = ['REJECTED', 'FAILED'].includes(applicant.current_status);
+    const isNoShow = ['NO_SHOW', 'NO SHOW'].includes(applicant.current_status);
+    const pathPrefix = location.pathname.startsWith('/admin') ? '/admin' : '/recruiter';
+
     return (
-        <div className="max-w-4xl mx-auto py-16 text-center">
-            {applicant.current_status === 'PASSED' || applicant.current_status === 'HIRED' || applicant.current_status === 'CONDITIONAL' ? (
-                <motion.div 
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="space-y-8"
-                >
-                    <div className="space-y-3">
-                        <h3 className="text-3xl font-black text-surface-900 tracking-tight uppercase">Applicant Passed</h3>
-                        <div className="flex items-center justify-center gap-3">
-                            <span className="h-[1px] w-8 bg-emerald-200" />
-                            <p className="text-emerald-600 font-black uppercase tracking-[0.2em] text-[10px]">Registry Status: Verified</p>
-                            <span className="h-[1px] w-8 bg-emerald-200" />
-                        </div>
+        <div className="max-w-6xl mx-auto py-8 px-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pb-6 border-b border-surface-200">
+                <div>
+                    <h2 className="text-2xl font-black text-surface-900 tracking-tight uppercase flex items-center gap-3">
+                        <Terminal size={24} className="text-primary-600" />
+                        Executive Verdict Summary
+                    </h2>
+                    <p className="text-xs text-surface-500 font-medium uppercase tracking-widest mt-2">Comprehensive Candidate Evaluation Dossier</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        onClick={() => {
+                            sessionStorage.setItem('spotlight_candidate_id', applicant.id);
+                            if (onClose) onClose();
+                            navigate(`${pathPrefix}/tracker/interview-form`);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800/50 hover:bg-surface-200 text-slate-700 dark:text-slate-300 text-xs font-bold uppercase tracking-wider rounded-none transition-all cursor-pointer border border-slate-250 shadow-xs outline-none"
+                    >
+                        <FileText size={14} />
+                        Interview Form
+                    </button>
+                    <button
+                        onClick={() => {
+                            sessionStorage.setItem('spotlight_candidate_id', applicant.id);
+                            if (onClose) onClose();
+                            navigate(`${pathPrefix}/tracker/masterlist`);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-none shadow-[0_3px_10px_rgba(37,99,235,0.2)] transition-all cursor-pointer outline-none"
+                    >
+                        <GraduationCap size={14} />
+                        Masterlist
+                    </button>
+                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-none font-black text-xs tracking-wider uppercase border ${isPassed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            isRejected ? 'bg-red-50 text-red-700 border-red-200' :
+                                isNoShow ? 'bg-surface-50 text-slate-700 dark:text-slate-300 border-surface-200' :
+                                    'bg-surface-100 text-surface-700 border-surface-250'
+                        }`}>
+                        {isPassed && <CheckCircle2 size={14} strokeWidth={3} />}
+                        {isRejected && <Shield size={14} strokeWidth={3} />}
+                        {isNoShow && <User size={14} strokeWidth={3} />}
+                        {!isPassed && !isRejected && !isNoShow && <Activity size={14} strokeWidth={3} />}
+                        {(() => {
+                            if (isNoShow) {
+                                const spec = String(applicant.pis?.final_specific_status || applicant.metadata?.final_specific_status || '').toLowerCase();
+                                if (spec.includes('final interviewer') || spec.includes('Final Interview')) {
+                                    return 'final interviewer - No Show';
+                                }
+                                return 'No Show';
+                            }
+                            return applicant.current_status.replace(/_/g, ' ');
+                        })()}
                     </div>
+                </div>
+            </div>
 
-                    <div className="max-w-md mx-auto bg-white border border-surface-100 rounded-xl shadow-premium p-10 space-y-8 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500 opacity-20" />
-                        
-                        <p className="text-sm text-surface-600 font-medium leading-relaxed">
-                            The comprehensive recruitment protocol for <span className="text-surface-900 font-black">{applicant.applicant_name}</span> has been successfully concluded.
-                        </p>
-
-                        <div className="pt-4 border-t border-surface-50">
-                            <button
-                                onClick={onRegress}
-                                className="w-full flex items-center justify-center gap-3 py-3.5 bg-surface-50 text-surface-500 hover:text-primary-700 hover:bg-primary-50 rounded-lg text-[11px] font-black uppercase tracking-[0.15em] transition-all border border-transparent hover:border-primary-100"
-                            >
-                                <RotateCcw size={14} />
-                                Undo Decision Protocol
-                            </button>
-                        </div>
-                    </div>
-                </motion.div>
-            ) : applicant.current_status === 'REJECTED' || applicant.current_status === 'FAILED' ? (
-                <motion.div 
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="space-y-8"
-                >
-                    <div className="space-y-3">
-                        <h3 className="text-3xl font-black text-surface-900 tracking-tight uppercase">Application Rejected</h3>
-                        <div className="flex items-center justify-center gap-3">
-                            <span className="h-[1px] w-8 bg-red-200" />
-                            <p className="text-red-600 font-black uppercase tracking-[0.2em] text-[10px]">Decision Recorded</p>
-                            <span className="h-[1px] w-8 bg-red-200" />
-                        </div>
-                    </div>
-
-                    <div className="max-w-md mx-auto space-y-6">
-                        {applicant.rejection_reason && (
-                            <div className="bg-white border border-red-100 rounded-xl p-8 text-left relative overflow-hidden shadow-premium">
-                                <div className="absolute top-0 left-0 w-1.5 h-full bg-red-600" />
-                                <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.15em] mb-4 opacity-70">
-                                    Official Protocol Reason
-                                </p>
-                                <p className="text-[13px] font-semibold text-surface-800 leading-relaxed italic border-l-2 border-red-50 pl-5">
-                                    "{applicant.rejection_reason}"
-                                </p>
-                            </div>
-                        )}
-                        
-                        <button
-                            onClick={onRegress}
-                            className="flex items-center justify-center gap-3 w-full py-4 bg-white border border-surface-200 text-surface-500 hover:text-red-700 hover:border-red-200 hover:bg-red-50 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all shadow-sm"
-                        >
-                            <RotateCcw size={15} />
-                            Undo Decision & Reset Protocol
-                        </button>
-                    </div>
-                </motion.div>
-            ) : applicant.current_status === 'WITHDRAWN' ? (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-6"
-                >
-                    <h3 className="text-2xl font-bold text-surface-900 tracking-tight uppercase tracking-wider">Application Withdrawn</h3>
-                    <p className="text-surface-400 font-bold uppercase tracking-wider text-[10px]">Process Concluded</p>
-                </motion.div>
-            ) : (
-                <div className="flex flex-col items-center gap-8">
-                    <div className="space-y-2">
-                        <h3 className="text-xl font-bold text-surface-900 tracking-tight uppercase tracking-wider">Process Summary</h3>
-                        <p className="text-[10px] text-surface-500 font-bold uppercase tracking-widest">Brief review of candidate performance</p>
-                    </div>
-
-                    <div className="w-full max-w-2xl grid grid-cols-3 gap-4">
-                        <div className="p-4 bg-surface-50 border border-surface-100 rounded-sm">
-                            <p className="text-[9px] font-bold text-surface-400 uppercase tracking-widest mb-1">Typing Speed</p>
-                            <p className="text-lg font-black text-surface-900">{applicant.typing_test_wpm || 0} WPM</p>
-                            <p className="text-[8px] font-bold text-surface-400 uppercase tracking-tighter">{applicant.typing_test_accuracy || 0}% Accuracy</p>
-                        </div>
-                        <div className="p-4 bg-surface-50 border border-surface-100 rounded-sm">
-                            <p className="text-[9px] font-bold text-surface-400 uppercase tracking-widest mb-1">Assessment</p>
-                            <p className="text-lg font-black text-primary-600">
-                                {applicant.assessment_score || 0}
-                                {applicant.assessment_score && !['A1','A2','B1','B2','C1','C2'].includes(String(applicant.assessment_score).toUpperCase()) && '%'}
-                            </p>
-                            <p className="text-[8px] font-bold text-surface-400 uppercase tracking-tighter">Technical Module</p>
-                        </div>
-                        <div className="p-4 bg-surface-50 border border-surface-100 rounded-sm">
-                            <p className="text-[9px] font-bold text-surface-400 uppercase tracking-widest mb-1">Final Status</p>
-                            <p className="text-lg font-black text-surface-900 uppercase">{applicant.current_status.replace(/_/g, ' ')}</p>
-                            <p className="text-[8px] font-bold text-surface-400 uppercase tracking-tighter">Active Pipeline</p>
-                        </div>
-                    </div>
-
-                    <div className="w-full max-w-2xl p-6 bg-white border border-surface-200 rounded-sm text-left">
-                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-surface-400 mb-4 flex items-center gap-2">
-                            <div className="w-1 h-1 bg-primary-600 rounded-full" /> 
-                            Final Intelligence Summary
-                        </h4>
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-[9px] font-bold text-surface-400 uppercase mb-1">Recruiter Observations</p>
-                                <p className="text-xs text-surface-700 leading-relaxed italic">
-                                    {applicant.final_interview_notes || 'No ops val interview notes recorded.'}
-                                </p>
-                            </div>
-                            {applicant.interview_notes && (
-                                <div>
-                                    <p className="text-[9px] font-bold text-surface-400 uppercase mb-1">Initial Screening Notes</p>
-                                    <p className="text-xs text-surface-600 leading-relaxed italic">
-                                        {applicant.interview_notes}
-                                    </p>
-                                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column: Profile & Process */}
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-white dark:bg-slate-900 rounded-none border border-surface-200 shadow-none p-6">
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-surface-400 flex items-center gap-2 mb-5">
+                            <User size={14} /> Profile Intelligence
+                        </h3>
+                        <div className="space-y-3">
+                            <InfoBadge icon={User} label="Full Name" value={applicant.applicant_name} />
+                            <InfoBadge icon={Mail} label="Contact Email" value={applicant.applicant_email} />
+                            <InfoBadge icon={Briefcase} label="Target Position" value={applicant.position_title} />
+                            {applicant.pis?.highest_education && (
+                                <InfoBadge icon={GraduationCap} label="Highest Education" value={applicant.pis.highest_education} />
+                            )}
+                            {applicant.pis?.current_address && (
+                                <InfoBadge icon={MapPin} label="Current Location" value={applicant.pis.current_address} />
                             )}
                         </div>
                     </div>
 
-                    <div className="pt-10">
-                        <button
-                            onClick={onRegress}
-                            className="flex items-center gap-3 px-10 py-4 bg-white border border-surface-200 text-surface-500 hover:text-primary-700 hover:border-primary-200 hover:bg-primary-50 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-sm"
-                        >
-                            <RotateCcw size={16} />
-                            Undo Decision Protocol
-                        </button>
+                    <div className="bg-white dark:bg-slate-900 rounded-none border border-surface-200 shadow-none p-6 relative overflow-hidden">
+                        <div className="absolute right-0 bottom-0 opacity-5 pointer-events-none">
+                            <Award size={120} className="-mr-6 -mb-6" />
+                        </div>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-surface-400 flex items-center gap-2 mb-5 relative z-10">
+                            <Activity size={14} /> Process Trajectory
+                        </h3>
+                        <div className="space-y-4 relative z-10">
+                            <div>
+                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-1">Acquisition Source</p>
+                                <p className="text-sm font-semibold text-surface-800">{applicant.source || 'Standard Application'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-1">Endorsed Department</p>
+                                <p className="text-sm font-semibold text-primary-700 flex items-center gap-2">
+                                    <Building2 size={14} />
+                                    {applicant.pis?.final_account || applicant.department || 'Pending Allocation'}
+                                </p>
+                            </div>
+                            {isRejected && applicant.rejection_reason && (
+                                <div className="p-3 bg-red-50 border border-red-100 rounded-none">
+                                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Rejection Rationale</p>
+                                    <p className="text-xs font-semibold text-red-800 leading-relaxed italic">"{applicant.rejection_reason}"</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            )}
+
+                {/* Right Column: Scores & Remarks */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white dark:bg-slate-900 rounded-none border border-surface-200 shadow-none p-6">
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-surface-400 flex items-center gap-2 mb-5">
+                            <Activity size={14} /> Performance Metrics
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <ScoreCard
+                                title="Typing Speed"
+                                score={`${applicant.typing_test_wpm || 0} WPM`}
+                                subtitle={`${applicant.typing_test_accuracy || 0}% Accuracy`}
+                                colorClass="border-blue-200 hover:border-blue-300"
+                            />
+                            <ScoreCard
+                                title="Technical Score"
+                                score={`${applicant.assessment_score || 0}${applicant.assessment_score && !['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(String(applicant.assessment_score).toUpperCase()) ? '%' : ''}`}
+                                subtitle="Core Assessment"
+                                colorClass="border-purple-200 hover:border-purple-300"
+                            />
+                            {applicant.pis?.leadership_score && (
+                                <ScoreCard
+                                    title="Leadership"
+                                    score={applicant.pis.leadership_score}
+                                    subtitle="Assessment Score"
+                                    colorClass="border-amber-200 hover:border-amber-300"
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 rounded-none border border-surface-200 shadow-none p-6">
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-surface-400 flex items-center gap-2 mb-6">
+                            <Search size={14} /> Evaluator Remarks & Observations
+                        </h3>
+
+                        <div className="space-y-6">
+                            {/* Final Interview Notes */}
+                            <div className="relative pl-6 border-l-2 border-primary-200">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary-100 ring-4 ring-white flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary-600" />
+                                </div>
+                                <h4 className="text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-2 flex justify-between items-center">
+                                    Operations Validation Remarks
+                                </h4>
+                                <p className="text-[13px] text-surface-800 leading-relaxed font-medium bg-surface-50 p-4 rounded-none border border-surface-100">
+                                    {(() => {
+                                        const appPis = applicant.pis || {};
+                                        const appMeta = applicant.metadata || {};
+                                        const r = appPis.ops_validator_notes?.trim() ||
+                                                  appPis.ops_validation_remarks?.trim() ||
+                                                  (appPis as any).ops_val_notes?.trim() ||
+                                                  appMeta.ops_validator_notes?.trim() ||
+                                                  appMeta.ops_validation_remarks?.trim() ||
+                                                  (applicant as any)?.ops_validator_notes?.trim() ||
+                                                  applicant.final_interview_notes?.trim() ||
+                                                  (applicant as any).master_remarks?.trim() ||
+                                                  '';
+                                        return extractRemarks(r) || 'No final validation notes recorded.';
+                                    })()}
+                                </p>
+                            </div>
+
+                            {/* Initial Notes */}
+                            {applicant.interview_notes && (
+                                <div className="relative pl-6 border-l-2 border-indigo-200">
+                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-indigo-100 ring-4 ring-white flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                                    </div>
+                                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-2">
+                                        Initial Screening Intelligence
+                                    </h4>
+                                    <p className="text-[13px] text-surface-700 leading-relaxed italic bg-indigo-50/50 p-4 rounded-none border border-indigo-50">
+                                        {applicant.interview_notes}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Attachments */}
+                            {applicant.pis?.ops_validator_attachment_data && (
+                                <div className="relative pl-6 border-l-2 border-emerald-200 pt-2">
+                                    <div className="absolute -left-[9px] top-[14px] w-4 h-4 rounded-full bg-emerald-100 ring-4 ring-white flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                                    </div>
+                                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-3">
+                                        Validation Evidence
+                                    </h4>
+                                    <a
+                                        href={applicant.pis.ops_validator_attachment_data}
+                                        download={applicant.pis.ops_validator_attachment_name || 'ops_val_attachment'}
+                                        className="group inline-flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-none rounded-none text-[13px] font-bold text-emerald-800 transition-all"
+                                    >
+                                        <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-none group-hover:bg-emerald-200 transition-colors">
+                                            <Download size={16} strokeWidth={2.5} />
+                                        </div>
+                                        <span className="truncate max-w-[250px]">{applicant.pis.ops_validator_attachment_name || 'Download Evidence Attachment'}</span>
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
+

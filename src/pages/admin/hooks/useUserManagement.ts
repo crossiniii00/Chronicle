@@ -24,6 +24,7 @@ export function useUserManagement() {
     const [activeTab, setActiveTab] = useState<'RECRUITERS' | 'VALIDATORS' | 'ADMINS' | 'SUPER_ADMINS'>('RECRUITERS');
     const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>('ALL');
     const [accountFilter, setAccountFilter] = useState<string>('ALL');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'RESTRICTED'>('ALL');
     const [modal, setModal] = useState<'create' | 'edit' | 'password' | null>(null);
     const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<ManagedUser | null>(null);
@@ -40,18 +41,20 @@ export function useUserManagement() {
     });
     
     const [showProvisionPw, setShowProvisionPw] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
     const [showProvisionConfirmPw, setShowProvisionConfirmPw] = useState(false);
     const [showEditPw, setShowEditPw] = useState(false);
     const [showEditConfirmPw, setShowEditConfirmPw] = useState(false);
     const [passwordConfirmOpen, setPasswordConfirmOpen] = useState(false);
 
     const loadUsers = useCallback(async () => {
-        setLoading(true);
         try {
+            setLoading(true);
             const [userData, deptData] = await Promise.all([
                 UserService.getAll(),
                 DepartmentService.getAll()
             ]);
+            
             setAllUsers(userData);
             setDepartments(deptData);
         } catch {
@@ -60,6 +63,13 @@ export function useUserManagement() {
             setLoading(false);
         }
     }, [toastError]);
+
+    const getErrorMessage = (err: any, defaultMessage: string) => {
+        if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+            return err.response.data.errors.map((e: any) => `${e.path || 'Field'}: ${e.message}`).join(' | ');
+        }
+        return err.response?.data?.message || defaultMessage;
+    };
 
     useEffect(() => {
         void loadUsers();
@@ -82,8 +92,10 @@ export function useUserManagement() {
                 confirmPassword: '',
                 avatar_data: null
             });
+            setFormError(null);
             if (modal === 'create') {
                 setSelectedUser(null);
+
             }
         }
     }, [modal]);
@@ -105,8 +117,9 @@ export function useUserManagement() {
                 ? !u.department || u.department.trim() === ''
                 : (u.department || '').split(',').map(d => d.trim().toUpperCase()).includes(accountFilter.toUpperCase())
         );
+        const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? u.is_active : !u.is_active);
         
-        return matchesTab && matchesSearch && matchesRole && matchesAccount;
+        return matchesTab && matchesSearch && matchesRole && matchesAccount && matchesStatus;
     });
 
     const recruiterCount = allUsers.filter(u => getRoleType(u.role) === 'recruiter').length;
@@ -115,18 +128,19 @@ export function useUserManagement() {
     const superAdminCount = allUsers.filter(u => getRoleType(u.role) === 'super_admin').length;
 
     const handleCreate = async () => {
+        setFormError(null);
         if (!form.full_name || !form.email || !form.password) { 
-            toastError('Validation Error', 'All identity fields are required.');
+            setFormError('All identity fields are required.');
             return; 
         }
 
         if (form.password.length < 8) {
-            toastError('Security Error', 'Authorization password must be at least 8 characters.');
+            setFormError('Authorization password must be at least 8 characters.');
             return;
         }
 
         if (form.password !== form.confirmPassword) {
-            toastError('Security Error', 'Authorization passwords do not match.');
+            setFormError('Authorization passwords do not match.');
             return;
         }
 
@@ -146,7 +160,9 @@ export function useUserManagement() {
             success('Identity Provisioned', `${form.full_name} has been added as ${getLabel(form.role)}. Access is live.`);
             await loadUsers();
         } catch (err: any) {
-            toastError('Provisioning Failed', err.response?.data?.message || 'Could not authorize new identity.');
+            const errorMsg = getErrorMessage(err, 'Could not authorize new identity.');
+            setFormError(errorMsg);
+            toastError('Provisioning Failed', errorMsg);
         }
     };
 
@@ -191,7 +207,7 @@ export function useUserManagement() {
             success('User Updated', `${form.full_name}'s information has been updated.`);
             await loadUsers();
         } catch (err: any) {
-            toastError('Update Failed', err.response?.data?.message || 'Could not update user information.');
+            toastError('Update Failed', getErrorMessage(err, 'Could not update user information.'));
         }
     };
 
@@ -239,6 +255,7 @@ export function useUserManagement() {
         activeTab, setActiveTab,
         roleFilter, setRoleFilter,
         accountFilter, setAccountFilter,
+        statusFilter, setStatusFilter,
         modal, setModal,
         selectedUser,
         deleteConfirm, setDeleteConfirm,
@@ -259,6 +276,7 @@ export function useUserManagement() {
         openEditModal,
         handleDelete,
         passwordConfirmOpen,
-        setPasswordConfirmOpen
+        setPasswordConfirmOpen,
+        formError, setFormError
     };
 }

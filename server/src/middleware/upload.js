@@ -19,15 +19,18 @@ const storage = multer.diskStorage({
 
 function resumeFilter(_req, file, callback) {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'];
     const allowedMimeTypes = [
         'application/pdf',
         'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/png',
+        'application/octet-stream' // Browsers sometimes send PDFs as this
     ];
 
     if (!allowedMimeTypes.includes(file.mimetype) || !allowedExtensions.includes(ext)) {
-        return callback(new Error('Only PDF, DOC, and DOCX resumes are allowed.'));
+        return callback(new Error('Only PDF, DOC, DOCX, JPEG, and PNG files are allowed.'));
     }
 
     return callback(null, true);
@@ -37,7 +40,8 @@ export const resumeUpload = multer({
     storage,
     fileFilter: resumeFilter,
     limits: {
-        fileSize: 3 * 1024 * 1024, // 3MB
+        fileSize: 25 * 1024 * 1024, // 25MB
+        fieldSize: 50 * 1024 * 1024, // 50MB to accommodate large base64 photos in metadata
         files: 1,
     },
 });
@@ -54,6 +58,7 @@ export const templateUpload = multer({
     storage: templateStorage,
     limits: {
         fileSize: 10 * 1024 * 1024, // 10MB
+        fieldSize: 10 * 1024 * 1024, // 10MB
         files: 1,
     },
 });
@@ -82,6 +87,7 @@ export const accountImageUpload = multer({
     fileFilter: accountImageFilter,
     limits: {
         fileSize: 5 * 1024 * 1024, // 5MB
+        fieldSize: 10 * 1024 * 1024, // 10MB
         files: 1,
     },
 });
@@ -101,6 +107,7 @@ export const recordingUpload = multer({
     storage: recordingStorage,
     limits: {
         fileSize: 50 * 1024 * 1024, // 50MB
+        fieldSize: 10 * 1024 * 1024, // 10MB
         files: 1,
     },
 });

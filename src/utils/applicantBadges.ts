@@ -1,11 +1,7 @@
 import type { Application } from '@/types/application';
 
-export function isRoutedToSpecializedRecruiter(applicant: Application): boolean {
-    return (
-        applicant.endorsed_to_recruiter_s === true ||
-        applicant.metadata?.endorsed_to_recruiter_s === true ||
-        applicant.metadata?.endorsed_to_recruiter_s === 'true'
-    );
+export function isRoutedToSpecializedRecruiter(_applicant: Application): boolean {
+    return false;
 }
 
 export function getEndorsedOvBadgeLabel(applicant: Application): string | null {

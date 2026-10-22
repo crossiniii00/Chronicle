@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { config } from '../config.js';
 import { query } from '../db.js';
+import { clearCache } from '../utils/cache.js';
 
 const backupDir = path.resolve(process.cwd(), 'backups');
 if (!fs.existsSync(backupDir)) {
@@ -55,9 +56,9 @@ function spawnPgProcess(binaryName, args) {
         
         const env = {
             ...process.env,
-            PGPASSWORD: config.postgres.password,
             SystemRoot: process.env.SystemRoot || 'C:\\Windows',
             COMSPEC: process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe',
+            PGPASSWORD: config.postgres.password
         };
 
         const proc = spawn(binaryPath, args, {
@@ -100,6 +101,12 @@ export class BackupService {
         return backupDir;
     }
 
+    // Dynamically discover all tables in the public schema
+    static async getAllTables() {
+        const result = await query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name");
+        return result.rows.map(r => r.table_name);
+    }
+
     static async createBackup(type = 'full') {
         const timestamp = getFormalTimestamp();
         const formattedType = type.charAt(0).toUpperCase() + type.slice(1);
@@ -116,19 +123,28 @@ export class BackupService {
             '--if-exists'
         ];
 
+        // Settings tables: configuration/reference data that rarely changes
+        const settingsTablePatterns = [
+            'email_templates', 'interview_questions', 'report_configs',
+            'departments', 'positions', 'job_categories',
+            'mhrt_accounts', 'mhrt_division_mappings', 'mhrt_time_off_assignments'
+        ];
+
+        // Always excluded from all backup types
+        const alwaysExcluded = ['user_sessions'];
+
         if (type === 'settings') {
-            args.push(
-                '-t', 'email_templates',
-                '-t', 'interview_questions',
-                '-t', 'report_configs',
-                '-t', 'departments',
-                '-t', 'mhrt_accounts',
-                '-t', 'mhrt_division_mappings',
-                '-t', 'mhrt_time_off_assignments',
-                '-t', 'positions'
-            );
+            // Dynamically find all tables, include only settings-related ones
+            const allTables = await BackupService.getAllTables();
+            const settingsTables = allTables.filter(t => settingsTablePatterns.includes(t));
+            settingsTables.forEach(t => args.push('-t', t));
+        } else if (type === 'incremental') {
+            // Exclude settings tables + always-excluded
+            const allExcluded = [...settingsTablePatterns, ...alwaysExcluded];
+            allExcluded.forEach(t => args.push('-T', t));
         } else {
-            args.push('-T', 'user_sessions');
+            // Full backup: dump everything except user_sessions
+            alwaysExcluded.forEach(t => args.push('-T', t));
         }
 
         await spawnPgProcess('pg_dump', args);
@@ -169,32 +185,42 @@ export class BackupService {
         return history.sort((a, b) => b.created_at.localeCompare(a.created_at));
     }
 
-    static async restoreBackup(filename) {
+    static async restoreBackup(filename, io) {
         const filepath = path.join(backupDir, filename);
         if (!fs.existsSync(filepath)) {
             throw new Error('Backup file does not exist');
         }
 
         // Determine which tables to clean based on the backup type to avoid wiping unrelated data
-        const isSettingsOnly = filename.includes('_settings');
+        const isSettingsOnly = filename.toLowerCase().includes('_settings');
+        const isIncremental = filename.toLowerCase().includes('_incremental');
         let tablesToClean = [];
 
+        const settingsTables = [
+            'email_templates', 
+            'interview_questions', 
+            'report_configs', 
+            'departments',
+            'mhrt_accounts',
+            'mhrt_division_mappings',
+            'mhrt_time_off_assignments',
+            'positions',
+            'job_categories'
+        ];
+
         if (isSettingsOnly) {
-            tablesToClean = [
-                'email_templates', 
-                'interview_questions', 
-                'report_configs', 
-                'departments',
-                'mhrt_accounts',
-                'mhrt_division_mappings',
-                'mhrt_time_off_assignments',
-                'positions'
-            ];
+            tablesToClean = [...settingsTables];
         } else {
             const tablesRes = await query("SELECT table_name FROM information_schema.tables WHERE table_schema='public'");
-            tablesToClean = tablesRes.rows
-                .map(r => r.table_name)
-                .filter(t => t !== 'user_sessions'); // Retain session table to prevent logging out during restore
+            if (isIncremental) {
+                tablesToClean = tablesRes.rows
+                    .map(r => r.table_name)
+                    .filter(t => !settingsTables.includes(t) && t !== 'user_sessions');
+            } else {
+                tablesToClean = tablesRes.rows
+                    .map(r => r.table_name)
+                    .filter(t => t !== 'user_sessions'); // Retain session table to prevent logging out during restore
+            }
         }
 
         if (tablesToClean.length > 0) {
@@ -206,8 +232,10 @@ export class BackupService {
             );
             const existingTables = existCheck.rows.map(r => r.table_name);
             if (existingTables.length > 0) {
-                const truncateQuery = `TRUNCATE TABLE ${existingTables.map(t => `"${t}"`).join(', ')} CASCADE`;
-                await query(truncateQuery);
+                const cleanQuery = isSettingsOnly 
+                    ? `TRUNCATE TABLE ${existingTables.map(t => `"${t}"`).join(', ')} CASCADE`
+                    : `DROP TABLE IF EXISTS ${existingTables.map(t => `"${t}"`).join(', ')} CASCADE`;
+                await query(cleanQuery);
             }
         }
 
@@ -237,7 +265,6 @@ export class BackupService {
                 '-p', config.postgres.port.toString(),
                 '-U', config.postgres.user,
                 '-d', config.postgres.database,
-                '-v', 'ON_ERROR_STOP=1',
                 '-f', filepath
             ];
             await spawnPgProcess('psql', args);
@@ -253,6 +280,14 @@ export class BackupService {
             console.log('[Backup] Post-restore self-healing database check completed successfully.');
         } catch (dbInitErr) {
             console.error('[Backup] Post-restore self-healing database check failed:', dbInitErr);
+        }
+        
+        // Clear all backend caches to prevent serving stale data after restoration
+        clearCache();
+        
+        // Broadcast restoration event to all connected clients so they reload
+        if (io) {
+            io.emit('database:restored');
         }
     }
 

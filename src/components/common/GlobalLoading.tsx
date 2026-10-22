@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback } from 'react';
+import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface LoadingContextType {
@@ -56,28 +56,57 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
 export { LoadingContext };
 
 function LoadingOverlay({ message }: { message: string }) {
+    const [progress, setProgress] = useState(0);
+
+    useEffect(() => {
+        // Fast to 30%
+        const t1 = setTimeout(() => setProgress(30), 100);
+        // Then to 60%
+        const t2 = setTimeout(() => setProgress(60), 600);
+        // Then creep up to 90% slowly
+        const t3 = setTimeout(() => setProgress(90), 1500);
+
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            clearTimeout(t3);
+        };
+    }, []);
+
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[9998] flex items-center justify-center bg-surface-900/20 backdrop-blur-[2px]"
+            className="fixed inset-0 z-[100000] flex items-center justify-center bg-surface-900/20 backdrop-blur-[2px]"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="bg-white rounded-xl shadow-[0_16px_48px_-8px_rgba(0,0,0,0.15)] border border-surface-200 px-8 py-6 flex items-center gap-4 min-w-[240px]"
+                className="bg-white dark:bg-slate-900 rounded-xl shadow-[0_16px_48px_-8px_rgba(0,0,0,0.15)] border border-surface-200 px-8 py-6 flex flex-col min-w-[240px]"
             >
-                <div className="relative w-8 h-8 shrink-0">
-                    <div className="absolute inset-0 border-[2.5px] border-surface-200 rounded-full" />
-                    <div className="absolute inset-0 border-[2.5px] border-brand-red border-t-transparent rounded-full animate-spin" />
+                <div className="w-full flex items-center gap-4">
+                    <div className="relative w-8 h-8 shrink-0">
+                        <div className="absolute inset-0 border-[2.5px] border-surface-200 rounded-full" />
+                        <div className="absolute inset-0 border-[2.5px] border-brand-red border-t-transparent rounded-full animate-spin" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-surface-800 tracking-tight truncate">{message}</p>
+                        <p className="text-[10px] font-semibold text-surface-400 mt-0.5 tracking-wide">Please wait...</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="text-sm font-bold text-surface-800 tracking-tight">{message}</p>
-                    <p className="text-[10px] font-semibold text-surface-400 mt-0.5 tracking-wide">Please wait...</p>
+                
+                {/* Smooth Progress Loading Bar */}
+                <div className="mt-4 w-full h-1.5 bg-surface-100 rounded-full overflow-hidden">
+                    <motion.div 
+                        className="h-full bg-brand-red rounded-full"
+                        initial={{ width: '0%' }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+                    />
                 </div>
             </motion.div>
         </motion.div>

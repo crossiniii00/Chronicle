@@ -11,14 +11,14 @@ export const RecruiterActivityTable: React.FC<RecruiterActivityTableProps> = ({
     onViewDashboard
 }) => {
     return (
-        <div className="bg-white border border-surface-200 rounded-sm p-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[11px] font-black text-surface-900 uppercase tracking-widest flex items-center gap-2">
                     <Users size={14} className="text-black" /> Recruiter Activity Analysis
                 </h3>
                 <button
                     onClick={onViewDashboard}
-                    className="p-1.5 px-2.5 hover:bg-surface-100 rounded-sm transition-colors text-surface-600 hover:text-black flex items-center gap-1.5 text-[11px] font-medium border border-surface-200 hover:border-black"
+                    className="p-1.5 px-2.5 hover:bg-surface-100 rounded-none transition-colors text-surface-600 hover:text-black flex items-center gap-1.5 text-[11px] font-medium border border-surface-200 hover:border-black"
                 >
                     <LayoutDashboard size={12} /> View dashboard
                 </button>

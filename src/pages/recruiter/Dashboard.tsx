@@ -3,7 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 import { ApplicationService } from '@/services/ApplicationService';
 import { QueueService } from '@/services/QueueService';
 import { AuditService } from '@/services/AuditService';
-import { timeAgo } from '@/utils/formatters';
+import { timeAgo, toManilaDateString } from '@/utils/formatters';
 import { BarChart2, Clock, Users, CheckCircle2, ArrowRight, Monitor, Shield, Loader2, Plus, UserCheck, ShieldCheck, ArrowUpRight, FileText, GraduationCap, BarChart3, Building2, Search, X, LayoutDashboard, CircleDot, Activity, MapPin, Sun, Moon, Sunset, Sunrise, Sparkles, LogOut, User, ChevronDown, Mail, Calendar, CalendarDays, ChevronLeft, ChevronRight, Target, MessageSquare } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/utils/formatters';
@@ -30,10 +30,18 @@ import { DashboardCharts } from './components/Dashboard/DashboardCharts';
 import { RecruiterActivityTable } from './components/Dashboard/RecruiterActivityTable';
 import { AccountPerformanceTable } from './components/Dashboard/AccountPerformanceTable';
 import { DashboardSidebar } from './components/Dashboard/DashboardSidebar';
+import { WelcomeIntro } from './components/Dashboard/WelcomeIntro';
 
 export function RecruiterDashboard() {
-    const { user, logout } = useAuthStore();
+    const { user, logout, isAccountFilterEnabled, setIsAccountFilterEnabled } = useAuthStore();
     const navigate = useNavigate();
+    const [showWelcome, setShowWelcome] = useState(() => {
+        try {
+            return false; // Hidden for now: !sessionStorage.getItem('welcome_intro_shown');
+        } catch {
+            return false;
+        }
+    });
     const [dateFilter, setDateFilter] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'ALL'>('ALL');
     const [dateSub, setDateSub] = useState<{
         weekIndex?: number;
@@ -42,7 +50,7 @@ export function RecruiterDashboard() {
         day?: number;
     }>({});
     const [openDropdown, setOpenDropdown] = useState<'WEEK' | 'MONTH' | null>(null);
-    const [loading, setLoading] = useState(true);
+
     const [isRecruiterModalOpen, setIsRecruiterModalOpen] = useState(false);
     const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
     const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false);
@@ -124,20 +132,18 @@ export function RecruiterDashboard() {
     const [accountIndex, setAccountIndex] = useState(0);
 
     useEffect(() => {
-        if (loading) return;
         const interval = setInterval(() => {
             setRecruiterIndex(prev => prev + 1);
         }, 5000);
         return () => clearInterval(interval);
-    }, [loading]);
+    }, []);
 
     useEffect(() => {
-        if (loading) return;
         const interval = setInterval(() => {
             setAccountIndex(prev => prev + 1);
         }, 6000);
         return () => clearInterval(interval);
-    }, [loading]);
+    }, []);
 
     const MOCK_RECRUITERS = useMemo(() => [
         { id: 'mock-1', full_name: 'Sarah Jenkins', role: 'recruiter_s', avatar_data: null, hires: 14, active: 8, accolade: '🏆 Top Endorser' },
@@ -146,18 +152,18 @@ export function RecruiterDashboard() {
     ], []);
 
     const MOCK_ACCOUNTS = useMemo(() => [
-        { id: 'mock-acc-1', name: 'DOORDASH', head: 'John Smith', budgetCode: 'DD-09', accountImageUrl: null, hiring_quota: 10, hired: 7, active: 4 },
-        { id: 'mock-acc-2', name: 'AUTO APPROVE', head: 'Emily Davis', budgetCode: 'AA-12', accountImageUrl: null, hiring_quota: 15, hired: 12, active: 3 },
-        { id: 'mock-acc-3', name: 'ENERCARE', head: 'Robert Chen', budgetCode: 'EC-44', accountImageUrl: null, hiring_quota: 5, hired: 2, active: 2 },
+        { id: 'mock-acc-1', name: 'NVIDIA', head: 'Jensen Huang', budgetCode: 'NV-01', accountImageUrl: '/uploads/account-images/nvidia.svg', hiring_quota: 25, hired: 18, active: 7 },
+        { id: 'mock-acc-2', name: 'MICROSOFT', head: 'Satya Nadella', budgetCode: 'MS-02', accountImageUrl: '/uploads/account-images/microsoft.svg', hiring_quota: 30, hired: 24, active: 6 },
+        { id: 'mock-acc-3', name: 'AMAZON', head: 'Andy Jassy', budgetCode: 'AMZ-03', accountImageUrl: '/uploads/account-images/amazon.svg', hiring_quota: 20, hired: 15, active: 5 },
     ], []);
 
     const activeRecruiters = useMemo(() => {
         const list = data.users.filter(u => u.role?.startsWith('recruiter') || u.role === 'admin' || u.role === 'super_admin');
         if (list.length === 0) return MOCK_RECRUITERS;
         return list.map((u, i) => {
-            const recruiterApps = data.applications.filter(app => 
-                app.assigned_recruiter_name?.toLowerCase() === u.full_name?.toLowerCase() ||
-                app.interviewer_name?.toLowerCase() === u.full_name?.toLowerCase()
+            const recruiterApps = data.applications.filter(app =>
+                app.assigned_recruiter_name?.toLowerCase() === (u.full_name || '').toLowerCase() ||
+                app.interviewer_name?.toLowerCase() === (u.full_name || '').toLowerCase()
             );
             const hires = recruiterApps.filter(app => app.current_status === 'HIRED').length;
             const active = recruiterApps.filter(app => !['HIRED', 'FAILED', 'REJECTED'].includes(app.current_status)).length;
@@ -178,7 +184,7 @@ export function RecruiterDashboard() {
         const list = data.departments;
         if (list.length === 0) return MOCK_ACCOUNTS;
         return list.map((dept, i) => {
-            const deptApps = data.applications.filter(app => app.department?.toLowerCase() === dept.name?.toLowerCase());
+            const deptApps = data.applications.filter(app => app.department?.toLowerCase() === (dept.name || '').toLowerCase());
             const hired = deptApps.filter(app => app.current_status === 'HIRED').length;
             const active = deptApps.filter(app => !['HIRED', 'FAILED', 'REJECTED'].includes(app.current_status)).length;
             return {
@@ -217,31 +223,28 @@ export function RecruiterDashboard() {
     const onlineUserCount = allOnlineUsers.length;
 
     useEffect(() => {
-        async function loadDashboardData() {
-            if (!user) return;
-            setLoading(true);
-            try {
-                const [apps, queueData, audits, users, depts] = await Promise.all([
-                    ApplicationService.getAll().catch(e => { console.error('Apps fetch fail:', e); return []; }),
-                    QueueService.getTodaysQueue().catch(e => { console.error('Queue fetch fail:', e); return []; }),
-                    AuditService.getAll().catch(e => { console.error('Audit fetch fail:', e); return []; }),
-                    UserService.getAll().catch(e => { console.error('Users fetch fail:', e); return []; }),
-                    DepartmentService.getAll().catch(e => { console.error('Departments fetch fail:', e); return []; })
-                ]);
-                setData({
-                    applications: apps || [],
-                    queue: queueData || [],
-                    auditLogs: audits || [],
-                    users: users || [],
-                    departments: depts || []
-                });
-            } catch (error) {
-                console.error("Critical dashboard data failure:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        loadDashboardData();
+        if (!user) return;
+
+        // Wave 1: Fast, lightweight queries — renders sidebar + spotlight instantly
+        Promise.all([
+            UserService.getAll().catch(e => { console.error('Users fetch fail:', e); return []; }),
+            DepartmentService.getAll().catch(e => { console.error('Departments fetch fail:', e); return []; }),
+            QueueService.getTodaysQueue().catch(e => { console.error('Queue fetch fail:', e); return []; }),
+            AuditService.getRecent(6).catch(e => { console.error('Audit fetch fail:', e); return []; })
+        ]).then(([users, depts, queueData, audits]) => {
+            setData(prev => ({
+                ...prev,
+                users: users || [],
+                departments: depts || [],
+                queue: queueData || [],
+                auditLogs: audits || []
+            }));
+        });
+
+        // Wave 2: Heavy query — fills in metrics + charts progressively
+        ApplicationService.getAll().then(apps => {
+            setData(prev => ({ ...prev, applications: apps || [] }));
+        }).catch(e => { console.error('Apps fetch fail:', e); });
     }, [user]);
 
     const now = new Date();
@@ -252,12 +255,12 @@ export function RecruiterDashboard() {
     const warmSubtext = hour < 5
         ? `Working late, ${firstName}? Don't forget to take a break.`
         : hour < 12
-        ? `Hope your morning is off to a great start.`
-        : hour < 17
-        ? `Hope your day is going well so far.`
-        : hour < 21
-        ? `Winding down? Here's a snapshot of your day.`
-        : `Glad to see you, ${firstName}. Here's where things stand.`;
+            ? `Hope your morning is off to a great start.`
+            : hour < 17
+                ? `Hope your day is going well so far.`
+                : hour < 21
+                    ? `Winding down? Here's a snapshot of your day.`
+                    : `Glad to see you, ${firstName}. Here's where things stand.`;
 
     const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -272,12 +275,12 @@ export function RecruiterDashboard() {
     const warmGradient = hour < 5
         ? 'from-indigo-50/80 via-violet-50/40 to-white'
         : hour < 12
-        ? 'from-amber-50/80 via-orange-50/30 to-white'
-        : hour < 17
-        ? 'from-sky-50/70 via-white to-white'
-        : hour < 21
-        ? 'from-orange-50/70 via-rose-50/40 to-white'
-        : 'from-indigo-50/80 via-violet-50/40 to-white';
+            ? 'from-amber-50/80 via-orange-50/30 to-white'
+            : hour < 17
+                ? 'from-sky-50/70 via-white to-white'
+                : hour < 21
+                    ? 'from-orange-50/70 via-rose-50/40 to-white'
+                    : 'from-indigo-50/80 via-violet-50/40 to-white';
 
     const isRecruiterS = user?.role === 'recruiter_s';
     const { getReroutedAccounts } = useAccountTypeSettings();
@@ -305,9 +308,12 @@ export function RecruiterDashboard() {
     }, [now]);
 
     const filteredApplications = useMemo(() => {
-        let baseApps = data.applications;
+        let baseApps = data.applications.filter(app => {
+            const isDeleted = app.metadata?.deleted_from_masterlist === true || String(app.metadata?.deleted_from_masterlist).toLowerCase() === 'true';
+            return !isDeleted;
+        });
 
-        if (isRecruiterS) {
+        if (isRecruiterS && isAccountFilterEnabled) {
             baseApps = baseApps.filter(app =>
                 reroutedAccounts.some(sa => (app.department || '').toLowerCase().includes(sa))
             );
@@ -315,11 +321,14 @@ export function RecruiterDashboard() {
 
         if (dateFilter === 'ALL') return baseApps;
 
-        const toDateStr = (d: Date) => d.toISOString().substring(0, 10);
+        const toDateStr = (d: Date) => toManilaDateString(d);
 
         if (dateFilter === 'TODAY') {
-            const todayStr = toDateStr(new Date());
-            return baseApps.filter(app => app.applied_at?.startsWith(todayStr));
+            const todayStr = toManilaDateString(new Date());
+            return baseApps.filter(app => {
+                if (!app.applied_at) return false;
+                return toManilaDateString(new Date(app.applied_at)) === todayStr;
+            });
         }
 
         let startStr: string;
@@ -362,41 +371,47 @@ export function RecruiterDashboard() {
         }
 
         return baseApps.filter(app => {
-            const appDateStr = app.applied_at?.substring(0, 10);
-            if (!appDateStr) return false;
+            if (!app.applied_at) return false;
+            const appDateStr = toManilaDateString(new Date(app.applied_at));
             return appDateStr >= startStr && appDateStr <= endStr;
         });
-    }, [data.applications, dateFilter, dateSub, isRecruiterS, weeksInMonth]);
+    }, [data.applications, dateFilter, dateSub, isRecruiterS, isAccountFilterEnabled, reroutedAccounts, weeksInMonth]);
 
-    const today = now.toISOString().split('T')[0];
-    const todayApps = filteredApplications.filter(a => a.applied_at?.startsWith(today)) || [];
+    const today = toManilaDateString(now);
+    const todayApps = filteredApplications.filter(a => {
+        if (!a.applied_at) return false;
+        return toManilaDateString(new Date(a.applied_at)) === today;
+    }) || [];
     const pending = filteredApplications.filter(a => a.current_status === 'APPLIED') || [];
     const inProcess = filteredApplications.filter(a => ['INITIAL_INTERVIEW', 'ASSESSMENT', 'FINAL_INTERVIEW'].includes(a.current_status)) || [];
     const hired = filteredApplications.filter(a => a.current_status === 'HIRED') || [];
     const waiting = data.queue.filter(q => q.status === 'WAITING') || [];
 
+    const externalCount = filteredApplications.filter(a => (a.hiring_type || 'EXTERNAL').toUpperCase() === 'EXTERNAL').length;
+    const internalCount = filteredApplications.filter(a => (a.hiring_type || '').toUpperCase() === 'INTERNAL').length;
+
     const passedInitial = useMemo(() => {
         return filteredApplications.filter(a => {
             const p = (a.pis || a.metadata || {}) as any;
             const initial = String(
-                p.initial_interview_results || 
-                p.initial_interview_result || 
-                p['Initial Interview Result'] || 
-                p['INITITAL INTERVIEW RESULTS'] || 
-                p['INITIAL INTERVIEW RESULTS'] || 
+                p.initial_interview_results ||
+                p.initial_interview_result ||
+                p['Initial Interview Result'] ||
+                p['INITITAL INTERVIEW RESULTS'] ||
+                p['INITIAL INTERVIEW RESULTS'] ||
                 ''
             ).toUpperCase();
             const status = (a.current_status || '').toUpperCase();
-            
+
             const explicitlyPassed = initial.includes('PASSED') || initial.includes('PASS');
             const explicitlyFailed = initial.includes('FAILED') || initial.includes('FAIL') || initial.includes('REJECTED');
-            
+
             if (explicitlyFailed) return false;
             if (explicitlyPassed) return true;
-            
+
             const progressedPast = !['APPLIED', 'TYPING_TEST', 'INITIAL_INTERVIEW', 'QUEUE_ASSIGNED', 'INTERVIEW_IN_PROGRESS'].includes(status);
             const isClosedOrFailed = ['FAILED', 'REJECTED', 'CLOSED', 'WITHDRAWN'].includes(status);
-            
+
             return progressedPast && !isClosedOrFailed;
         });
     }, [filteredApplications]);
@@ -418,32 +433,32 @@ export function RecruiterDashboard() {
             const finalSpecStatus = String(p.final_specific_status || p['Final Specific Status'] || '').toUpperCase();
             const status = (a.current_status || '').toUpperCase();
 
-            const explicitlyPassed = ovStatus.includes('PASS') || 
-                                     finalIntResult.includes('PASS') || 
-                                     finalSpecStatus.includes('OV - PASSED') || 
-                                     finalSpecStatus.includes('OV-PASSED') ||
-                                     finalSpecStatus.includes('SPEECHX - PASSED') ||
-                                     finalSpecStatus === 'PASSED';
-                                     
-            const explicitlyFailed = ovStatus.includes('FAIL') || 
-                                     ovStatus.includes('REJECT') || 
-                                     finalIntResult.includes('FAIL') || 
-                                     finalSpecStatus.includes('FAIL') || 
-                                     finalSpecStatus.includes('REJECT');
+            const explicitlyPassed = ovStatus.includes('PASS') ||
+                finalIntResult.includes('PASS') ||
+                finalSpecStatus.includes('OV - PASSED') ||
+                finalSpecStatus.includes('OV-PASSED') ||
+                finalSpecStatus.includes('SPEECHX - PASSED') ||
+                finalSpecStatus === 'PASSED';
+
+            const explicitlyFailed = ovStatus.includes('FAIL') ||
+                ovStatus.includes('REJECT') ||
+                finalIntResult.includes('FAIL') ||
+                finalSpecStatus.includes('FAIL') ||
+                finalSpecStatus.includes('REJECT');
 
             if (explicitlyFailed) return false;
             if (explicitlyPassed) return true;
 
             const progressedPast = ['CLIENT_ASSESSMENT', 'CLIENT_INTERVIEW', 'PASSED', 'HIRED', 'HIRED_PROCESSED', 'FOR_JOB_OFFER', 'ACCEPTED_OFFER'].includes(status);
             const isClosedOrFailed = ['FAILED', 'REJECTED', 'CLOSED', 'WITHDRAWN'].includes(status);
-            
+
             return progressedPast && !isClosedOrFailed;
         });
     }, [filteredApplications]);
 
     const recruiterData = useMemo(() => {
         const recruiters: Record<string, { name: string; screened: number; endorsed: number }> = {};
-        const normalizeKey = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+        const normalizeKey = (s: string) => (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
         filteredApplications.forEach(app => {
             const rawName = app.assigned_recruiter_name || app.interviewer_name || app.pis?.last_updated_by || 'Unassigned';
@@ -475,6 +490,7 @@ export function RecruiterDashboard() {
         });
 
         return Object.values(recruiters)
+            .filter(stats => (stats.name || '').toLowerCase() !== 'unassigned')
             .map(stats => ({
                 name: stats.name,
                 screened: stats.screened,
@@ -488,7 +504,7 @@ export function RecruiterDashboard() {
 
     const accountPerformanceData = useMemo(() => {
         const accounts: Record<string, { name: string; endorsed: number; hired: number }> = {};
-        const normalizeKey = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+        const normalizeKey = (s: string) => (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
         filteredApplications.forEach(app => {
             const rawName = app.department || 'General';
@@ -527,9 +543,6 @@ export function RecruiterDashboard() {
 
 
 
-    const recentAudits = [...data.auditLogs]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 6);
 
     const statusData = useMemo(() => {
         const counts: Record<string, number> = {};
@@ -539,8 +552,7 @@ export function RecruiterDashboard() {
         });
         return Object.entries(counts)
             .map(([name, value]) => ({ name: name.replace(/_/g, ' '), value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 6);
+            .sort((a, b) => b.value - a.value);
     }, [filteredApplications]);
 
     const accountData = useMemo(() => {
@@ -560,21 +572,109 @@ export function RecruiterDashboard() {
             .slice(0, 5);
     }, [filteredApplications, isRecruiterS, statusData]);
 
+    const topPassedAccountsData = useMemo(() => {
+        const accountsStats: Record<string, { name: string; passed: number; hired: number; failed: number; active: number }> = {};
+        
+        filteredApplications.forEach(app => {
+            const dept = app.department || 'General';
+            if (!accountsStats[dept]) {
+                accountsStats[dept] = { name: dept, passed: 0, hired: 0, failed: 0, active: 0 };
+            }
+            
+            const status = (app.current_status || '').toUpperCase();
+            
+            if (status === 'HIRED' || status === 'HIRED_PROCESSED') {
+                accountsStats[dept].hired++;
+            }
+            
+            if (['FAILED', 'REJECTED', 'CLOSED', 'WITHDRAWN'].includes(status)) {
+                accountsStats[dept].failed++;
+            }
+            
+            if (!['FAILED', 'REJECTED', 'CLOSED', 'WITHDRAWN', 'HIRED', 'HIRED_PROCESSED'].includes(status) && status !== 'APPLIED') {
+                accountsStats[dept].active++;
+            }
+        });
+
+        passedOpsValidator.forEach(app => {
+            const dept = app.department || 'General';
+            if (accountsStats[dept]) {
+                accountsStats[dept].passed++;
+            }
+        });
+
+        return Object.values(accountsStats)
+            .filter(stats => stats.passed > 0)
+            .sort((a, b) => b.passed - a.passed)
+            .slice(0, 5)
+            .map(stats => ({
+                name: stats.name,
+                count: stats.passed,
+                hired: stats.hired,
+                active: stats.active,
+                failed: stats.failed,
+                passed: stats.passed
+            }));
+    }, [filteredApplications, passedOpsValidator]);
+
+    const topOpsValidatorsData = useMemo(() => {
+        const validators: Record<string, { name: string; handled: number; passed: number; failed: number }> = {};
+        
+        filteredApplications.forEach(app => {
+            const validatorName = String(app.assigned_ops_validator_name || app.metadata?.assigned_ops_validator_name || (app.pis as any)?.ops_validator_name || '').trim();
+            if (!validatorName) return;
+            
+            const name = validatorName;
+            
+            if (!validators[name]) {
+                validators[name] = { name, handled: 0, passed: 0, failed: 0 };
+            }
+            
+            validators[name].handled++;
+            
+            const p = (app.pis || app.metadata || {}) as any;
+            const ovStatus = String(p.ops_validator_status || p.ops_val_status || p['Ops Val Status'] || p['Ops Validator Status'] || '').toUpperCase();
+            const finalIntResult = String(p.final_interview_result || '').toUpperCase();
+            const finalSpecStatus = String(p.final_specific_status || p['Final Specific Status'] || '').toUpperCase();
+            
+            const explicitlyPassed = ovStatus.includes('PASS') ||
+                finalIntResult.includes('PASS') ||
+                finalSpecStatus.includes('OV - PASSED') ||
+                finalSpecStatus.includes('OV-PASSED') ||
+                finalSpecStatus.includes('SPEECHX - PASSED') ||
+                finalSpecStatus === 'PASSED';
+                
+            const explicitlyFailed = ovStatus.includes('FAIL') ||
+                ovStatus.includes('REJECT') ||
+                finalIntResult.includes('FAIL') ||
+                finalSpecStatus.includes('FAIL') ||
+                finalSpecStatus.includes('REJECT');
+                
+            if (explicitlyPassed) {
+                validators[name].passed++;
+            } else if (explicitlyFailed) {
+                validators[name].failed++;
+            }
+        });
+        
+        return Object.values(validators)
+            .filter(v => (v.name || '').toLowerCase() !== 'unassigned')
+            .map(v => ({
+                name: v.name,
+                handled: v.handled,
+                passed: v.passed,
+                failed: v.failed,
+                passRate: v.handled > 0 ? Math.round((v.passed / v.handled) * 100) : 0
+            }))
+            .sort((a, b) => b.passRate - a.passRate || b.handled - a.handled)
+            .slice(0, 5);
+    }, [filteredApplications]);
+
     const COLORS = ['#0f172a', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <Loader2 className="w-8 h-8 text-black animate-spin" />
-                <p className="text-[10px] font-black text-[#a19f9d] uppercase tracking-[0.3em] font-sans">
-                    Syncing Workspace...
-                </p>
-            </div>
-        );
-    }
 
     return (
-        <div className="space-y-8 w-full p-6 max-w-7xl mx-auto animate-fade-in" data-ai-spotlight="dashboard-stats">
+        <div className="space-y-8 w-full p-6 max-w-[1600px] mx-auto animate-fade-in bg-white dark:bg-slate-900" data-ai-spotlight="dashboard-stats">
             <DashboardHero
                 user={user}
                 logout={logout}
@@ -584,6 +684,8 @@ export function RecruiterDashboard() {
                 setDateSub={setDateSub}
                 onlineUserCount={onlineUserCount}
                 isRecruiterS={isRecruiterS}
+                isAccountFilterEnabled={isAccountFilterEnabled}
+                setIsAccountFilterEnabled={setIsAccountFilterEnabled as any}
                 weeksInMonth={weeksInMonth}
             />
 
@@ -594,6 +696,8 @@ export function RecruiterDashboard() {
                 passedInitialLength={passedInitial.length}
                 endorsedAppsLength={endorsedApps.length}
                 passedOpsValidatorLength={passedOpsValidator.length}
+                externalCount={externalCount}
+                internalCount={internalCount}
             />
 
             <DashboardOperations />
@@ -603,14 +707,17 @@ export function RecruiterDashboard() {
                 currentAccount={currentAccount}
             />
 
+            <DashboardCharts
+                statusData={statusData}
+                accountData={accountData}
+                topPassedAccountsData={topPassedAccountsData}
+                topOpsValidatorsData={topOpsValidatorsData}
+                isRecruiterS={isRecruiterS}
+                filteredApplicationsLength={filteredApplications.length}
+            />
+
             <div className="grid lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-8 space-y-8">
-                    <DashboardCharts
-                        statusData={statusData}
-                        accountData={accountData}
-                        isRecruiterS={isRecruiterS}
-                        filteredApplicationsLength={filteredApplications.length}
-                    />
 
                     <RecruiterActivityTable
                         recruiterData={recruiterData}
@@ -634,7 +741,6 @@ export function RecruiterDashboard() {
                 </div>
 
                 <DashboardSidebar
-                    recentAudits={recentAudits}
                     applicationsLength={data.applications.length}
                     hiredLength={hired.length}
                     allOnlineUsers={allOnlineUsers}

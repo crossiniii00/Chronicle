@@ -27,7 +27,7 @@ export interface MHRTAccount {
     typingAccuracy: string;
     cefr: string;
     ase: string;
-    ovStatus: 'Verified' | 'Pending' | 'Flagged';
+    ovStatus: 'Verified' | 'Pending' | 'Flagged' | 'N/A' | string;
     opsValidator: string;
     ovAvailability: string;
     clientAvailability: string;
@@ -55,6 +55,9 @@ export interface H2RRecord {
     reportsTo: string;
     training: string;
     nesting: string;
+    startDate?: string;
+    headcount?: string;
+    reqId?: string;
 }
 
 export interface DivisionMapping {
@@ -83,7 +86,25 @@ export class MhrtService {
     // 1. Accounts
     static async getAccounts(): Promise<MHRTAccount[]> {
         const response = await apiClient.get('/mhrt/accounts');
-        return response.data;
+        const normalizeStr = (val: any): any => {
+            if (Array.isArray(val)) {
+                return val.map((v: any) => normalizeStr(v));
+            }
+            if (typeof val !== 'string' || !val) return val;
+            return val.split(/[,|]/).map(part => {
+                const t = part.trim().toUpperCase();
+                if (t === 'DIA' || t === 'AGENT DIA' || t === 'AGENT-DIA' || t === 'AGENT - DIA') return 'AGENT - DIA';
+                if (t === 'BDR' || t === 'AGENT BDR' || t === 'AGENT-BDR' || t === 'AGENT - BDR') return 'AGENT - BDR';
+                return part.trim() || part;
+            }).join(', ');
+        };
+
+        return response.data.map((acc: any) => {
+            if (acc.account) acc.account = normalizeStr(acc.account);
+            if (acc.lob) acc.lob = normalizeStr(acc.lob);
+            if (acc.position) acc.position = normalizeStr(acc.position);
+            return acc;
+        });
     }
     static async createAccount(data: Partial<MHRTAccount>): Promise<MHRTAccount> {
         const response = await apiClient.post('/mhrt/accounts', data);

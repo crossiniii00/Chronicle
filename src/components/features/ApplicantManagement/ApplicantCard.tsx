@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronRight, Trash, Mail, Phone, Calendar, Zap } from 'lucide-react';
-import { cn, formatDateTime } from '@/utils/formatters';
+import { cn, formatDateTime, formatCandidateName } from '@/utils/formatters';
 import type { Application } from '@/types/application';
 import { getEndorsedOvBadgeLabel } from '@/utils/applicantBadges';
 import { getReprofileQueue } from '@/utils/reprofileQueue';
@@ -10,6 +10,7 @@ type ApplicantAction = 'approve' | 'reject' | 'view' | 'delete';
 
 interface ApplicantCardProps {
     applicant: Application;
+    rowNumber: number;
     isSelectMode?: boolean;
     isSelected?: boolean;
     onSelect?: (id: string) => void;
@@ -20,6 +21,7 @@ interface ApplicantCardProps {
 
 export function ApplicantCard({
     applicant,
+    rowNumber,
     isSelectMode,
     isSelected,
     onSelect,
@@ -27,6 +29,11 @@ export function ApplicantCard({
     isReprofileView,
     onSetActiveReprofileAccount
 }: ApplicantCardProps) {
+    const [isHighlighted, setIsHighlighted] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+    const specStatus = String(applicant.pis?.final_specific_status || applicant.metadata?.final_specific_status || '').toLowerCase();
+    const isNoShow = specStatus.includes('no show') || specStatus.includes('noshow');
+
     const endorsedOvBadgeLabel = getEndorsedOvBadgeLabel(applicant);
     const reprofileQueue = isReprofileView ? getReprofileQueue(applicant) : [];
     const activeReprofileAccount = reprofileQueue.find(item => item.status === 'ACTIVE');
@@ -34,8 +41,9 @@ export function ApplicantCard({
     const isReprofiledAndPassed = (() => {
         const history = applicant.pis?.reprofile_history || applicant.metadata?.reprofile_history || [];
         const hasHistory = Array.isArray(history) && history.length > 0;
-        const hasReprofileFlag = applicant.metadata?.is_reprofiled === true || applicant.metadata?.is_reprofiled === 'true';
-        const isReprofiled = hasHistory || hasReprofileFlag;
+        const hasReprofileFlag = applicant.metadata?.is_reprofiled === true || applicant.metadata?.is_reprofiled === 'true' || (applicant.pis as any)?.is_reprofiled === true || (applicant.pis as any)?.is_reprofiled === 'true' || (applicant as any).is_reprofiled === true || (applicant as any).is_reprofiled === 'true';
+        const hasFailedAccounts = (applicant.metadata?.failed_accounts?.length ?? 0) > 0 || ((applicant.pis as any)?.failed_accounts?.length ?? 0) > 0 || ((applicant as any).failed_accounts?.length ?? 0) > 0;
+        const isReprofiled = hasHistory || hasReprofileFlag || hasFailedAccounts;
         
         const isConcludedStatus = ['PASSED', 'HIRED', 'HIRED_PROCESSED', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'ACCEPTED_COFFER', 'For Job Offer', 'FOR_JOB_OFFER', 'FOR JOB OFFER', 'Sent JO and BGC', 'SENT_JO_AND_BGC', 'SENT JO AND BGC', 'For PAN', 'FOR PAN', 'FOR_PAN'].includes(applicant.current_status);
         return isReprofiled && isConcludedStatus;
@@ -46,14 +54,49 @@ export function ApplicantCard({
         ? reprofileStatusLabel
         : isReprofiledAndPassed
             ? 'Reprofiled & Passed'
-            : applicant.current_status.replace(/_/g, ' ');
+            : isNoShow
+                ? 'No Show'
+                : (applicant.current_status || '').replace(/_/g, ' ');
+
+    useEffect(() => {
+        try {
+            const searchParams = new URLSearchParams(window.location.search);
+            const highlightId = searchParams.get('highlight');
+            if (highlightId === applicant.id) {
+                setIsHighlighted(true);
+                document.body.classList.add('highlight-mode-active');
+                
+                setTimeout(() => {
+                    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+                
+                setTimeout(() => {
+                    setIsHighlighted(false);
+                    document.body.classList.remove('highlight-mode-active');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 5000);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }, [applicant.id]);
+
+    useEffect(() => {
+        return () => {
+            if (isHighlighted) {
+                document.body.classList.remove('highlight-mode-active');
+            }
+        };
+    }, [isHighlighted]);
 
     return (
         <div
+            ref={cardRef}
             onClick={() => isSelectMode && onSelect ? onSelect(applicant.id) : onAction(applicant.id, applicant.applicant_name, 'view')}
             className={cn(
-                "border p-6 rounded-lg shadow-sm cursor-pointer group transition-all",
-                isSelected ? "bg-primary-50 border-primary-300" : "bg-white border-surface-200 hover:border-primary-400 hover:shadow-md"
+                "border p-6 rounded-lg shadow-sm cursor-pointer group transition-all relative",
+                isHighlighted && "z-[100] ring-4 ring-[#ef3e36] ring-offset-2 animate-pulse bg-white dark:bg-slate-900 scale-[1.02] shadow-[0_10px_40px_-10px_rgba(239,62,54,0.5)] transition-all duration-300",
+                isSelected ? "bg-primary-50 border-primary-300" : "bg-white dark:bg-slate-900 border-surface-200 hover:border-primary-400 hover:shadow-md"
             )}
         >
             <div className="flex justify-between items-start mb-5">
@@ -66,12 +109,8 @@ export function ApplicantCard({
                         className="w-4 h-4 rounded-sm border-surface-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                     />
                 ) : (
-                    <div className="w-10 h-10 bg-surface-50 rounded-lg flex items-center justify-center text-primary-700 font-bold text-lg border border-surface-200 overflow-hidden group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
-                        {applicant.pis?.photo_data_url ? (
-                            <img src={applicant.pis.photo_data_url} alt={applicant.applicant_name} className="w-full h-full object-cover" />
-                        ) : (
-                            applicant.applicant_name.charAt(0)
-                        )}
+                    <div className="w-10 h-10 bg-surface-50 rounded-lg flex items-center justify-center text-primary-700 font-bold text-[14px] border border-surface-200 overflow-hidden group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm select-none">
+                        {rowNumber}.
                     </div>
                 )}
                 <div className="flex flex-col items-end gap-2">
@@ -79,7 +118,9 @@ export function ApplicantCard({
                         "px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md border shadow-sm",
                         (isReprofileView && !isConcluded)
                             ? "bg-primary-50 text-primary-700 border-primary-100"
-                            : `status-${applicant.current_status.toLowerCase().replace(/_/g, '-')}`
+                            : isNoShow
+                                ? "bg-amber-50 text-amber-700 border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.15)]"
+                                : `status-${applicant.current_status.toLowerCase().replace(/_/g, '-')}`
                     )}>
                         {statusLabel}
                     </div>
@@ -89,8 +130,27 @@ export function ApplicantCard({
             <div className="space-y-1 mb-5">
                 <div className="flex items-center gap-2 min-w-0">
                     <h3 className="text-sm font-bold text-surface-900 group-hover:text-primary-700 transition-colors leading-none tracking-tight truncate">
-                        {applicant.applicant_name}
+                        {formatCandidateName(applicant.applicant_name)}
                     </h3>
+                    {isHighlighted && (
+                        <div className="flex items-center gap-1.5 ml-2 relative z-50 pointer-events-none">
+                            <span className="flex h-2 w-2 relative shrink-0">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                            </span>
+                            <div className="flex items-center gap-1 bg-gradient-to-r from-red-600 to-rose-500 text-white px-2 py-0.5 rounded-sm font-black text-[9px] uppercase tracking-wider whitespace-nowrap shadow-md shadow-red-500/30 animate-bounce">
+                                <svg className="w-3 h-3 rotate-180 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                                Candidate Found
+                            </div>
+                        </div>
+                    )}
+                    {applicant.metadata?.is_promotion && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-[hsla(217,91%,60%,0.08)] text-[hsl(217,91%,55%)] border border-[hsla(217,91%,60%,0.2)] shrink-0">
+                            For promotion
+                        </span>
+                    )}
                     <MedicalIndicator application={applicant} size="sm" />
                 </div>
                 <p className="text-[10px] font-semibold text-surface-500 uppercase tracking-wider truncate">
@@ -116,9 +176,9 @@ export function ApplicantCard({
                     ) : (isConcluded && ['PASSED', 'HIRED', 'HIRED_PROCESSED', 'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'ACCEPTED_COFFER', 'For Job Offer', 'FOR_JOB_OFFER', 'FOR JOB OFFER', 'Sent JO and BGC', 'SENT_JO_AND_BGC', 'SENT JO AND BGC', 'For PAN', 'FOR PAN', 'FOR_PAN'].includes(applicant.current_status)) ? (
                         <div
                             className="flex items-center gap-1 px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full w-fit max-w-full shadow-sm"
-                            title={`Regularly passed for ${applicant.department}`}
+                            title={`${applicant.current_status.replace(/_/g, ' ')} for ${applicant.department}`}
                         >
-                            <span className="text-[8px] font-black uppercase tracking-wider leading-none">🔵 Regularly Passed: {applicant.department}</span>
+                            <span className="text-[8px] font-black uppercase tracking-wider leading-none">🔵 {applicant.current_status.replace(/_/g, ' ')}: {applicant.department}</span>
                         </div>
                     ) : isConcluded && getReprofileQueue(applicant).some(item => item.status === 'COMPLETED') ? (
                         <div
@@ -172,11 +232,11 @@ export function ApplicantCard({
             </div>
 
             <div className="space-y-2 mb-5">
-                <div className="flex items-center gap-2 text-[10px] text-[#605e5c] font-medium">
+                <div className="flex items-center gap-2 text-[10px] text-[#605e5c] dark:text-slate-400 font-medium">
                     <Mail size={12} className="text-[#a19f9d]" />
                     <span className="truncate">{applicant.applicant_email}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-[#605e5c] font-medium">
+                <div className="flex items-center gap-2 text-[10px] text-[#605e5c] dark:text-slate-400 font-medium">
                     <Calendar size={12} className="text-[#a19f9d]" />
                     <span>{formatDateTime(applicant.applied_at)}</span>
                 </div>

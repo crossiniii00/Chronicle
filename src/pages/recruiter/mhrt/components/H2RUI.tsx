@@ -9,12 +9,13 @@ interface H2RTableHeaderProps {
     searchTerm: string;
     setSearchTerm: (s: string) => void;
     onAdd: () => void;
+    onExport?: () => void;
 }
 
-export function H2RTableHeader({ searchTerm, setSearchTerm, onAdd }: H2RTableHeaderProps) {
+export function H2RTableHeader({ searchTerm, setSearchTerm, onAdd, onExport }: H2RTableHeaderProps) {
     return (
         <>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-surface-200 bg-white px-2 mb-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-surface-200 bg-white dark:bg-slate-900 px-2 mb-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-[#002060]/5 rounded-sm text-[#002060] border border-[#002060]/10">
                         <UserPlus size={24} />
@@ -26,7 +27,7 @@ export function H2RTableHeader({ searchTerm, setSearchTerm, onAdd }: H2RTableHea
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-surface-200 text-surface-700 text-[10px] font-bold uppercase rounded-sm hover:bg-surface-50 transition-all shadow-sm">
+                    <button onClick={onExport} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 border border-surface-200 text-surface-700 text-[10px] font-bold uppercase rounded-sm hover:bg-surface-50 transition-all shadow-sm">
                         <Download size={14} /> Export List
                     </button>
                     <button
@@ -38,7 +39,7 @@ export function H2RTableHeader({ searchTerm, setSearchTerm, onAdd }: H2RTableHea
                 </div>
             </div>
 
-            <div className="bg-white border border-surface-200 p-4 rounded-sm shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-white dark:bg-slate-900 border border-surface-200 p-4 rounded-sm shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" size={16} />
                     <input
@@ -78,7 +79,7 @@ export function H2RTable({
     onEdit, onDelete
 }: H2RTableProps) {
     return (
-        <div className={`bg-white border border-surface-200 rounded-sm shadow-sm transition-all ${isDragging ? 'cursor-grabbing select-none shadow-lg' : 'cursor-grab'}`}>
+        <div className={`bg-white dark:bg-slate-900 border border-surface-200 rounded-sm shadow-sm transition-all ${isDragging ? 'cursor-grabbing select-none shadow-lg' : 'cursor-grab'}`}>
             <div
                 ref={scrollRef}
                 onMouseDown={onMouseDown}
@@ -106,7 +107,7 @@ export function H2RTable({
                     <tbody className="divide-y divide-surface-100">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={10} className="p-20 text-center">
+                                <td colSpan={13} className="p-20 text-center">
                                     <div className="flex flex-col items-center gap-3">
                                         <div className="w-10 h-10 border-4 border-[#002060]/20 border-t-[#002060] rounded-full animate-spin"></div>
                                         <p className="text-[11px] font-bold text-surface-400 uppercase tracking-widest">Hydrating Creation Hub...</p>
@@ -115,7 +116,7 @@ export function H2RTable({
                             </tr>
                         ) : records.map((record) => (
                             <tr key={record.id} className="hover:bg-surface-50/80 transition-colors group">
-                                <td className="sticky left-0 z-10 bg-white p-3 border-r border-surface-100 group-hover:bg-surface-50 transition-colors text-left">
+                                <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 p-3 border-r border-surface-100 group-hover:bg-surface-50 transition-colors text-left">
                                     <div className="flex items-center gap-3">
                                         <div className="w-7 h-7 bg-[#002060]/5 rounded flex items-center justify-center text-[#002060] font-black text-[10px] shadow-inner border border-[#002060]/10 uppercase">
                                             {record.account[0]}
@@ -139,17 +140,20 @@ export function H2RTable({
                                         {record.nesting}
                                     </div>
                                 </td>
+                                <td className="p-3 text-[10px] text-surface-600 font-medium text-center border-r border-surface-100">{record.startDate || 'N/A'}</td>
+                                <td className="p-3 text-[10px] text-surface-600 font-bold text-center border-r border-surface-100">{record.headcount || 'N/A'}</td>
+                                <td className="p-3 text-[10px] text-surface-600 font-medium text-center border-r border-surface-100 uppercase">{record.reqId || 'N/A'}</td>
                                 <td className="p-3 text-center">
                                     <div className="flex items-center justify-center gap-2">
                                         <button
                                             onClick={() => onEdit(record)}
-                                            className="p-1.5 text-surface-400 hover:text-[#002060] transition-colors rounded-sm hover:bg-white shadow-sm border border-transparent hover:border-surface-200"
+                                            className="p-1.5 text-surface-400 hover:text-[#002060] transition-colors rounded-sm hover:bg-white dark:bg-slate-900 shadow-sm border border-transparent hover:border-surface-200"
                                         >
                                             <Edit3 size={14} />
                                         </button>
                                         <button
                                             onClick={() => onDelete(record.id)}
-                                            className="p-1.5 text-surface-400 hover:text-red-500 transition-colors rounded-sm hover:bg-white shadow-sm border border-transparent hover:border-surface-200"
+                                            className="p-1.5 text-surface-400 hover:text-red-500 transition-colors rounded-sm hover:bg-white dark:bg-slate-900 shadow-sm border border-transparent hover:border-surface-200"
                                         >
                                             <Trash2 size={14} />
                                         </button>
@@ -240,10 +244,24 @@ export function H2RFormModal({ isOpen, onClose, editingRecord, formData, setForm
                             <input value={formData.nesting || ''} onChange={e => updateField('nesting', e.target.value)} className="w-full p-2.5 bg-surface-50 border border-surface-200 rounded text-xs outline-none focus:ring-1 focus:ring-[#002060]" />
                         </div>
                     </div>
+                    <div className="grid grid-cols-3 gap-4 md:col-span-2 mt-2">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-surface-500 uppercase tracking-wider">Start Date</label>
+                            <input type="date" value={formData.startDate || ''} onChange={e => updateField('startDate', e.target.value)} className="w-full p-2.5 bg-surface-50 border border-surface-200 rounded text-xs outline-none focus:ring-1 focus:ring-[#002060]" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-surface-500 uppercase tracking-wider">Headcount</label>
+                            <input type="number" min="1" value={formData.headcount || ''} onChange={e => updateField('headcount', e.target.value)} className="w-full p-2.5 bg-surface-50 border border-surface-200 rounded text-xs outline-none focus:ring-1 focus:ring-[#002060]" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-surface-500 uppercase tracking-wider">Req. ID</label>
+                            <input value={formData.reqId || ''} onChange={e => updateField('reqId', e.target.value)} className="w-full p-2.5 bg-surface-50 border border-surface-200 rounded text-xs outline-none focus:ring-1 focus:ring-[#002060]" placeholder="Optional" />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-6 border-t border-surface-200">
-                    <button onClick={onClose} className="px-6 py-2 bg-white border border-surface-300 text-surface-500 text-[10px] font-bold uppercase rounded-sm hover:text-surface-900 transition-colors">Cancel</button>
+                    <button onClick={onClose} className="px-6 py-2 bg-white dark:bg-slate-900 border border-surface-300 text-surface-500 text-[10px] font-bold uppercase rounded-sm hover:text-surface-900 transition-colors">Cancel</button>
                     <button onClick={onSave} className="px-8 py-2 bg-[#002060] text-white text-[10px] font-bold uppercase rounded-sm hover:bg-[#002060]/90 transition-all shadow-md">
                         {editingRecord ? 'Update H2R Request' : 'Create H2R Request'}
                     </button>

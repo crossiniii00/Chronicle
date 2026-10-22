@@ -17,29 +17,55 @@ const formatTime = (s: number) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-export function useInterviewSession(roomId: string, rooms: InterviewRoom[], applications: Application[], onComplete: (summary: any) => void) {
+export function useInterviewSession(
+    roomId: string | null,
+    rooms: InterviewRoom[],
+    applications: Application[],
+    onComplete: (summary: any) => void,
+    draftApplicantId?: string,
+    forcedStage?: 'INITIAL' | 'FINAL'
+) {
     const { user } = useAuthStore();
     const { success, error } = useToast();
     const { withLoading } = useLoading();
+    const { activeAccount } = useActiveAccountStore();
+    
+    const userAccounts = parseAccounts(user?.department);
+    const resolvedActiveAccount = (activeAccount && userAccounts.map(a => a.toUpperCase()).includes(activeAccount.toUpperCase()))
+        ? activeAccount
+        : (userAccounts[0] || 'DOORDASH');
 
-    const room = rooms.find(r => r.id === roomId);
-    const application = applications.find(a => a.id === room?.current_application_id);
+    const room = roomId ? rooms.find(r => r.id === roomId) : undefined;
+    const application = draftApplicantId
+        ? applications.find(a => a.id === draftApplicantId)
+        : applications.find(a => a.id === room?.current_application_id);
 
     const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
     const [loadingQuestions, setLoadingQuestions] = useState(true);
     const [isStarted, setIsStarted] = useState(false);
 
-    const isFinalStage =
-        user?.role === 'ops_validator' ||
-        application?.current_status === 'FINAL_INTERVIEW' ||
-        application?.current_status === 'FINAL_INTERVIEW_SCHEDULED' ||
-        application?.current_status === 'ENDORSED' ||
-        application?.queue_type === 'FINAL' ||
-        application?.metadata?.active_interview_type === 'FINAL';
+    const isFinalStage = (() => {
+        if (forcedStage) return forcedStage === 'FINAL';
+        if (!application) return false;
+        const meta = typeof application.metadata === 'string' ? (() => { try { return JSON.parse(application.metadata); } catch { return {}; } })() : (application.metadata || {});
+        if (meta.active_interview_type) {
+            return meta.active_interview_type === 'FINAL';
+        }
+        if (application.current_status === 'FINAL_INTERVIEW') return true;
+        if (application.current_status === 'FINAL_INTERVIEW_SCHEDULED') return true;
+        if (application.current_status === 'ACCOUNT_ASSIGNMENT') return true;
+        if (application.current_status === 'INITIAL_INTERVIEW') return false;
+        return application.queue_type === 'FINAL';
+    })();
     const [seconds, setSeconds] = useState(0);
+    const secondsRef = useRef(0);
     const [scores, setScores] = useState<Record<string, any>>({});
     const [observations, setObservations] = useState<Record<string, string>>({});
+    const [questionNotes, setQuestionNotes] = useState<Record<string, string>>({});
+    const [showQuestionNotes, setShowQuestionNotes] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
+    const [isRestored, setIsRestored] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
 
     const [isRecording, setIsRecording] = useState(false);
     const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -81,18 +107,65 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
         medicalIssues: '',
         startAvailability: '',
         salaryExpectation: '',
-        candidateSource: ''
+        candidateSource: '',
+        dateOfBirth: '',
+        contactNumber: '',
+        emailAddress: ''
     });
 
     useEffect(() => {
         activeSpeakerRef.current = activeSpeaker;
     }, [activeSpeaker]);
 
+    // Reset Hook state on candidate change to prevent carrying data over from the previous candidate
+    useEffect(() => {
+        if (!application?.id) return;
+        setQuestions([]);
+        setScores({});
+        setObservations({});
+        setQuestionNotes({});
+        setChecklist({});
+        setTranscriptBlocks([]);
+        setSeconds(0);
+        secondsRef.current = 0;
+        setRecordingSeconds(0);
+        setIsRecording(false);
+        setIsStarted(false);
+        setAudioBlob(null);
+        setRatings({
+            personalRating: 5,
+            workHabits: '',
+            communicationSkills: '',
+            empathy: '',
+            confidence: '',
+            languageClassification: '',
+            remarks: ''
+        });
+        setBackground({
+            bpoChat: '',
+            bpoVoice: '',
+            nonBpo: '',
+            shiftingIssues: '',
+            education: '',
+            shsStrand: '',
+            pursueStudies: '',
+            goAbroad: '',
+            transportMode: '',
+            medicalIssues: '',
+            startAvailability: '',
+            salaryExpectation: '',
+            candidateSource: '',
+            dateOfBirth: '',
+            contactNumber: '',
+            emailAddress: ''
+        });
+    }, [application?.id]);
+
     // Pre-populate background fields if application has them
     useEffect(() => {
         if (application) {
             const isSHS = application.pis?.highest_education === 'Senior High School Level' || application.pis?.highest_education === 'Senior High School Graduate';
-            
+
             let educationString = (application as any).highest_education || application.pis?.highest_education || '';
             if (application.pis) {
                 if (application.pis.is_graduated === false) {
@@ -117,23 +190,32 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
             const metadata = (application as any).metadata || {};
             const savedChecklist = (metadata.checklist as Record<string, boolean>) || {};
             const savedRatings = (metadata.ratings as Record<string, any>) || {};
+            const savedNotes = (metadata.question_notes as Record<string, string>) || {};
 
-            setBackground(prev => ({
-                ...prev,
-                bpoChat: metadata.bpo_experience_chat || prev.bpoChat || '',
-                bpoVoice: metadata.bpo_experience_voice || prev.bpoVoice || '',
-                nonBpo: metadata.non_bpo_experience || prev.nonBpo || '',
-                shiftingIssues: metadata.issues_shifting_schedules || prev.shiftingIssues || '',
-                education: educationString || prev.education || '',
+            if (Object.keys(savedNotes).length > 0) {
+                setQuestionNotes(savedNotes);
+            } else {
+                setQuestionNotes({});
+            }
+
+            setBackground({
+                bpoChat: metadata.bpo_experience_chat || '',
+                bpoVoice: metadata.bpo_experience_voice || '',
+                nonBpo: metadata.non_bpo_experience || '',
+                shiftingIssues: metadata.issues_shifting_schedules || '',
+                education: educationString || '',
                 shsStrand: isSHS ? (application.pis?.course_strand || '') : '',
-                pursueStudies: metadata.plans_to_pursue_studies || prev.pursueStudies || '',
-                goAbroad: metadata.plans_to_go_abroad || prev.goAbroad || '',
-                transportMode: metadata.mode_of_transportation || prev.transportMode || '',
-                medicalIssues: metadata.medical_issues || prev.medicalIssues || '',
-                startAvailability: metadata.availability_to_start || prev.startAvailability || '',
-                salaryExpectation: metadata.salary_expectations || prev.salaryExpectation || '',
-                candidateSource: metadata.candidate_source || (application.pis as any)?.how_did_you_hear || prev.candidateSource || ''
-            }));
+                pursueStudies: metadata.plans_to_pursue_studies || '',
+                goAbroad: metadata.plans_to_go_abroad || '',
+                transportMode: metadata.mode_of_transportation || '',
+                medicalIssues: metadata.medical_issues || '',
+                startAvailability: metadata.availability_to_start || '',
+                salaryExpectation: metadata.salary_expectations || '',
+                candidateSource: metadata.candidate_source || (application.pis as any)?.how_did_you_hear || '',
+                dateOfBirth: metadata.date_of_birth || application.pis?.date_of_birth || '',
+                contactNumber: metadata.contact_number || application.pis?.contact_number || '',
+                emailAddress: metadata.email_address || application.pis?.email_address || application.applicant_email || ''
+            });
 
             // In a final interview, the right-panel assessment is read-only and
             // carried over from the initial interview. Hydrate the local state
@@ -141,17 +223,29 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
             if (isFinalStage) {
                 if (Object.keys(savedChecklist).length > 0) {
                     setChecklist(savedChecklist);
+                } else {
+                    setChecklist({});
                 }
                 if (Object.keys(savedRatings).length > 0) {
-                    setRatings(prev => ({
-                        personalRating: savedRatings.personalRating ?? prev.personalRating,
-                        workHabits: savedRatings.workHabits ?? prev.workHabits,
-                        communicationSkills: savedRatings.communicationSkills ?? prev.communicationSkills,
-                        empathy: savedRatings.empathy ?? prev.empathy,
-                        confidence: savedRatings.confidence ?? prev.confidence,
-                        languageClassification: savedRatings.languageClassification ?? prev.languageClassification,
-                        remarks: savedRatings.remarks ?? prev.remarks,
-                    }));
+                    setRatings({
+                        personalRating: savedRatings.personalRating ?? 5,
+                        workHabits: savedRatings.workHabits ?? '',
+                        communicationSkills: savedRatings.communicationSkills ?? '',
+                        empathy: savedRatings.empathy ?? '',
+                        confidence: savedRatings.confidence ?? '',
+                        languageClassification: savedRatings.languageClassification ?? '',
+                        remarks: savedRatings.remarks ?? '',
+                    });
+                } else {
+                    setRatings({
+                        personalRating: 5,
+                        workHabits: '',
+                        communicationSkills: '',
+                        empathy: '',
+                        confidence: '',
+                        languageClassification: '',
+                        remarks: ''
+                    });
                 }
                 // Hydrate the initial interview's transcript blocks so the
                 // final interviewer can review what was said without running
@@ -159,10 +253,13 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                 const savedTranscript = metadata.initial_transcript?.blocks;
                 if (Array.isArray(savedTranscript) && savedTranscript.length > 0) {
                     setTranscriptBlocks(savedTranscript);
+                } else {
+                    setTranscriptBlocks([]);
                 }
             }
         }
-    }, [application, isFinalStage]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [application?.id, isFinalStage]);
 
     // Compile observations.checklist on change
     useEffect(() => {
@@ -245,21 +342,132 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
         }));
     }, [checklist, ratings, background]);
 
+    const [selectedLob, setSelectedLobState] = useState<string>('');
+    const [availableLobs, setAvailableLobs] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (application) {
+            const initLob = application.metadata?.custom_lob || (application as any).custom_lob || '';
+            setSelectedLobState(initLob);
+        }
+    }, [application?.id]);
+
+    const setSelectedLob = useCallback((newLob: string) => {
+        setSelectedLobState(newLob);
+        if (application?.id) {
+            void ApplicationService.patch(application.id, {
+                metadata: {
+                    ...(application.metadata || {}),
+                    custom_lob: newLob
+                }
+            });
+        }
+    }, [application]);
+
     const loadQuestions = useCallback(async () => {
+        if (!application) return;
         setLoadingQuestions(true);
         try {
             const allQ = await QuestionService.getAll();
-            const isFinalStage =
-                user?.role === 'ops_validator' ||
-                application?.current_status === 'FINAL_INTERVIEW' ||
-                application?.current_status === 'FINAL_INTERVIEW_SCHEDULED' ||
-                application?.current_status === 'ENDORSED' ||
-                application?.queue_type === 'FINAL';
 
             const targetType = isFinalStage ? 'final' : 'initial';
+            
+            const rawVal = application.pis?.final_account || application.endorsement_account || application.department || (application as any).account || '';
+            const failedAccounts = (application.metadata?.failed_accounts || []).map((f: any) => String(f || '').trim().toLowerCase()).filter(Boolean);
+            const isAccFailed = (accName: string) => {
+                const accLower = String(accName || '').trim().toLowerCase();
+                if (!accLower) return false;
+                return failedAccounts.some((f: string) => accLower === f || accLower.startsWith(f) || f.startsWith(accLower) || accLower.includes(f) || f.includes(accLower));
+            };
 
-            const filteredQs = allQ
-                .filter(q => q.is_active && q.question_type === targetType)
+            const accounts = rawVal.split(',').map((s: string) => s.trim()).filter(Boolean);
+            const remaining = accounts.filter((acc: string) => !isAccFailed(acc));
+            
+            let matchedString = remaining[0] || accounts[0] || '';
+
+            if (resolvedActiveAccount && resolvedActiveAccount.toLowerCase() !== 'all') {
+                const activeUpper = resolvedActiveAccount.trim().toUpperCase();
+                const matched = remaining.find((acc: string) => acc.trim().toUpperCase() === activeUpper || acc.trim().toUpperCase().startsWith(activeUpper));
+                if (matched) {
+                    matchedString = matched;
+                } else {
+                    const fallbackMatched = accounts.find((acc: string) => acc.trim().toUpperCase() === activeUpper || acc.trim().toUpperCase().startsWith(activeUpper));
+                    if (fallbackMatched) matchedString = fallbackMatched;
+                }
+            }
+
+            let candidateAcc = resolvedActiveAccount || '';
+            let candidateLob = '';
+
+            if (resolvedActiveAccount && resolvedActiveAccount.toLowerCase() !== 'all') {
+                const accountPrefixRegex = new RegExp(`^${resolvedActiveAccount}\\b\\s*[-:]*\\s*`, 'i');
+                if (accountPrefixRegex.test(matchedString)) {
+                    const stripped = matchedString.replace(accountPrefixRegex, '').trim();
+                    if (stripped) {
+                        candidateLob = stripped;
+                    } else {
+                        candidateLob = matchedString;
+                    }
+                } else {
+                    candidateLob = matchedString;
+                }
+            } else {
+                candidateAcc = matchedString;
+                candidateLob = (application as any).custom_lob || application.metadata?.custom_lob || application.pis?.custom_lob || application.pis?.hiring_type || (application as any).hiring_type || (application as any).lob || '';
+            }
+
+            const candidateAccUpper = candidateAcc ? candidateAcc.trim().toUpperCase() : '';
+            const isAbbottAcc = candidateAccUpper.includes('ABBOT');
+            const lobsForAcc = new Set<string>();
+            if (candidateAcc && !isAbbottAcc) lobsForAcc.add(candidateAcc.trim());
+
+            allQ.forEach(q => {
+                const qAcc = String(q.account || 'ALL').trim().toUpperCase();
+                if (qAcc !== 'ALL' && (qAcc === candidateAccUpper || (candidateAccUpper && (candidateAccUpper.includes(qAcc) || qAcc.includes(candidateAccUpper))))) {
+                    if (q.lob && q.lob.toUpperCase() !== 'ALL') {
+                        lobsForAcc.add(q.lob.trim());
+                    }
+                }
+            });
+            accounts.forEach((acc: string) => {
+                if (candidateAccUpper && acc.toUpperCase().startsWith(candidateAccUpper)) {
+                    const accountPrefixRegex = new RegExp(`^${candidateAccUpper}\\b\\s*[-:]*\\s*`, 'i');
+                    const stripped = acc.replace(accountPrefixRegex, '').trim();
+                    if (stripped && stripped.toUpperCase() !== candidateAccUpper) {
+                        lobsForAcc.add(stripped);
+                    }
+                }
+            });
+            if (candidateLob && candidateLob.toUpperCase() !== candidateAccUpper) {
+                if (isAbbottAcc || (!candidateLob.toUpperCase().includes('INBOUND PATIENT') && !candidateLob.toUpperCase().includes('EXTENDED ADHERENCE'))) {
+                    lobsForAcc.add(candidateLob.trim());
+                }
+            }
+
+            const uniqueLobs = new Set<string>();
+            Array.from(lobsForAcc).forEach(l => {
+                const lUpper = l.trim().toUpperCase();
+                if (!isAbbottAcc && (lUpper.includes('ABBOTT') || lUpper.includes('ABBOT') || lUpper.includes('INBOUND PATIENT') || lUpper.includes('EXTENDED ADHERENCE'))) {
+                    return;
+                }
+                uniqueLobs.add(lUpper);
+            });
+            const filteredLobs = Array.from(uniqueLobs);
+
+            setAvailableLobs(filteredLobs);
+
+            let effectiveLob = selectedLob || candidateLob;
+            if (!isAbbottAcc && effectiveLob) {
+                const effUpper = effectiveLob.trim().toUpperCase();
+                if (effUpper.includes('INBOUND PATIENT') || effUpper.includes('EXTENDED ADHERENCE') || effUpper.includes('ABBOTT')) {
+                    effectiveLob = candidateAcc;
+                }
+            }
+
+            const accountAndLobFiltered = QuestionService.filterForApplication(allQ, candidateAcc, effectiveLob);
+
+            const filteredQs = accountAndLobFiltered
+                .filter(q => q.is_active && (q.question_type === targetType || (q as any).questionType === targetType))
                 .sort((a, b) => (a.question_order || 0) - (b.question_order || 0));
 
             setQuestions(filteredQs);
@@ -268,7 +476,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
         } finally {
             setLoadingQuestions(false);
         }
-    }, [error, application?.current_status, application?.queue_type]);
+    }, [error, application?.id, application?.current_status, application?.queue_type, isFinalStage, selectedLob, resolvedActiveAccount]);
 
     useEffect(() => {
         void loadQuestions();
@@ -283,7 +491,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                 questions.forEach(q => {
                     if (newScores[q.id] === undefined) {
                         const txt = q.question_text.toLowerCase();
-                        
+
                         if (txt.includes('interview date') || (txt.includes('date') && !txt.includes('birth') && !txt.includes('candidate') && !txt.includes('applicant'))) {
                             const today = new Date().toISOString().split('T')[0];
                             newScores[q.id] = today;
@@ -296,7 +504,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                         else if (txt.includes("position") && (txt.includes("apply") || txt.includes("applying"))) {
                             const pos = application.position_title || '';
                             const options = q.options || [];
-                            
+
                             const matchedOpt = options.find(opt => opt.toLowerCase() === pos.toLowerCase());
                             if (matchedOpt) {
                                 newScores[q.id] = matchedOpt;
@@ -316,7 +524,13 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
     useEffect(() => {
         let interval: ReturnType<typeof setInterval> | undefined;
         if (isStarted) {
-            interval = setInterval(() => setSeconds(s => s + 1), 1000);
+            interval = setInterval(() => {
+                setSeconds(s => {
+                    const newVal = s + 1;
+                    secondsRef.current = newVal;
+                    return newVal;
+                });
+            }, 1000);
         }
         return () => clearInterval(interval);
     }, [isStarted]);
@@ -327,25 +541,55 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
         }
     }, [application?.current_status]);
 
+    const statusUpdatingRef = useRef(false);
+    const isFinalizingRef = useRef(false);
+
     useEffect(() => {
-        if (isStarted && application && application.current_status !== 'INTERVIEW_IN_PROGRESS') {
-            void ApplicationService.updateStatus({
-                id: application.id,
-                fromStatus: application.current_status,
-                toStatus: 'INTERVIEW_IN_PROGRESS',
-                changedByName: user?.full_name || 'Interviewer',
-                reason: 'Interview session started',
-                patch: {
+        if (!isStarted || !application || statusUpdatingRef.current || isFinalizingRef.current) return;
+
+        const syncStatus = async () => {
+            if (application.current_status !== 'INTERVIEW_IN_PROGRESS') {
+                statusUpdatingRef.current = true;
+                const isRecruiterUnassigned = !application.assigned_recruiter_id && !application.assigned_ops_validator_id;
+                
+                const patch: any = {
                     metadata: {
                         ...(application.metadata || {}),
                         active_interview_type: isFinalStage ? 'FINAL' : 'INITIAL'
                     }
+                };
+
+                if (isRecruiterUnassigned && user?.full_name) {
+                    if (isFinalStage) {
+                        patch.assigned_ops_validator_id = String(user.id);
+                        patch.assigned_ops_validator_name = user.full_name;
+                        patch.metadata.assigned_ops_validator_id = String(user.id);
+                        patch.metadata.assigned_ops_validator_name = user.full_name;
+                        patch.metadata.active_ops_validator_name = user.full_name;
+                    } else {
+                        patch.assigned_recruiter_id = String(user.id);
+                        patch.assigned_recruiter_name = user.full_name;
+                        patch.metadata.assigned_recruiter_id = String(user.id);
+                        patch.metadata.assigned_recruiter_name = user.full_name;
+                    }
                 }
-            }).catch(err => {
-                console.error('[useInterviewSession] Failed to update status to INTERVIEW_IN_PROGRESS:', err);
-            });
-        }
-    }, [isStarted, application, user?.full_name, isFinalStage]);
+
+                void ApplicationService.updateStatus({
+                    id: application.id,
+                    fromStatus: application.current_status,
+                    toStatus: 'INTERVIEW_IN_PROGRESS',
+                    changedByName: user?.full_name || 'Interviewer',
+                    reason: 'Interview session started',
+                    patch
+                }).catch(err => {
+                    statusUpdatingRef.current = false;
+                    console.error('[useInterviewSession] Failed to update status to INTERVIEW_IN_PROGRESS:', err);
+                });
+            }
+        };
+
+        syncStatus();
+    }, [isStarted, application, user?.id, user?.full_name, isFinalStage]);
 
     useEffect(() => {
         let interval: ReturnType<typeof setInterval> | undefined;
@@ -360,6 +604,134 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
         const firstUnanswered = questions.findIndex(q => scores[q.id] === undefined);
         setCurrentStep(firstUnanswered === -1 ? questions.length : firstUnanswered);
     }, [scores, questions]);
+
+    // Load from cache on init
+    useEffect(() => {
+        if (!application?.id) return;
+        setIsRestored(false);
+        try {
+            const cacheKey = `interview_session_${application.id}`;
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                const data = JSON.parse(cached);
+                if (data.scores) setScores(data.scores);
+                if (data.observations) setObservations(data.observations);
+                if (data.questionNotes) setQuestionNotes(data.questionNotes);
+                if (data.checklist) setChecklist(data.checklist);
+                if (data.ratings) setRatings(data.ratings);
+                if (data.background) setBackground(data.background);
+                if (typeof data.seconds === 'number') {
+                    setSeconds(data.seconds);
+                    secondsRef.current = data.seconds;
+                }
+                console.log('[useInterviewSession] Restored interview progress from smart cache.');
+            }
+        } catch (e) {
+            console.warn('[useInterviewSession] Failed to restore progress from cache:', e);
+        } finally {
+            setIsRestored(true);
+        }
+    }, [application?.id]);
+
+    useEffect(() => {
+        if (!application || !isRestored) return;
+        const cacheKey = `interview_session_${application.id}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (!cached) {
+            const grading = application.interview_grading || {};
+            if (Object.keys(grading).length > 0) {
+                setScores(prev => ({ ...prev, ...grading }));
+            }
+            const meta = typeof application.metadata === 'string' ? JSON.parse(application.metadata) : (application.metadata || {});
+            if (meta.background) setBackground(prev => ({ ...prev, ...meta.background }));
+            if (meta.checklist) setChecklist(prev => ({ ...prev, ...meta.checklist }));
+            if (meta.ratings) setRatings(prev => ({ ...prev, ...meta.ratings }));
+            if (meta.question_notes) setQuestionNotes(prev => ({ ...prev, ...meta.question_notes }));
+            if (typeof meta.draft_seconds === 'number') {
+                setSeconds(meta.draft_seconds);
+                secondsRef.current = meta.draft_seconds;
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [application?.id, isRestored]);
+
+    // Save to cache on any state change after initial restore has finished
+    useEffect(() => {
+        if (!application?.id || !isRestored) return;
+        try {
+            const cacheKey = `interview_session_${application.id}`;
+            const payload = {
+                scores,
+                observations,
+                questionNotes,
+                checklist,
+                ratings,
+                background,
+                seconds: secondsRef.current
+            };
+            localStorage.setItem(cacheKey, JSON.stringify(payload));
+        } catch (e) {
+            console.warn('[useInterviewSession] Failed to cache progress:', e);
+        }
+    }, [application?.id, isRestored, scores, observations, questionNotes, checklist, ratings, background]);
+
+    const stateRef = useRef({ scores, questionNotes, checklist, ratings, background, observations });
+    useEffect(() => {
+        stateRef.current = { scores, questionNotes, checklist, ratings, background, observations };
+    }, [scores, questionNotes, checklist, ratings, background, observations]);
+
+    const saveProgress = useCallback(async () => {
+        if (!application?.id || !isRestored || !isStarted || isFinalizingRef.current) return;
+        setSaveStatus('saving');
+        try {
+            const currentData = stateRef.current;
+            const meta = typeof application.metadata === 'string' ? JSON.parse(application.metadata) : (application.metadata || {});
+            const updatedMeta = {
+                ...meta,
+                question_notes: currentData.questionNotes,
+                checklist: currentData.checklist,
+                ratings: currentData.ratings,
+                background: currentData.background,
+                draft_seconds: secondsRef.current
+            };
+            const interviewGrading: Record<string, number> = {};
+            const { default: _defaultObs, ...filteredObservations } = currentData.observations || {};
+            const combinedResponses: Record<string, string> = { ...filteredObservations };
+
+            Object.entries(currentData.scores).forEach(([qId, value]) => {
+                if (typeof value === 'number') {
+                    interviewGrading[qId] = value;
+                } else if (value && typeof value === 'string') {
+                    const currentObs = combinedResponses[qId] || '';
+                    combinedResponses[qId] = `${value.toUpperCase()}${currentObs ? '\n\n' + currentObs : ''}`;
+                }
+            });
+
+            const patchPayload = {
+                interview_grading: { ...(typeof application.interview_grading === 'string' ? JSON.parse(application.interview_grading || '{}') : (application.interview_grading || {})), ...interviewGrading },
+                interview_responses: { ...(typeof application.interview_responses === 'string' ? JSON.parse(application.interview_responses || '{}') : (application.interview_responses || {})), ...combinedResponses },
+                metadata: updatedMeta,
+                change_reason: 'Autosave'
+            };
+
+            await ApplicationService.patch(application.id, patchPayload as any);
+            setSaveStatus('saved');
+        } catch (err) {
+            console.error('[useInterviewSession] Auto-save to database failed:', err);
+            setSaveStatus('error');
+        }
+    }, [application?.id, isRestored, isStarted]);
+
+    // Debounced database sync for all evaluation changes
+    useEffect(() => {
+        if (!application?.id || !isRestored || !isStarted) return;
+
+        const timer = setTimeout(() => {
+            void saveProgress();
+        }, 2000); // 2 seconds debounce
+
+        return () => clearTimeout(timer);
+    }, [application?.id, isRestored, isStarted, checklist, ratings, background, scores, questionNotes, observations]);
 
     const startRecording = async (deviceId?: string) => {
         try {
@@ -445,7 +817,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
     }, [mediaRecorder, success]);
 
     const finalizeSession = useCallback(async (
-        verdict?: 'PASSED' | 'FAILED' | 'PENDING',
+        verdict?: 'PASSED' | 'FAILED' | 'PENDING' | 'WAITLISTED' | 'WITHDRAWN' | 'NOT_ELIGIBLE' | 'BLACKLIST' | 'PROMOTED' | 'LATERAL',
         endorsementParams?: {
             isSpecialized?: boolean;
             department?: string;
@@ -457,6 +829,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
             withOutlook?: boolean;
         }
     ) => {
+        isFinalizingRef.current = true;
         if (!application) {
             console.error('[useInterviewSession] Cannot finalize session: No application linked to room.');
             error('Critical Error', 'Session data integrity failure. No application identified.');
@@ -487,7 +860,8 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                 }
 
                 const interviewGrading: Record<string, number> = {};
-                const combinedResponses: Record<string, string> = { ...observations };
+                const { default: _defaultObs, ...filteredObservations } = observations;
+                const combinedResponses: Record<string, string> = { ...filteredObservations };
 
                 Object.entries(scores).forEach(([qId, value]) => {
                     if (typeof value === 'number') {
@@ -498,18 +872,27 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                     }
                 });
 
+                const generateNotesString = () => {
+                    const uniqueNotes = Array.from(new Set(Object.values(combinedResponses).map(s => String(s).trim()).filter(Boolean)));
+                    return uniqueNotes.join('\n\n');
+                };
+
                 let nextStatus: ApplicationStatus;
                 let targetColumn: string | undefined;
                 const additionalPatch: any = {};
                 const interviewDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                 additionalPatch.interview_completed_at = new Date().toISOString();
 
-                const isFinalStage =
-                    user?.role === 'ops_validator' ||
-                    application.current_status === 'FINAL_INTERVIEW' ||
-                    application.current_status === 'FINAL_INTERVIEW_SCHEDULED' ||
-                    application.current_status === 'ENDORSED' ||
-                    application.queue_type === 'FINAL';
+                // Set interviewer as the person who actually entered the room and completed the interview
+                if (isFinalStage) {
+                    additionalPatch.assigned_ops_validator_id = user?.id || null;
+                    additionalPatch.assigned_ops_validator_name = user?.full_name || 'System';
+                } else {
+                    additionalPatch.assigned_recruiter_id = user?.id || null;
+                    additionalPatch.assigned_recruiter_name = user?.full_name || 'System';
+                }
+
+
 
                 const globalActiveAccount = useActiveAccountStore.getState().activeAccount;
                 const userAccounts = parseAccounts(user?.department);
@@ -519,7 +902,11 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
 
                 const depts = (application.department || '').split(',').map((s: any) => s.trim()).filter(Boolean);
                 const failedAccounts = application.metadata?.failed_accounts || [];
-                const matchedActive = depts.find(d => d.trim().toLowerCase() === resolvedActiveAccount.trim().toLowerCase());
+                const matchedActive = depts.find(d => {
+                    const dl = d.trim().toLowerCase();
+                    const al = resolvedActiveAccount.trim().toLowerCase();
+                    return dl === al || dl.startsWith(al) || al.startsWith(dl);
+                });
                 const activeAccount = matchedActive || depts.find((d: any) => !failedAccounts.some((f: any) => f.trim().toLowerCase() === d.toLowerCase()));
                 const newFailedAccounts = [...failedAccounts];
                 if (verdict === 'FAILED' && activeAccount && !newFailedAccounts.some((f: any) => f.trim().toLowerCase() === activeAccount.toLowerCase())) {
@@ -538,9 +925,9 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                         } else if (['TENNIS CHANNEL', 'THE SAVINGS GROUP', 'ENERCARE'].includes(dept)) {
                             nextStatus = 'CLIENT_INTERVIEW';
                         } else {
-                            nextStatus = 'For Job Offer';
+                            nextStatus = 'FOR_JOB_OFFER';
                         }
-                        if (nextStatus === 'PASSED' || nextStatus === 'For Job Offer') {
+                        if (nextStatus === 'PASSED' || nextStatus === 'FOR_JOB_OFFER') {
                             targetColumn = 'MASTERLIST';
 
                             // Automate Masterlist Fields on Final Pass
@@ -594,18 +981,22 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                             final_account: activeAccount || application.department,
                             final_interview_result: 'PASSED',
                             overall_status: 'PASSED',
-                            final_specific_status: application.current_status?.includes('CLIENT')
-                                ? 'Client Interview - Passed'
-                                : 'OV - Passed',
+                            final_specific_status: 'OV - Passed',
                             interview_completed_at: interviewDate,
                             ops_validator_email: user?.email || 'System',
                             ops_validator_status: 'PASSED',
-                            ops_validator_notes: Object.values(combinedResponses).join('\n\n'),
+                            ops_validator_notes: generateNotesString(),
                             last_updated_by: user?.full_name || 'System (Interview)',
                         };
                     } else {
                         // Initial Interview Pass
-                        nextStatus = 'ASSESSMENT';
+                        const isOnCall = (application.position_title || '').toLowerCase().includes('[on-call]') ||
+                            (application.position_title || '').toLowerCase().includes('[on call]') ||
+                            String(application.metadata?.interview_mode || '').toLowerCase() === 'online' ||
+                            String(application.metadata?.interview_mode || '').toLowerCase() === 'on-call' ||
+                            String(application.pis?.preferred_setup || '').toLowerCase() === 'online' ||
+                            String(application.pis?.preferred_setup || '').toLowerCase() === 'on-call';
+                        nextStatus = isOnCall ? 'TYPING_TEST' : 'ASSESSMENT';
                         if (endorsementParams) {
                             if (endorsementParams.isSpecialized) {
                                 additionalPatch.endorsed_to_recruiter_s = true;
@@ -631,7 +1022,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                             ...(application.pis || {}),
                             initial_account_assignment: endorsementParams?.department || application.department,
                             initial_interview_results: 'PASSED',
-                            final_specific_status: 'Recruitment Interview - Passed',
+                            final_specific_status: 'Initial Interview - Passed',
                             interview_type: 'INITIAL',
                             interview_completed_at: interviewDate,
                             last_updated_by: user?.full_name || 'System (Interview)',
@@ -657,7 +1048,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                                 interview_completed_at: interviewDate,
                                 ops_validator_email: user?.email || 'System',
                                 ops_validator_status: 'FAILED',
-                                ops_validator_notes: Object.values(combinedResponses).join('\n\n'),
+                                ops_validator_notes: generateNotesString(),
                                 last_updated_by: user?.full_name || 'System (Interview)',
                             };
                         } else {
@@ -670,53 +1061,83 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                                 interview_completed_at: interviewDate,
                                 ops_validator_email: user?.email || 'System',
                                 ops_validator_status: 'FAILED',
-                                ops_validator_notes: Object.values(combinedResponses).join('\n\n'),
+                                ops_validator_notes: generateNotesString(),
                                 last_updated_by: user?.full_name || 'System (Interview)',
                             };
                         }
                     } else {
                         nextStatus = 'REJECTED';
+                        additionalPatch.department = null;
                         additionalPatch.pis = {
                             ...(application.pis || {}),
+                            initial_account_assignment: null,
                             initial_interview_results: 'FAILED',
-                            final_specific_status: 'Recruitment Interview - Failed',
+                            final_specific_status: 'Initial Interview - Failed',
                             interview_type: 'INITIAL',
                             interview_completed_at: interviewDate,
                             last_updated_by: user?.full_name || 'System (Interview)',
                         };
                     }
                 } else if (verdict === 'PENDING') {
-                    nextStatus = 'ASSESSMENT';
+                    nextStatus = 'MARKED_PENDING';
+                    additionalPatch.metadata = {
+                        ...(application.metadata || {}),
+                        pending_from_status: isFinalStage ? 'FINAL_INTERVIEW' : 'INITIAL_INTERVIEW'
+                    };
                     if (isFinalStage) {
                         additionalPatch.pis = {
                             ...(application.pis || {}),
-                            final_specific_status: 'OV - Pending',
+                            final_specific_status: 'Marked Pending - Final Interview',
                             interview_completed_at: interviewDate,
                             last_updated_by: user?.full_name || 'System (Interview)',
                         };
                     } else {
                         additionalPatch.pis = {
                             ...(application.pis || {}),
-                            final_specific_status: 'Recruitment Interview - Pending',
+                            final_specific_status: 'Initial Interview - Pending',
+                            specific_status: 'Marked Pending - Initial Interview',
                             interview_type: 'INITIAL',
                             interview_completed_at: interviewDate,
                             last_updated_by: user?.full_name || 'System (Interview)',
                         };
                     }
+                } else if (verdict === 'WAITLISTED') {
+                    nextStatus = 'WAITLISTED';
+                } else if (verdict === 'WITHDRAWN') {
+                    nextStatus = 'WITHDRAWN';
+                } else if (verdict === 'NOT_ELIGIBLE') {
+                    nextStatus = 'NOT_ELIGIBLE_FOR_REHIRE';
+                } else if (verdict === 'BLACKLIST') {
+                    nextStatus = 'REJECTED';
+                    additionalPatch.department = null;
+                    additionalPatch.pis = {
+                        ...(application.pis || {}),
+                        initial_account_assignment: null,
+                        final_specific_status: 'Blacklist',
+                        last_updated_by: user?.full_name || 'System (Interview)',
+                    };
+                } else if (verdict === 'PROMOTED') {
+                    additionalPatch.metadata = { ...(application.metadata || {}), is_promotion: true, is_lateral_transfer: false };
+                    nextStatus = isFinalStage ? 'FINAL_INTERVIEW' : 'INITIAL_INTERVIEW';
+                } else if (verdict === 'LATERAL') {
+                    additionalPatch.metadata = { ...(application.metadata || {}), is_promotion: false, is_lateral_transfer: true };
+                    nextStatus = isFinalStage ? 'FINAL_INTERVIEW' : 'INITIAL_INTERVIEW';
                 } else {
                     nextStatus = isFinalStage ? 'FINAL_VERDICT' : 'ASSESSMENT';
                 }
 
-                let recordingUrl: string | undefined;
+                let audioUploadUrl: string | undefined;
                 if (audioBlob) {
                     console.log('[useInterviewSession] Uploading interview recording...');
                     try {
-                        recordingUrl = await RecordingService.upload(audioBlob, application.id);
-                        console.log('[useInterviewSession] Recording uploaded:', recordingUrl);
+                        audioUploadUrl = await RecordingService.upload(audioBlob, application.id);
+                        console.log('[useInterviewSession] Recording uploaded:', audioUploadUrl);
                     } catch (err) {
                         console.error('[useInterviewSession] Failed to upload recording:', err);
                     }
                 }
+
+                const transcriptData = transcriptBlocks.length > 0 ? { blocks: transcriptBlocks, saved_at: new Date().toISOString() } : undefined;
 
                 // Define Double-Redundant Background & Experience DB patch
                 const backgroundPatch = {
@@ -726,11 +1147,12 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                     travel_method: background.transportMode || undefined,
                     flexible_schedule: undefined,
                     medical_history_notes: background.medicalIssues || undefined,
-                    
+
                     // Fallback JSON metadata for full offline-resiliency and backend variations
                     metadata: {
-                        ...(application.metadata || {}),
-                        initial_account_assignment: endorsementParams?.department || application.department,
+                        ...(typeof application.metadata === 'string' ? JSON.parse(application.metadata) : application.metadata),
+                        hiring_type: (application as any).hiring_type || application.metadata?.hiring_type || application.pis?.hiring_type,
+                        initial_account_assignment: (!isFinalStage && verdict === 'FAILED') ? null : (endorsementParams?.department || application.department),
                         failed_accounts: newFailedAccounts,
                         ...(verdict === 'FAILED' && remainingAccounts.length > 0 ? { recruiter_s_scheduling_status: 'PENDING' } : {}),
                         bpo_experience_chat: background.bpoChat || null,
@@ -748,6 +1170,7 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                         candidate_source: background.candidateSource || null,
                         ratings: ratings || null,
                         checklist: checklist || null,
+                        question_notes: questionNotes || null,
                         // Endorsement flags
                         ...(endorsementParams ? (
                             endorsementParams.isSpecialized ? {
@@ -758,18 +1181,11 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                                 recruiter_s_scheduling_status: endorsementParams.withOutlook ? 'SCHEDULED' : 'PENDING'
                             }
                         ) : {}),
-                        // Recording URLs
-                        ...(recordingUrl ? (
-                            isFinalStage 
-                                ? { final_recording_url: recordingUrl }
-                                : { initial_recording_url: recordingUrl }
-                        ) : {}),
-                        // Transcripts
-                        ...(transcriptBlocks.length > 0 ? (
-                            isFinalStage
-                                ? { final_transcript: { blocks: transcriptBlocks, saved_at: new Date().toISOString() } }
-                                : { initial_transcript: { blocks: transcriptBlocks, saved_at: new Date().toISOString() } }
-                        ) : {})
+                        // Recording/Transcript URLs
+                        initial_recording_url: isFinalStage ? (typeof application.metadata === 'string' ? JSON.parse(application.metadata).initial_recording_url : application.metadata?.initial_recording_url) : audioUploadUrl,
+                        initial_transcript: isFinalStage ? (typeof application.metadata === 'string' ? JSON.parse(application.metadata).initial_transcript : application.metadata?.initial_transcript) : transcriptData,
+                        final_recording_url: isFinalStage ? audioUploadUrl : undefined,
+                        final_transcript: isFinalStage ? transcriptData : undefined
                     }
                 };
 
@@ -784,7 +1200,19 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                         observations: combinedResponses,
                         background,
                         ratings,
-                        checklist
+                        checklist,
+                        questionNotes,
+                        metadata: JSON.stringify({
+                            ...(typeof application.metadata === 'string' ? JSON.parse(application.metadata) : application.metadata),
+                            checklist,
+                            ratings,
+                            background,
+                            question_notes: questionNotes,
+                            initial_recording_url: isFinalStage ? (typeof application.metadata === 'string' ? JSON.parse(application.metadata).initial_recording_url : application.metadata?.initial_recording_url) : audioUploadUrl,
+                            initial_transcript: isFinalStage ? (typeof application.metadata === 'string' ? JSON.parse(application.metadata).initial_transcript : application.metadata?.initial_transcript) : transcriptData,
+                            final_recording_url: isFinalStage ? audioUploadUrl : undefined,
+                            final_transcript: isFinalStage ? transcriptData : undefined
+                        })
                     }));
                     console.log('[useInterviewSession] Local storage database fallback backup successfully saved.');
                 } catch (backupErr) {
@@ -801,6 +1229,15 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                     patch: {
                         ...additionalPatch,
                         ...backgroundPatch,
+                        metadata: {
+                            ...(backgroundPatch.metadata || {}),
+                            failed_accounts: newFailedAccounts,
+                            initial_interview_results: !isFinalStage ? verdict : (application.metadata?.initial_interview_results || 'PASSED'),
+                            ops_validator_status: isFinalStage ? (verdict === 'PASSED' ? 'PASSED' : (verdict === 'FAILED' ? 'FAILED' : verdict)) : (application.metadata?.ops_validator_status || 'PENDING'),
+                            final_interview_result: isFinalStage ? (verdict === 'PASSED' ? 'PASSED' : (verdict === 'FAILED' ? 'FAILED' : verdict)) : (application.metadata?.final_interview_result || 'PASSED'),
+                            final_specific_status: isFinalStage ? (verdict === 'PASSED' ? 'OV - Passed' : (verdict === 'FAILED' ? 'OV - Failed' : 'OV - Pending')) : (verdict === 'PASSED' ? 'Initial Interview - Passed' : 'Initial Interview - Failed'),
+                            ops_validator_notes: isFinalStage ? generateNotesString() : (application.metadata?.ops_validator_notes || '')
+                        },
                         interview_grading: {
                             ...(application.interview_grading || {}),
                             ...interviewGrading
@@ -810,8 +1247,8 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                             ...combinedResponses
                         },
                         interview_room: room?.room_name,
-                        interview_recording_url: recordingUrl,
-                        final_verdict: verdict === 'PASSED' ? 'PASSED' : (verdict === 'FAILED' && remainingAccounts.length === 0) ? 'REJECTED' : undefined,
+                        interview_recording_url: audioUploadUrl,
+                        final_verdict: verdict === 'PASSED' ? 'PASSED' : (verdict === 'FAILED' && remainingAccounts.length === 0) ? 'REJECTED' : verdict,
                         master_column: targetColumn || application.master_column
                     }
                 });
@@ -832,11 +1269,11 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
 
                 const summary = {
                     applicantName: application.applicant_name,
-                    applicantId: application.applicant_id,
+                    applicantId: application.id,
                     positionTitle: application.position_title,
                     department: application.department,
                     duration: formatTime(seconds),
-                    recordingPath: recordingUrl,
+                    recordingPath: audioUploadUrl,
                     totalQuestions: questions.length,
                     answeredQuestions: Object.keys(scores).length,
                     roomName: room?.room_name,
@@ -847,31 +1284,65 @@ export function useInterviewSession(roomId: string, rooms: InterviewRoom[], appl
                     endorsementParams
                 };
 
-                console.log('[useInterviewSession] Updating room status to AVAILABLE...');
-                await useRoomStore.getState().updateRoom(roomId, roomPatch);
+                if (roomId && room) {
+                    console.log('[useInterviewSession] Updating room status to AVAILABLE...');
+                    await useRoomStore.getState().updateRoom(roomId, roomPatch);
+                }
+
+                // Mark active or draft queue entries for this applicant as SERVED
+                try {
+                    const { QueueService } = await import('@/services/QueueService');
+                    const activeQueues = await QueueService.getTodayActive();
+                    
+                    const targetApplicantId = draftApplicantId || application.id;
+                    // Find any active queue entry that is not already terminal (SERVED/SKIPPED)
+                    const activeEntry = activeQueues.find((q: any) => 
+                        q.application_id === targetApplicantId && 
+                        q.status !== 'SERVED' && 
+                        q.status !== 'SKIPPED'
+                    );
+                    
+                    if (activeEntry) {
+                        console.log('[useInterviewSession] Finalizing session - updating queue entry status to SERVED:', activeEntry.id);
+                        await QueueService.update(activeEntry.id, { status: 'SERVED', completed_at: new Date().toISOString() });
+                        const { useQueueStore } = await import('@/store/queueStore');
+                        useQueueStore.getState().loadQueue();
+                    }
+                } catch (queueErr) {
+                    console.warn('[finalizeSession] Failed to update queue entry status to SERVED:', queueErr);
+                }
 
                 console.log('[useInterviewSession] Session finalized successfully. Calling onComplete.');
+                try {
+                    localStorage.removeItem(`interview_session_${application.id}`);
+                } catch (clearErr) {
+                    console.warn('[useInterviewSession] Failed to clear local storage cache:', clearErr);
+                }
                 onComplete(summary);
             } catch (err: any) {
                 console.error('[useInterviewSession] FATAL ERROR during finalizeSession:', err);
                 error('Protocol Termination Failure', err?.message || 'An unexpected error occurred while saving the session.');
             }
         }, 'Finalizing session...');
-    }, [application, observations, scores, audioBlob, room, roomId, questions.length, seconds, onComplete, withLoading, error, user, checklist, ratings, background]);
+    }, [application, observations, scores, audioBlob, room, roomId, questions.length, seconds, onComplete, withLoading, error, user, checklist, ratings, background, questionNotes, transcriptBlocks, isFinalStage, draftApplicantId]);
 
     return {
         room, application, questions, loadingQuestions, isStarted, setIsStarted,
         seconds, formatTime, scores, setScores, observations, setObservations,
-        currentStep, isRecording, recordingSeconds, audioBlob, setAudioBlob,
+        questionNotes, setQuestionNotes, showQuestionNotes, setShowQuestionNotes,
+        currentStep, setCurrentStep, isRecording, recordingSeconds, audioBlob, setAudioBlob,
         startRecording, stopRecording, finalizeSession, isTranscribing, setIsTranscribing,
         activeSpeaker, setActiveSpeaker, transcriptBlocks, setTranscriptBlocks,
         interimTranscript, setInterimTranscript, recognitionRef, activeSpeakerRef,
         setRecordingSeconds,
         isFinalStage,
+        saveStatus,
+        saveProgress,
 
         // Exposing background & assessment state to UI components
         checklist, setChecklist,
         ratings, setRatings,
-        background, setBackground
+        background, setBackground,
+        selectedLob, setSelectedLob, availableLobs
     };
 }

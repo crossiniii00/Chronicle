@@ -90,10 +90,10 @@ export function AISettingsTab() {
     return (
         <div className="w-full pb-12 relative">
             {/* Header */}
-            <div className="bg-white border-b border-surface-200">
+            <div className="bg-white dark:bg-slate-900 border-b border-surface-200">
                 <div className="relative px-6 pt-5 pb-2 flex flex-col items-center justify-center">
                     <div className="flex items-center gap-2.5">
-                        <Cpu size={17} className="text-[#605e5c] self-center" />
+                        <Cpu size={17} className="text-[#605e5c] dark:text-slate-400 self-center" />
                         <h1
                             className="text-[30px] leading-none text-surface-900 tracking-[-0.02em]"
                             style={{ fontFamily: 'var(--font-family-display)', fontWeight: 500, fontStyle: 'italic' }}
@@ -108,7 +108,7 @@ export function AISettingsTab() {
 
                 {/* Status indicator pill */}
                 <div className="flex items-center justify-center gap-2 px-6 pb-4">
-                    <div className={`flex items-center gap-1.5 px-3 h-7 border rounded-sm transition-all duration-300 ${
+                    <div className={`flex items-center gap-1.5 px-3 h-7 border rounded-none transition-all duration-300 ${
                         isAIEnabled 
                             ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
                             : 'bg-surface-50 border-surface-200 text-surface-500'
@@ -123,10 +123,10 @@ export function AISettingsTab() {
 
             <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-2 gap-6 px-6 pt-6 items-stretch">
                 {/* General Settings */}
-                <div className="bg-white border border-surface-200 shadow-sm flex flex-col rounded-sm overflow-hidden h-full">
+                <div className="bg-white dark:bg-slate-900 border border-surface-200 shadow-sm flex flex-col rounded-none overflow-hidden h-full">
                     <div className="px-5 py-4 flex items-center justify-between border-b border-surface-100 bg-surface-50/50">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center bg-indigo-600 text-white shadow-sm rounded-sm">
+                            <div className="flex h-9 w-9 items-center justify-center bg-indigo-600 text-white shadow-sm rounded-none">
                                 <Sparkles size={16} />
                             </div>
                             <div>
@@ -140,16 +140,16 @@ export function AISettingsTab() {
                             whileTap={{ scale: 0.97 }}
                             transition={SPRING}
                             disabled={isSaving}
-                            className="flex items-center gap-1.5 px-3.5 h-7 bg-black text-white text-[11.5px] font-medium tracking-[-0.005em] hover:bg-black/85 transition-all rounded-sm disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3.5 h-7 bg-black text-white text-[11.5px] font-medium tracking-[-0.005em] hover:bg-black/85 transition-all rounded-none disabled:opacity-50"
                         >
                             <Save size={12} strokeWidth={2.25} />
                             {isSaving ? 'Saving...' : 'Save changes'}
                         </motion.button>
                     </div>
 
-                    <div className="p-5 space-y-6 flex-1 bg-white">
+                    <div className="p-5 space-y-6 flex-1 bg-white dark:bg-slate-900">
                         {/* Toggle AI Enablement */}
-                        <div className="flex items-center justify-between p-4 bg-surface-50/50 border border-surface-200 rounded-sm">
+                        <div className="flex items-center justify-between p-4 bg-surface-50/50 border border-surface-200 rounded-none">
                             <div className="space-y-0.5">
                                 <label className="text-[12px] font-semibold text-surface-900 tracking-[-0.005em]">
                                     Enable AI Integrations
@@ -170,12 +170,12 @@ export function AISettingsTab() {
                                     }}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-350 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-slate-900 after:border-surface-350 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                             </label>
                         </div>
 
                         {/* Toggle AI Chatbot */}
-                        <div className="flex items-center justify-between p-4 bg-surface-50/50 border border-surface-200 rounded-sm">
+                        <div className="flex items-center justify-between p-4 bg-surface-50/50 border border-surface-200 rounded-none">
                             <div className="space-y-0.5">
                                 <label className="text-[12px] font-semibold text-surface-900 tracking-[-0.005em]">
                                     Enable AI Chatbot
@@ -196,7 +196,7 @@ export function AISettingsTab() {
                                     }}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-350 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-slate-900 after:border-surface-350 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                             </label>
                         </div>
 
@@ -213,32 +213,32 @@ export function AISettingsTab() {
                                         AI_PROVIDER: e.target.value as 'gemini' | 'openai'
                                     }));
                                 }}
-                                className="w-full bg-surface-50 border border-surface-200 px-3 py-2 rounded-sm text-[13px] font-medium text-surface-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                                className="w-full bg-surface-50 border border-surface-200 px-3 py-2 rounded-none text-[13px] font-medium text-surface-900 focus:bg-white dark:bg-slate-900 focus:border-indigo-500 outline-none transition-all"
                             >
                                 <option value="gemini">Google Gemini AI</option>
                                 <option value="openai">OpenAI (ChatGPT)</option>
                             </select>
                         </div>
 
-                        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-sm flex gap-3 text-[11.5px] leading-relaxed">
+                        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-none flex gap-3 text-[11.5px] leading-relaxed">
                             <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
                             <div>
                                 <span className="font-semibold block mb-0.5">Note on dynamic reload:</span>
-                                Changes saved here are directly written to the root <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-amber-950 font-medium">.env</code> file. The server re-reads these configurations in real-time, eliminating the need to rebuild or restart the system.
+                                Changes saved here are directly written to the root <code className="bg-amber-100 px-1 py-0.5 rounded-none font-mono text-amber-950 font-medium">.env</code> file. The server re-reads these configurations in real-time, eliminating the need to rebuild or restart the system.
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* API Credentials */}
-                <div className="bg-slate-900 p-5 flex flex-col relative overflow-hidden text-white rounded-sm shadow-lg">
+                <div className="bg-slate-900 p-5 flex flex-col relative overflow-hidden text-white rounded-none shadow-lg">
                     <div className="absolute inset-0 pointer-events-none opacity-20">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px]" />
                         <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#ef3e36]/30 rounded-full blur-[80px]" />
                     </div>
 
                     <div className="flex items-center gap-3 relative z-10 border-b border-white/10 pb-4">
-                        <div className="flex h-9 w-9 items-center justify-center bg-white/10 text-indigo-400 rounded-sm">
+                        <div className="flex h-9 w-9 items-center justify-center bg-white/10 dark:bg-slate-900/10 text-indigo-400 rounded-none">
                             <Cpu size={16} />
                         </div>
                         <div>
@@ -249,7 +249,7 @@ export function AISettingsTab() {
 
                     <div className="mt-5 space-y-5 flex-1 relative z-10 text-[12px]">
                         {/* Gemini Key Config */}
-                        <div className={`space-y-2 p-3 bg-white/5 border border-white/10 rounded-sm transition-all duration-300 ${isAIEnabled && settings.AI_PROVIDER === 'gemini' ? 'ring-1 ring-indigo-500 bg-white/10' : 'opacity-60'}`}>
+                        <div className={`space-y-2 p-3 bg-white/5 dark:bg-slate-900/5 border border-white/10 rounded-none transition-all duration-300 ${isAIEnabled && settings.AI_PROVIDER === 'gemini' ? 'ring-1 ring-indigo-500 bg-white/10 dark:bg-slate-900/10' : 'opacity-60'}`}>
                             <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block">Google Gemini Settings</span>
                             
                             <div className="space-y-1">
@@ -260,7 +260,7 @@ export function AISettingsTab() {
                                         value={settings.GEMINI_API_KEY}
                                         onChange={(e) => setSettings(prev => ({ ...prev, GEMINI_API_KEY: e.target.value }))}
                                         placeholder="AI.Ab8RN6LS..."
-                                        className="w-full bg-black/45 border border-white/10 px-3 py-2 pr-10 rounded-sm font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
+                                        className="w-full bg-black/45 border border-white/10 px-3 py-2 pr-10 rounded-none font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
                                     />
                                     <button
                                         type="button"
@@ -279,13 +279,13 @@ export function AISettingsTab() {
                                     value={settings.GEMINI_MODEL}
                                     onChange={(e) => setSettings(prev => ({ ...prev, GEMINI_MODEL: e.target.value }))}
                                     placeholder="gemini-1.5-flash"
-                                    className="w-full bg-black/45 border border-white/10 px-3 py-2 rounded-sm font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-black/45 border border-white/10 px-3 py-2 rounded-none font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
                                 />
                             </div>
                         </div>
 
                         {/* OpenAI Key Config */}
-                        <div className={`space-y-2 p-3 bg-white/5 border border-white/10 rounded-sm transition-all duration-300 ${isAIEnabled && settings.AI_PROVIDER === 'openai' ? 'ring-1 ring-indigo-500 bg-white/10' : 'opacity-60'}`}>
+                        <div className={`space-y-2 p-3 bg-white/5 dark:bg-slate-900/5 border border-white/10 rounded-none transition-all duration-300 ${isAIEnabled && settings.AI_PROVIDER === 'openai' ? 'ring-1 ring-indigo-500 bg-white/10 dark:bg-slate-900/10' : 'opacity-60'}`}>
                             <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block">OpenAI Settings</span>
                             
                             <div className="space-y-1">
@@ -296,7 +296,7 @@ export function AISettingsTab() {
                                         value={settings.OPENAI_API_KEY}
                                         onChange={(e) => setSettings(prev => ({ ...prev, OPENAI_API_KEY: e.target.value }))}
                                         placeholder="sk-..."
-                                        className="w-full bg-black/45 border border-white/10 px-3 py-2 pr-10 rounded-sm font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
+                                        className="w-full bg-black/45 border border-white/10 px-3 py-2 pr-10 rounded-none font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
                                     />
                                     <button
                                         type="button"
@@ -315,7 +315,7 @@ export function AISettingsTab() {
                                     value={settings.OPENAI_MODEL}
                                     onChange={(e) => setSettings(prev => ({ ...prev, OPENAI_MODEL: e.target.value }))}
                                     placeholder="gpt-4o-mini"
-                                    className="w-full bg-black/45 border border-white/10 px-3 py-2 rounded-sm font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-black/45 border border-white/10 px-3 py-2 rounded-none font-mono text-[11px] text-white focus:outline-none focus:border-indigo-500"
                                 />
                             </div>
                         </div>
@@ -336,7 +336,7 @@ export function AISettingsTab() {
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0, transition: SPRING }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="w-full max-w-[420px] bg-white border border-surface-200 rounded-sm p-6 shadow-2xl relative text-center flex flex-col items-center justify-center overflow-hidden"
+                            className="w-full max-w-[420px] bg-white dark:bg-slate-900 border border-surface-200 rounded-none p-6 shadow-2xl relative text-center flex flex-col items-center justify-center overflow-hidden"
                         >
                             {/* Decorative background flare */}
                             <div className="absolute -top-16 -right-16 w-36 h-36 bg-emerald-500/10 rounded-full blur-[30px]" />
@@ -361,7 +361,7 @@ export function AISettingsTab() {
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => setShowSuccessModal(false)}
-                                className="w-full h-9 bg-black text-white text-[12px] font-semibold tracking-[-0.005em] hover:bg-black/85 transition-colors rounded-sm flex items-center justify-center gap-1.5 shadow-sm"
+                                className="w-full h-9 bg-black text-white text-[12px] font-semibold tracking-[-0.005em] hover:bg-black/85 transition-colors rounded-none flex items-center justify-center gap-1.5 shadow-sm"
                             >
                                 <CheckCircle2 size={14} />
                                 Dismiss

@@ -62,6 +62,7 @@ export function useInterviewReprofile({
             changed_at: new Date().toISOString(),
             changed_by: user?.full_name || 'Recruiter',
             status: 'MOVED_TO_REPROFILE',
+            previous_status: app.current_status,
             previous_ops_validator_name: prevValidatorName,
             previous_ops_validator_email: prevValidatorEmail,
             previous_ops_validator_status: prevValidatorStatus,
@@ -86,18 +87,19 @@ export function useInterviewReprofile({
                     ...current,
                     pis_initial_account_assignment: newAccount,
                     department: finalDept,
-                    current_status: 'FINAL_INTERVIEW',
+                    current_status: 'REPROFILE_FINAL_INTERVIEW',
+                    master_column: 'Sheet',
                     endorsement_meeting_date: null,
                     endorsement_meeting_end_date: null,
                     endorsement_meeting_body: '',
                     assigned_ops_validator_id: null,
                     assigned_ops_validator_name: '',
-                    recruiter_s_scheduling_status: 'PENDING',
                     pis_reprofile_history: [...existingHistory, entry],
-                    pis_final_specific_status: 'OV - Pending',
                     pis_ops_validator_email: '',
                     pis_ops_validator_status: 'Pending',
                     pis_ops_validator_notes: '',
+                    pis_custom_lob: 'UNSPECIFIED JOB POSITION',
+                    position_title: 'UNSPECIFIED JOB POSITION',
                     metadata: {
                         ...(app.metadata || {}),
                         is_reprofiled: true,
@@ -106,7 +108,7 @@ export function useInterviewReprofile({
                         ops_validator_email: '',
                         ops_validator_status: 'Pending',
                         ops_validator_notes: '',
-                        final_specific_status: 'OV - Pending'
+                        custom_lob: 'UNSPECIFIED JOB POSITION'
                     }
                 }
             };
@@ -142,6 +144,7 @@ export function useInterviewReprofile({
             changed_at: new Date().toISOString(),
             changed_by: user?.full_name || 'Recruiter',
             status: 'MOVED_TO_REPROFILE',
+            previous_status: pendingReprofile.app.current_status,
             previous_ops_validator_name: prevValidatorName,
             previous_ops_validator_email: prevValidatorEmail,
             previous_ops_validator_status: prevValidatorStatus,
@@ -166,28 +169,36 @@ export function useInterviewReprofile({
             ops_validator_email: '',
             ops_validator_status: 'Pending',
             ops_validator_notes: '',
+            endorsement_confirmed: false,
+            final_interview_result: null as any,
             final_specific_status: 'OV - Pending',
-            endorsement_confirmed: false
+            'Specific Status': 'OV - Pending',
+            'Final Specific Status': 'OV - Pending',
+            custom_lob: 'UNSPECIFIED JOB POSITION'
         };
 
         try {
             await ApplicationService.patch(pendingReprofile.app.id, {
                 department: finalDept,
-                current_status: 'FINAL_INTERVIEW',
+                position_title: 'UNSPECIFIED JOB POSITION',
+                current_status: 'REPROFILE_FINAL_INTERVIEW',
+                final_verdict: null as any,
+                master_column: 'Sheet',
                 endorsement_meeting_date: null as any,
                 endorsement_meeting_end_date: null as any,
                 endorsement_meeting_body: '',
                 assigned_ops_validator_id: null as any,
                 assigned_ops_validator_name: '',
-                recruiter_s_scheduling_status: 'PENDING',
                 metadata,
                 pis: {
                     ...(pendingReprofile.app.pis || {}),
                     initial_account_assignment: pendingReprofile.newAccount,
-                    final_specific_status: 'OV - Pending',
                     ops_validator_email: '',
                     ops_validator_status: 'Pending',
-                    ops_validator_notes: ''
+                    ops_validator_notes: '',
+                    final_specific_status: 'OV - Pending',
+                    final_interview_result: null as any,
+                    custom_lob: 'UNSPECIFIED JOB POSITION'
                 }
             });
             setApplications(prev => prev.map(app => {
@@ -200,21 +211,23 @@ export function useInterviewReprofile({
                 return {
                     ...app,
                     department: finalDept,
+                    position_title: 'UNSPECIFIED JOB POSITION',
                     current_status: 'FINAL_INTERVIEW',
+                    final_verdict: null as any,
+                    master_column: 'Sheet',
                     endorsement_meeting_date: null as any,
                     endorsement_meeting_end_date: null as any,
                     endorsement_meeting_body: '',
                     assigned_ops_validator_id: null as any,
                     assigned_ops_validator_name: '',
-                    recruiter_s_scheduling_status: 'PENDING',
                     metadata: metadata as Record<string, any>,
                     pis: {
                         ...cleanedPis,
                         initial_account_assignment: pendingReprofile.newAccount,
-                        final_specific_status: 'OV - Pending',
                         ops_validator_email: '',
                         ops_validator_status: 'Pending',
-                        ops_validator_notes: ''
+                        ops_validator_notes: '',
+                        custom_lob: 'UNSPECIFIED JOB POSITION'
                     } as any
                 };
             }));

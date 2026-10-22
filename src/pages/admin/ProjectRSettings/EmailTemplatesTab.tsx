@@ -96,6 +96,7 @@ export function EmailTemplatesTab() {
         body: '',
         type: 'REJECTION_INITIAL' as TemplateType,
         isActive: true,
+        cc_emails: '',
         file: null as File | null
     });
 
@@ -201,6 +202,7 @@ export function EmailTemplatesTab() {
             body: temp.body,
             type: temp.type,
             isActive: temp.isActive,
+            cc_emails: temp.cc_emails || '',
             file: null
         });
         setModal('edit');
@@ -215,6 +217,7 @@ export function EmailTemplatesTab() {
             formData.append('body', form.body);
             formData.append('type', form.type);
             formData.append('isActive', form.isActive.toString());
+            formData.append('cc_emails', form.cc_emails);
             if (form.file) {
                 formData.append('attachment', form.file);
             }
@@ -350,10 +353,10 @@ export function EmailTemplatesTab() {
     return (
         <div className="w-full pb-12">
             {/* Header */}
-            <div className="bg-white border-b border-surface-200">
+            <div className="bg-white dark:bg-slate-900 border-b border-surface-200">
                 <div className="relative px-6 pt-5 pb-2 flex flex-col items-center justify-center">
                     <div className="flex items-center gap-2.5">
-                        <Mail size={17} className="text-[#605e5c] self-center" />
+                        <Mail size={17} className="text-[#605e5c] dark:text-slate-400 self-center" />
                         <h1
                             className="text-[30px] leading-none text-surface-900 tracking-[-0.02em]"
                             style={{ fontFamily: 'var(--font-family-display)', fontWeight: 500, fontStyle: 'italic' }}
@@ -396,11 +399,11 @@ export function EmailTemplatesTab() {
                     <>
                     {/* Stats + Action */}
                     <div className="flex items-center justify-center gap-2 px-6 pb-4">
-                    <div className="flex items-center gap-1.5 px-3 h-7 bg-surface-50/70 border border-surface-200 rounded-sm">
+                    <div className="flex items-center gap-1.5 px-3 h-7 bg-surface-50/70 border border-surface-200 rounded-none">
                         <span className="text-[9px] font-semibold text-black/45 uppercase tracking-[0.1em]">Templates</span>
                         <span className="text-[13px] font-semibold text-black tabular-nums leading-none">{templates.length}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 h-7 bg-emerald-50 border border-emerald-200 rounded-sm">
+                    <div className="flex items-center gap-1.5 px-3 h-7 bg-emerald-50 border border-emerald-200 rounded-none">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         <span className="text-[10.5px] font-semibold text-emerald-700 tracking-[-0.005em]">{activeCount} live</span>
                     </div>
@@ -409,11 +412,11 @@ export function EmailTemplatesTab() {
                         whileTap={{ scale: 0.97 }}
                         transition={SPRING}
                         onClick={() => {
-                            setForm({ name: '', subject: '', body: '', type: 'REJECTION_INITIAL', isActive: true, file: null });
+                            setForm({ name: '', subject: '', body: '', type: 'REJECTION_INITIAL', isActive: true, cc_emails: '', file: null });
                             setEditingTemplate(null);
                             setModal('create');
                         }}
-                        className="flex items-center gap-1.5 px-3.5 h-7 bg-black text-white text-[11.5px] font-medium tracking-[-0.005em] hover:bg-black/85 transition-all rounded-sm"
+                        className="flex items-center gap-1.5 px-3.5 h-7 bg-black text-white text-[11.5px] font-medium tracking-[-0.005em] hover:bg-black/85 transition-all rounded-none"
                     >
                         <Plus size={13} strokeWidth={2.25} />
                         New template
@@ -422,7 +425,7 @@ export function EmailTemplatesTab() {
 
                 {/* Automation Settings Toggles */}
                 <div className="px-6 pb-5 flex flex-col items-center justify-center">
-                    <div className="bg-surface-50 border border-surface-200 rounded-sm p-4 w-full max-w-[800px] flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="bg-surface-50 border border-surface-200 rounded-none p-4 w-full max-w-[800px] flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="text-left">
                             <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider block">Automation Settings</span>
                             <span className="text-[12px] font-medium text-surface-500">Toggle automatic dispatch for specific email triggers.</span>
@@ -433,7 +436,7 @@ export function EmailTemplatesTab() {
                                     type="checkbox"
                                     checked={automationSettings.WELCOME_USER}
                                     onChange={() => handleToggleAutomation('WELCOME_USER')}
-                                    className="w-4 h-4 text-[#0078d4] border-surface-300 rounded focus:ring-[#0078d4] cursor-pointer"
+                                    className="w-4 h-4 text-[#0078d4] border-surface-300 rounded-none focus:ring-[#0078d4] cursor-pointer"
                                 />
                                 <span>Account Creation</span>
                             </label>
@@ -442,7 +445,7 @@ export function EmailTemplatesTab() {
                                     type="checkbox"
                                     checked={automationSettings.REJECTION_INITIAL}
                                     onChange={() => handleToggleAutomation('REJECTION_INITIAL')}
-                                    className="w-4 h-4 text-[#0078d4] border-surface-300 rounded focus:ring-[#0078d4] cursor-pointer"
+                                    className="w-4 h-4 text-[#0078d4] border-surface-300 rounded-none focus:ring-[#0078d4] cursor-pointer"
                                 />
                                 <span>Initial Rejection</span>
                             </label>
@@ -451,7 +454,7 @@ export function EmailTemplatesTab() {
                                     type="checkbox"
                                     checked={automationSettings.REJECTION_FINAL}
                                     onChange={() => handleToggleAutomation('REJECTION_FINAL')}
-                                    className="w-4 h-4 text-[#0078d4] border-surface-300 rounded focus:ring-[#0078d4] cursor-pointer"
+                                    className="w-4 h-4 text-[#0078d4] border-surface-300 rounded-none focus:ring-[#0078d4] cursor-pointer"
                                 />
                                 <span>Final Rejection</span>
                             </label>
@@ -470,10 +473,10 @@ export function EmailTemplatesTab() {
                     <button
                         onClick={() => setActiveType('ALL')}
                         className={cn(
-                            "px-3 h-7 text-[11.5px] font-medium tracking-[-0.005em] rounded-sm border transition-all",
+                            "px-3 h-7 text-[11.5px] font-medium tracking-[-0.005em] rounded-none border transition-all",
                             activeType === 'ALL'
                                 ? "bg-black text-white border-black"
-                                : "bg-white text-surface-600 border-surface-200 hover:border-surface-400"
+                                : "bg-white dark:bg-slate-900 text-surface-600 border-surface-200 hover:border-surface-400"
                         )}
                     >
                         All ({templates.length})
@@ -485,10 +488,10 @@ export function EmailTemplatesTab() {
                                 key={type.value}
                                 onClick={() => setActiveType(type.value)}
                                 className={cn(
-                                    "px-3 h-7 text-[11.5px] font-medium tracking-[-0.005em] rounded-sm border transition-all",
+                                    "px-3 h-7 text-[11.5px] font-medium tracking-[-0.005em] rounded-none border transition-all",
                                     activeType === type.value
                                         ? "bg-[#0078d4] text-white border-[#0078d4]"
-                                        : "bg-white text-surface-600 border-surface-200 hover:border-surface-400"
+                                        : "bg-white dark:bg-slate-900 text-surface-600 border-surface-200 hover:border-surface-400"
                                 )}
                             >
                                 {type.label} ({count})
@@ -508,7 +511,7 @@ export function EmailTemplatesTab() {
                         key={temp.id}
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="group bg-white border border-surface-200 p-4 hover:border-[#0078d4] hover:shadow-sm transition-all relative overflow-hidden flex flex-col h-[260px] rounded-sm"
+                        className="group bg-white dark:bg-slate-900 border border-surface-200 p-4 hover:border-[#0078d4] hover:shadow-sm transition-all relative overflow-hidden flex flex-col h-[260px] rounded-none"
                     >
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
@@ -532,7 +535,7 @@ export function EmailTemplatesTab() {
                                 <h4 className="text-[14px] font-semibold text-surface-900 tracking-[-0.005em] truncate leading-tight">{temp.name}</h4>
                                 <p className="mt-1 text-[11.5px] font-normal text-surface-500 truncate tracking-[-0.005em]">{temp.subject}</p>
                                 {temp.attachment_name && (
-                                    <div className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-medium text-surface-500 tracking-[-0.005em] bg-surface-50 border border-surface-200 px-2 py-1 w-fit rounded-sm">
+                                    <div className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-medium text-surface-500 tracking-[-0.005em] bg-surface-50 border border-surface-200 px-2 py-1 w-fit rounded-none">
                                         <Mail size={10} className="text-surface-400" />
                                         <span className="truncate max-w-[150px]">{temp.attachment_name}</span>
                                     </div>
@@ -541,14 +544,14 @@ export function EmailTemplatesTab() {
                             <div className="flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <button
                                     onClick={() => handleOpenEdit(temp)}
-                                    className="p-2 text-surface-400 hover:text-[#0078d4] hover:bg-blue-50 transition-all rounded-sm"
+                                    className="p-2 text-surface-400 hover:text-[#0078d4] hover:bg-blue-50 transition-all rounded-none"
                                     title="Edit template"
                                 >
                                     <Edit2 size={14} />
                                 </button>
                                 <button
                                     onClick={() => setConfirmDelete(temp)}
-                                    className="p-2 text-surface-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-sm"
+                                    className="p-2 text-surface-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-none"
                                     title="Delete template"
                                 >
                                     <Trash2 size={14} />
@@ -580,10 +583,10 @@ export function EmailTemplatesTab() {
                                 onClick={() => !temp.isActive && handleSetLive(temp)}
                                 disabled={temp.isActive}
                                 className={cn(
-                                    "px-3 h-7 text-[11px] font-medium tracking-[-0.005em] transition-all rounded-sm flex items-center gap-1.5 border",
+                                    "px-3 h-7 text-[11px] font-medium tracking-[-0.005em] transition-all rounded-none flex items-center gap-1.5 border",
                                     temp.isActive
                                         ? "bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default"
-                                        : "bg-white border-surface-200 text-surface-600 hover:bg-black hover:text-white hover:border-black"
+                                        : "bg-white dark:bg-slate-900 border-surface-200 text-surface-600 hover:bg-black hover:text-white hover:border-black"
                                 )}
                             >
                                 <CheckCircle2 size={12} />
@@ -595,14 +598,14 @@ export function EmailTemplatesTab() {
             </div>
 
             {templates.length === 0 && (
-                <div className="py-24 text-center bg-surface-50 border border-dashed border-surface-200 mx-6 mt-4 rounded-sm">
+                <div className="py-24 text-center bg-surface-50 border border-dashed border-surface-200 mx-6 mt-4 rounded-none">
                     <Mail size={48} className="mx-auto text-surface-200 mb-5" />
                     <p className="text-[12px] font-medium text-surface-500 tracking-[-0.005em]">No templates found. Add one to get started.</p>
                 </div>
             )}
 
             {templates.length > 0 && filteredTemplates.length === 0 && (
-                <div className="py-20 text-center bg-surface-50 border border-dashed border-surface-200 mx-6 mt-4 rounded-sm">
+                <div className="py-20 text-center bg-surface-50 border border-dashed border-surface-200 mx-6 mt-4 rounded-none">
                     <Mail size={40} className="mx-auto text-surface-200 mb-4" />
                     <p className="text-[12px] font-medium text-surface-500 tracking-[-0.005em]">No templates in this category.</p>
                 </div>
@@ -611,7 +614,7 @@ export function EmailTemplatesTab() {
             )}
 
             {activeTab === 'smtp' && (
-                <div className="max-w-[600px] mx-auto mt-8 bg-white border border-surface-200 rounded-sm p-6 shadow-sm text-left">
+                <div className="max-w-[600px] mx-auto mt-8 bg-white dark:bg-slate-900 border border-surface-200 rounded-none p-6 shadow-sm text-left">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-[18px] font-semibold text-surface-900 tracking-tight flex items-center gap-2">
                             <Mail size={18} className="text-[#0078d4]" />
@@ -623,7 +626,7 @@ export function EmailTemplatesTab() {
                                     setSmtpForm(systemDefault);
                                     success('Defaults Loaded', 'Loaded SMTP settings from system environment.');
                                 }}
-                                className="text-[11px] font-semibold text-[#0078d4] hover:text-[#005a9e] border border-[#0078d4]/20 hover:border-[#0078d4] px-2.5 py-1 transition-all rounded-sm bg-blue-50/50 cursor-pointer"
+                                className="text-[11px] font-semibold text-[#0078d4] hover:text-[#005a9e] border border-[#0078d4]/20 hover:border-[#0078d4] px-2.5 py-1 transition-all rounded-none bg-blue-50/50 cursor-pointer"
                             >
                                 Load System Defaults (.env)
                             </button>
@@ -637,7 +640,7 @@ export function EmailTemplatesTab() {
                                 <input
                                     value={smtpForm.host}
                                     onChange={e => setSmtpForm(f => ({ ...f, host: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm focus:bg-white focus:border-[#0078d4] transition-all outline-none"
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-none text-sm focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none"
                                     placeholder="e.g. smtp.gmail.com"
                                 />
                             </div>
@@ -646,7 +649,7 @@ export function EmailTemplatesTab() {
                                 <input
                                     value={smtpForm.port}
                                     onChange={e => setSmtpForm(f => ({ ...f, port: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm focus:bg-white focus:border-[#0078d4] transition-all outline-none"
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-none text-sm focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none"
                                     placeholder="e.g. 587"
                                 />
                             </div>
@@ -658,7 +661,7 @@ export function EmailTemplatesTab() {
                                 id="smtp-secure"
                                 checked={smtpForm.secure}
                                 onChange={e => setSmtpForm(f => ({ ...f, secure: e.target.checked }))}
-                                className="w-4 h-4 text-[#0078d4] border-surface-300 rounded focus:ring-[#0078d4] cursor-pointer"
+                                className="w-4 h-4 text-[#0078d4] border-surface-300 rounded-none focus:ring-[#0078d4] cursor-pointer"
                             />
                             <label htmlFor="smtp-secure" className="text-[12px] font-semibold text-surface-700 cursor-pointer">
                                 Use SSL/TLS (Secure Connection)
@@ -671,7 +674,7 @@ export function EmailTemplatesTab() {
                                 <input
                                     value={smtpForm.user}
                                     onChange={e => setSmtpForm(f => ({ ...f, user: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm focus:bg-white focus:border-[#0078d4] transition-all outline-none"
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-none text-sm focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none"
                                     placeholder="your-email@gmail.com"
                                 />
                             </div>
@@ -681,7 +684,7 @@ export function EmailTemplatesTab() {
                                     type="password"
                                     value={smtpForm.pass}
                                     onChange={e => setSmtpForm(f => ({ ...f, pass: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm focus:bg-white focus:border-[#0078d4] transition-all outline-none"
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-none text-sm focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none"
                                     placeholder="••••••••••••••••"
                                 />
                             </div>
@@ -693,7 +696,7 @@ export function EmailTemplatesTab() {
                                 <input
                                     value={smtpForm.fromName}
                                     onChange={e => setSmtpForm(f => ({ ...f, fromName: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm focus:bg-white focus:border-[#0078d4] transition-all outline-none"
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-none text-sm focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none"
                                     placeholder="e.g. Recruitment360"
                                 />
                             </div>
@@ -702,7 +705,7 @@ export function EmailTemplatesTab() {
                                 <input
                                     value={smtpForm.fromEmail}
                                     onChange={e => setSmtpForm(f => ({ ...f, fromEmail: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-sm text-sm focus:bg-white focus:border-[#0078d4] transition-all outline-none"
+                                    className="w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-none text-sm focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none"
                                     placeholder="e.g. noreply@company.com"
                                 />
                             </div>
@@ -710,20 +713,20 @@ export function EmailTemplatesTab() {
 
                         <hr className="border-surface-150 my-6" />
 
-                        <div className="bg-surface-50 border border-surface-200 rounded-sm p-4 space-y-3">
+                        <div className="bg-surface-50 border border-surface-200 rounded-none p-4 space-y-3">
                             <div className="text-[11.5px] font-bold text-surface-700">Test SMTP Configuration</div>
                             <div className="flex gap-2">
                                 <input
                                     value={testRecipient}
                                     onChange={e => setTestRecipient(e.target.value)}
-                                    className="flex-1 px-3 py-1.5 bg-white border border-surface-200 rounded-sm text-xs focus:border-[#0078d4] outline-none"
+                                    className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-xs focus:border-[#0078d4] outline-none"
                                     placeholder="test-recipient@email.com"
                                 />
                                 <button
                                     type="button"
                                     onClick={handleTestConnection}
                                     disabled={testingSmtp || !smtpForm.host || !smtpForm.user || !smtpForm.pass || !testRecipient}
-                                    className="px-4 py-1.5 bg-black hover:bg-black/85 disabled:opacity-50 text-white font-medium text-[11px] rounded-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                                    className="px-4 py-1.5 bg-black hover:bg-black/85 disabled:opacity-50 text-white font-medium text-[11px] rounded-none transition-all flex items-center gap-1.5 cursor-pointer"
                                 >
                                     {testingSmtp ? 'Sending...' : 'Send Test Email'}
                                 </button>
@@ -735,7 +738,7 @@ export function EmailTemplatesTab() {
                                 type="button"
                                 onClick={handleSaveSmtp}
                                 disabled={savingSmtp || !smtpForm.host || !smtpForm.user || !smtpForm.pass}
-                                className="px-5 h-9 bg-[#0078d4] hover:bg-[#006cbf] disabled:opacity-50 text-white font-medium text-[12px] rounded-sm transition-all flex items-center gap-2 cursor-pointer"
+                                className="px-5 h-9 bg-[#0078d4] hover:bg-[#006cbf] disabled:opacity-50 text-white font-medium text-[12px] rounded-none transition-all flex items-center gap-2 cursor-pointer"
                             >
                                 {savingSmtp ? 'Saving...' : 'Save Configuration'}
                             </button>
@@ -752,7 +755,7 @@ export function EmailTemplatesTab() {
             >
                 <div className="space-y-5">
                     <div className="flex justify-end">
-                        <label className="flex items-center gap-2 px-3 h-8 hover:bg-surface-100 text-surface-600 cursor-pointer transition-colors border border-surface-200 bg-white rounded-sm tracking-[-0.005em] text-[12px] font-medium">
+                        <label className="flex items-center gap-2 px-3 h-8 hover:bg-surface-100 text-surface-600 cursor-pointer transition-colors border border-surface-200 bg-white dark:bg-slate-900 rounded-none tracking-[-0.005em] text-[12px] font-medium">
                             <Mail size={14} />
                             Import .MSG file
                             <input type="file" accept=".msg" onChange={handleMsgImport} className="hidden" />
@@ -765,7 +768,7 @@ export function EmailTemplatesTab() {
                             <input
                                 value={form.name}
                                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-sm text-sm font-medium focus:bg-white focus:border-[#0078d4] transition-all outline-none tracking-[-0.005em]"
+                                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-none text-sm font-medium focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none tracking-[-0.005em]"
                                 placeholder="e.g. PEME medical"
                             />
                         </div>
@@ -774,7 +777,7 @@ export function EmailTemplatesTab() {
                             <select
                                 value={form.type}
                                 onChange={e => setForm(f => ({ ...f, type: e.target.value as TemplateType }))}
-                                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-sm text-[12.5px] font-medium transition-all outline-none cursor-pointer tracking-[-0.005em]"
+                                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-none text-[12.5px] font-medium transition-all outline-none cursor-pointer tracking-[-0.005em]"
                             >
                                 {TEMPLATE_TYPES.map(t => (
                                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -788,8 +791,18 @@ export function EmailTemplatesTab() {
                         <input
                             value={form.subject}
                             onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-                            className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-sm text-sm font-medium focus:bg-white focus:border-[#0078d4] transition-all outline-none tracking-[-0.005em]"
+                            className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-none text-sm font-medium focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none tracking-[-0.005em]"
                             placeholder="Email subject"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-[11.5px] font-semibold text-surface-600 tracking-[-0.005em]">CC Emails (comma-separated)</label>
+                        <input
+                            value={form.cc_emails}
+                            onChange={e => setForm(f => ({ ...f, cc_emails: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-none text-sm font-medium focus:bg-white dark:bg-slate-900 focus:border-[#0078d4] transition-all outline-none tracking-[-0.005em]"
+                            placeholder="e.g. manager@example.com, hr@example.com"
                         />
                     </div>
 
@@ -807,14 +820,14 @@ export function EmailTemplatesTab() {
                             )}
                         </div>
 
-                        <div className="p-3 bg-surface-50 border border-surface-200 rounded-sm">
+                        <div className="p-3 bg-surface-50 border border-surface-200 rounded-none">
                             <p className="text-[10.5px] font-medium text-surface-500 mb-2 italic tracking-[-0.005em]">Click to insert tag at cursor:</p>
                             <div className="flex flex-wrap gap-1.5">
                                 {PLACEHOLDERS.map(p => (
                                     <button
                                         key={p.tag}
                                         onClick={() => insertPlaceholder(p.tag)}
-                                        className="px-2 py-1 bg-white border border-surface-200 text-[10.5px] font-medium text-surface-700 hover:border-[#0078d4] hover:text-[#0078d4] transition-all rounded-sm tracking-[-0.005em]"
+                                        className="px-2 py-1 bg-white dark:bg-slate-900 border border-surface-200 text-[10.5px] font-medium text-surface-700 hover:border-[#0078d4] hover:text-[#0078d4] transition-all rounded-none tracking-[-0.005em]"
                                         title={p.desc}
                                     >
                                         {p.tag}
@@ -824,7 +837,7 @@ export function EmailTemplatesTab() {
                         </div>
 
                         {isHtmlBody && previewMode ? (
-                            <div className="w-full border border-surface-200 bg-white rounded-sm overflow-hidden" style={{ height: '300px' }}>
+                            <div className="w-full border border-surface-200 bg-white dark:bg-slate-900 rounded-none overflow-hidden" style={{ height: '300px' }}>
                                 <iframe srcDoc={form.body} title="Preview" className="w-full h-full" />
                             </div>
                         ) : (
@@ -832,13 +845,13 @@ export function EmailTemplatesTab() {
                                 value={form.body}
                                 onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
                                 rows={10}
-                                className="w-full p-4 bg-white border border-surface-200 rounded-sm text-sm leading-relaxed font-normal focus:border-[#0078d4] transition-all outline-none resize-none font-mono tracking-[-0.005em]"
+                                className="w-full p-4 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-sm leading-relaxed font-normal focus:border-[#0078d4] transition-all outline-none resize-none font-mono tracking-[-0.005em]"
                                 placeholder="Compose your email message..."
                             />
                         )}
                     </div>
 
-                    <div className="p-4 bg-amber-50 border border-amber-200 flex items-start gap-3 rounded-sm">
+                    <div className="p-4 bg-amber-50 border border-amber-200 flex items-start gap-3 rounded-none">
                         <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
                         <p className="text-[11.5px] font-medium text-amber-900 leading-relaxed tracking-[-0.005em]">
                             Changes take effect immediately. All upcoming automated emails for this category will use this template.
@@ -848,14 +861,14 @@ export function EmailTemplatesTab() {
                     <div className="pt-4 border-t border-surface-100 flex items-center justify-end gap-3">
                         <button
                             onClick={() => setModal(null)}
-                            className="px-4 h-8 text-[12px] font-medium text-surface-600 hover:text-surface-900 hover:bg-surface-50 transition-all rounded-sm border border-surface-200 tracking-[-0.005em]"
+                            className="px-4 h-8 text-[12px] font-medium text-surface-600 hover:text-surface-900 hover:bg-surface-50 transition-all rounded-none border border-surface-200 tracking-[-0.005em]"
                         >
                             Discard
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={isSaving || !form.name || !form.subject || !form.body}
-                            className="px-4 h-8 bg-[#0078d4] text-white font-medium text-[12px] tracking-[-0.005em] transition-all disabled:opacity-50 flex items-center gap-2 rounded-sm hover:bg-[#006cbf]"
+                            className="px-4 h-8 bg-[#0078d4] text-white font-medium text-[12px] tracking-[-0.005em] transition-all disabled:opacity-50 flex items-center gap-2 rounded-none hover:bg-[#006cbf]"
                         >
                             {isSaving ? 'Processing...' : (
                                 <>

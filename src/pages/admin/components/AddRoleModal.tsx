@@ -14,6 +14,7 @@ const ALLMIND_COLORS: Array<{ key: ColorKey; label: string; bg: string; border: 
     { key: 'recruiter_a', label: 'Amber Synapse', bg: 'bg-amber-900', border: 'border-amber-500', glow: '#f59e0b' },
     { key: 'recruiter_jc', label: 'Rose Cortex', bg: 'bg-rose-900', border: 'border-rose-500', glow: '#f43f5e' },
     { key: 'recruiter_interviewer', label: 'Teal Circuit', bg: 'bg-teal-900', border: 'border-teal-500', glow: '#14b8a6' },
+    { key: 'recruiter_supervisor', label: 'Orange Nexus', bg: 'bg-orange-900', border: 'border-orange-500', glow: '#f97316' },
 ];
 
 interface AddRoleModalProps {
@@ -99,10 +100,10 @@ export function AddRoleModal({
                 exit={{ opacity: 0, scale: 0.97, y: 4 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
                 className={cn(
-                    "w-full max-w-[480px] border shadow-xl rounded-sm",
+                    "w-full max-w-[480px] border shadow-xl rounded-none",
                     allMindMode
                         ? "bg-[#0b0f19] border-emerald-500/30 text-emerald-400"
-                        : "bg-white border-surface-200"
+                        : "bg-white dark:bg-slate-900 border-surface-200"
                 )}
                 onClick={e => e.stopPropagation()}
             >
@@ -111,7 +112,7 @@ export function AddRoleModal({
                     allMindMode ? "border-emerald-500/20" : "border-surface-200"
                 )}>
                     <div className={cn(
-                        "w-7 h-7 rounded-sm flex items-center justify-center shrink-0",
+                        "w-7 h-7 rounded-none flex items-center justify-center shrink-0",
                         allMindMode ? "bg-emerald-600 shadow-[0_0_8px_#10b981]" : "bg-surface-900"
                     )}>
                         <Plus size={13} className="text-white" strokeWidth={2.25} />
@@ -148,14 +149,14 @@ export function AddRoleModal({
                             maxLength={48}
                             placeholder={allMindMode ? "e.g. Cortex Validator" : "e.g. Senior Validator"}
                             className={cn(
-                                "w-full px-3 h-8 border rounded-sm text-[12px] font-medium focus:outline-none focus:ring-1 transition-all",
+                                "w-full px-3 h-8 border rounded-none text-[12px] font-medium focus:outline-none focus:ring-1 transition-all",
                                 addRoleError
                                     ? allMindMode
                                         ? "border-rose-500/50 bg-rose-950/20 text-rose-400 placeholder-rose-800 focus:border-rose-500 focus:ring-rose-500/20"
-                                        : "border-rose-300 bg-white text-surface-900 placeholder-surface-400 focus:border-rose-500 focus:ring-rose-200"
+                                        : "border-rose-300 bg-white dark:bg-slate-900 text-surface-900 placeholder-surface-400 focus:border-rose-500 focus:ring-rose-200"
                                     : allMindMode
                                         ? "bg-black border-emerald-500/20 text-emerald-400 placeholder-emerald-800 font-mono focus:border-emerald-500 focus:ring-emerald-500/20"
-                                        : "bg-white border-surface-200 text-surface-900 placeholder-surface-400 focus:border-[#0078d4] focus:ring-[#0078d4]/20"
+                                        : "bg-white dark:bg-slate-900 border-surface-200 text-surface-900 placeholder-surface-400 focus:border-[#0078d4] focus:ring-[#0078d4]/20"
                             )}
                         />
                         {addRoleError && (
@@ -182,10 +183,10 @@ export function AddRoleModal({
                             rows={2}
                             placeholder={allMindMode ? "Primary function of this processing node" : "Description of the role's primary function"}
                             className={cn(
-                                "w-full px-3 py-2 border rounded-sm text-[12px] font-medium focus:outline-none focus:ring-1 transition-all resize-none",
+                                "w-full px-3 py-2 border rounded-none text-[12px] font-medium focus:outline-none focus:ring-1 transition-all resize-none",
                                 allMindMode
                                     ? "bg-black border-emerald-500/20 text-emerald-400 placeholder-emerald-800 font-mono focus:border-emerald-500 focus:ring-emerald-500/20"
-                                    : "bg-white border-surface-200 text-surface-900 placeholder-surface-400 focus:border-[#0078d4] focus:ring-[#0078d4]/20"
+                                    : "bg-white dark:bg-slate-900 border-surface-200 text-surface-900 placeholder-surface-400 focus:border-[#0078d4] focus:ring-[#0078d4]/20"
                             )}
                         />
                         <p className={cn(
@@ -206,10 +207,10 @@ export function AddRoleModal({
                             value={newRoleType}
                             onChange={e => setNewRoleType(e.target.value)}
                             className={cn(
-                                "w-full px-2.5 h-8 border rounded-sm text-[11px] font-semibold focus:outline-none transition-all",
+                                "w-full px-2.5 h-8 border rounded-none text-[11px] font-semibold focus:outline-none transition-all",
                                 allMindMode
                                     ? "bg-black border-emerald-500/20 text-emerald-400 font-mono focus:border-emerald-500"
-                                    : "bg-white border-surface-200 text-surface-800 focus:border-[#0078d4]"
+                                    : "bg-white dark:bg-slate-900 border-surface-200 text-surface-800 focus:border-[#0078d4]"
                             )}
                         >
                             {allMindMode ? (
@@ -236,10 +237,10 @@ export function AddRoleModal({
                             value={newRoleBaseCopy}
                             onChange={e => setNewRoleBaseCopy(e.target.value as UserRole)}
                             className={cn(
-                                "w-full px-2.5 h-8 border rounded-sm text-[11px] font-semibold focus:outline-none transition-all",
+                                "w-full px-2.5 h-8 border rounded-none text-[11px] font-semibold focus:outline-none transition-all",
                                 allMindMode
                                     ? "bg-black border-emerald-500/20 text-emerald-400 font-mono focus:border-emerald-500"
-                                    : "bg-white border-surface-200 text-surface-800 focus:border-[#0078d4]"
+                                    : "bg-white dark:bg-slate-900 border-surface-200 text-surface-800 focus:border-[#0078d4]"
                             )}
                         >
                             {activeRoles.map(role => (
@@ -265,7 +266,7 @@ export function AddRoleModal({
                                             onClick={() => setNewRoleColor(opt.key)}
                                             title={opt.label}
                                             className={cn(
-                                                "w-7 h-7 rounded-sm flex items-center justify-center transition-all border",
+                                                "w-7 h-7 rounded-none flex items-center justify-center transition-all border",
                                                 opt.bg,
                                                 isActive
                                                     ? `${opt.border} ring-2 ring-offset-1 ring-offset-[#0b0f19] ring-emerald-500 shadow-[0_0_6px_${opt.glow}]`
@@ -286,7 +287,7 @@ export function AddRoleModal({
                                             onClick={() => setNewRoleColor(opt.key)}
                                             title={opt.label}
                                             className={cn(
-                                                "w-7 h-7 rounded-sm flex items-center justify-center transition-all border",
+                                                "w-7 h-7 rounded-none flex items-center justify-center transition-all border",
                                                 isActive
                                                     ? `${swatch.bg} ${swatch.border} ring-2 ring-offset-1 ring-[#0078d4]`
                                                     : `${swatch.bg} border-surface-200 hover:border-surface-300`
@@ -307,10 +308,10 @@ export function AddRoleModal({
                     <button
                         onClick={onClose}
                         className={cn(
-                            "px-3 h-7 text-[11px] font-semibold transition-all rounded-sm",
+                            "px-3 h-7 text-[11px] font-semibold transition-all rounded-none",
                             allMindMode
                                 ? "text-emerald-500 bg-black border border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-950/20"
-                                : "text-surface-600 bg-white border border-surface-200 hover:border-surface-300 hover:bg-surface-50"
+                                : "text-surface-600 bg-white dark:bg-slate-900 border border-surface-200 hover:border-surface-300 hover:bg-surface-50"
                         )}
                     >
                         Cancel
@@ -318,7 +319,7 @@ export function AddRoleModal({
                     <button
                         onClick={handleCreate}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 h-7 text-[11px] font-semibold tracking-[-0.005em] transition-all rounded-sm",
+                            "flex items-center gap-1.5 px-3 h-7 text-[11px] font-semibold tracking-[-0.005em] transition-all rounded-none",
                             allMindMode
                                 ? "bg-emerald-600 text-neutral-950 hover:bg-emerald-500 shadow-[0_0_10px_#10b981]"
                                 : "bg-black text-white hover:bg-black/85"

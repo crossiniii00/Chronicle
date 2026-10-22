@@ -1,5 +1,6 @@
 const COOLDOWN_KEY = 'applicant_cooldowns';
 const ATTEMPTS_KEY = 'typing_attempts_log';
+const HISTORY_KEY = 'typing_attempts_history';
 
 export interface CooldownEntry {
     name: string;
@@ -12,25 +13,51 @@ export interface AttemptLog {
     lastAttemptAt: string;
 }
 
+export interface AttemptHistoryLog {
+    name: string;
+    lockedAt: string;
+    unlockedAt: string;
+    reason: 'expired' | 'manual_lift';
+}
+
 export const cooldownService = {
     // Cooldown management
+    cleanupExpiredCooldowns: (): void => {
+        const cooldowns = cooldownService._getCooldowns();
+        const now = new Date();
+        let changed = false;
+
+        const active = cooldowns.filter(entry => {
+            if (now > new Date(entry.expiresAt)) {
+                // Expired, move to history
+                cooldownService._addHistoryLog({
+                    name: entry.name,
+                    lockedAt: new Date(new Date(entry.expiresAt).getTime() - 12 * 60 * 60 * 1000).toISOString(),
+                    unlockedAt: entry.expiresAt, // Unlocked exactly when it expired
+                    reason: 'expired'
+                });
+                changed = true;
+                return false; // Remove from active
+            }
+            return true;
+        });
+
+        if (changed) {
+            localStorage.setItem(COOLDOWN_KEY, JSON.stringify(active));
+        }
+    },
+
     isNameOnCooldown: (name: string): boolean => {
+        cooldownService.cleanupExpiredCooldowns();
         const cooldowns = cooldownService._getCooldowns();
         const entry = cooldowns.find(c => c.name.toLowerCase() === name.toLowerCase());
-        if (!entry) return false;
-
-        const isExpired = new Date() > new Date(entry.expiresAt);
-        if (isExpired) {
-            cooldownService._removeCooldown(name);
-            return false;
-        }
-        return true;
+        return !!entry;
     },
 
     addNameToCooldown: (name: string): void => {
         const cooldowns = cooldownService._getCooldowns();
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 1); // 24 hour cooldown
+        expiresAt.setHours(expiresAt.getHours() + 12); // 12 hour cooldown
 
         const filtered = cooldowns.filter(c => c.name.toLowerCase() !== name.toLowerCase());
         filtered.push({ name, expiresAt: expiresAt.toISOString() });
@@ -82,14 +109,36 @@ export const cooldownService = {
         localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(filtered));
     },
 
+    setAttempts: (name: string, count: number): void => {
+        const logs = cooldownService._getAttemptLogs();
+        const idx = logs.findIndex(l => l.name.toLowerCase() === name.toLowerCase());
+        if (idx !== -1) {
+            logs[idx] = { name, attempts: count, lastAttemptAt: new Date().toISOString() };
+        } else {
+            logs.push({ name, attempts: count, lastAttemptAt: new Date().toISOString() });
+        }
+        localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(logs));
+    },
+
     // Internals
     _getCooldowns: (): CooldownEntry[] => {
         const raw = localStorage.getItem(COOLDOWN_KEY);
         return raw ? JSON.parse(raw) : [];
     },
 
-    _removeCooldown: (name: string): void => {
+    _removeCooldown: (name: string, isManualLift: boolean = false): void => {
         const cooldowns = cooldownService._getCooldowns();
+        const entry = cooldowns.find(c => c.name.toLowerCase() === name.toLowerCase());
+        
+        if (entry && isManualLift) {
+            cooldownService._addHistoryLog({
+                name: entry.name,
+                lockedAt: new Date(new Date(entry.expiresAt).getTime() - 12 * 60 * 60 * 1000).toISOString(),
+                unlockedAt: new Date().toISOString(),
+                reason: 'manual_lift'
+            });
+        }
+
         const filtered = cooldowns.filter(c => c.name.toLowerCase() !== name.toLowerCase());
         localStorage.setItem(COOLDOWN_KEY, JSON.stringify(filtered));
     },
@@ -97,5 +146,16 @@ export const cooldownService = {
     _getAttemptLogs: (): AttemptLog[] => {
         const raw = localStorage.getItem(ATTEMPTS_KEY);
         return raw ? JSON.parse(raw) : [];
+    },
+
+    _getHistoryLogs: (): AttemptHistoryLog[] => {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+    },
+
+    _addHistoryLog: (log: AttemptHistoryLog): void => {
+        const history = cooldownService._getHistoryLogs();
+        history.unshift(log); // Add to beginning
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
     }
 };

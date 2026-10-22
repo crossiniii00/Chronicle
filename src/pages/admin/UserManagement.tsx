@@ -19,7 +19,7 @@ interface RecruiterMetadata {
     initial_interview_results?: string;
     initial_interview_result?: string;
     'Initial Interview Result'?: string;
-    endorsed_to_recruiter_s?: boolean | string;
+
     last_updated_by?: string;
     [key: string]: unknown;
 }
@@ -31,6 +31,7 @@ export function UserManagement() {
         activeTab, setActiveTab,
         roleFilter, setRoleFilter,
         accountFilter, setAccountFilter,
+        statusFilter, setStatusFilter,
         modal, setModal,
         deleteConfirm, setDeleteConfirm,
         form, setForm,
@@ -50,10 +51,11 @@ export function UserManagement() {
         handleDelete,
         departments,
         passwordConfirmOpen,
-        setPasswordConfirmOpen
+        setPasswordConfirmOpen,
+        formError
     } = useUserManagement();
 
-    const { getLabel, activeRoles } = useAccountTypeSettings();
+    const { getLabel, activeRoles, getRoleType } = useAccountTypeSettings();
     const selectableRoles: UserRole[] = activeRoles;
 
     const [selectedRecruiterForDashboard, setSelectedRecruiterForDashboard] = React.useState<ManagedUser | null>(null);
@@ -158,10 +160,8 @@ export function UserManagement() {
         }).length;
 
         const endorsed = filteredRecruiterApps.filter(a => {
-            const p = (a.pis || a.metadata || {}) as RecruiterMetadata;
-            const isExplicitlyEndorsed = a.endorsed_to_recruiter_s === true || p.endorsed_to_recruiter_s === true || p.endorsed_to_recruiter_s === 'true';
             const hasEndorsedStatus = ['ENDORSED', 'PASSED', 'HIRED', 'HIRED_PROCESSED', 'For Job Offer', 'FOR_JOB_OFFER', 'ACCEPTED_OFFER', 'ACCEPTED OFFER'].includes(a.current_status);
-            return isExplicitlyEndorsed || hasEndorsedStatus;
+            return hasEndorsedStatus;
         }).length;
 
         const hired = filteredRecruiterApps.filter(a => {
@@ -179,89 +179,83 @@ export function UserManagement() {
     }, [filteredRecruiterApps]);
 
     const renderAssignedAccountField = () => {
-        if (form.role.startsWith('recruiter')) return null;
+        if (getRoleType(form.role) !== 'ops_validator') return null;
 
-        if (form.role === 'ops_validator') {
-            const selectedDepts = form.department
-                ? form.department.split(',').map((d: string) => d.trim()).filter(Boolean)
-                : [];
-            const availableDepts = departments.filter(d => !selectedDepts.includes(d.name));
+        const isSupportDept = (name: string) => {
+            const dept = departments.find(d => d.name === name);
+            if (dept?.type) return dept.type === 'SUPPORT_ROLES';
+            const lower = name.toLowerCase().trim();
+            return ['admin', 'hr', 'support', 'recruitment', 'it', 'facilities', 'finance', 'human resources', 'engagement', 'operations', 'safety', 'security', 'ta', 'training', 'workforce', 'managerial position', 'safety officer', 'team leader intern', 'team leader position', 'support and leadership', 'revenue & invoicing', 'quality assurance', 'training & development', 'engagement & social media', 'it department', 'client engagement & asset control', 'process optimization'].includes(lower) || lower.includes('support');
+        };
 
-            return (
-                <div className="text-left space-y-2">
-                    <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Assigned Accounts</label>
-                    <div className="flex gap-2 text-left">
-                        <div className="relative flex-1 text-left">
-                            <select 
-                                value={selectedTempDept} 
-                                onChange={e => setSelectedTempDept(e.target.value)}
-                                className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-xs font-semibold text-surface-800 appearance-none cursor-pointer focus:outline-none focus:border-primary-500 shadow-sm text-left"
-                            >
-                                <option value="">Select Account to Add...</option>
-                                {availableDepts.map(dept => (
-                                    <option key={dept.id} value={dept.name}>{dept.name}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 text-left">
-                                <Building size={14} />
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleAddDepartment}
-                            disabled={!selectedTempDept}
-                            className="px-3 py-2.5 bg-primary-600 text-white rounded-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm flex items-center justify-center cursor-pointer"
-                        >
-                            <Plus size={16} />
-                        </button>
-                    </div>
-
-                    {selectedDepts.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                            {selectedDepts.map((deptName: string) => (
-                                <span 
-                                    key={deptName} 
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface-100 border border-surface-200 text-surface-700 text-[10px] font-bold uppercase rounded-full shadow-sm"
-                                >
-                                    {deptName}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveDepartment(deptName)}
-                                        className="text-surface-400 hover:text-red-500 focus:outline-none cursor-pointer"
-                                    >
-                                        <X size={10} />
-                                    </button>
-                                </span>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-[10px] text-surface-400 italic">No accounts assigned (General Pool)</p>
-                    )}
-                </div>
-            );
-        }
+        const selectedDepts = form.department
+            ? form.department.split(',').map((d: string) => d.trim()).filter(Boolean)
+            : [];
+        const availableDepts = departments.filter(d => !selectedDepts.includes(d.name));
+        const supportDepts = availableDepts.filter(d => isSupportDept(d.name));
+        const accountDepts = availableDepts.filter(d => !isSupportDept(d.name));
 
         return (
-            <div className="text-left">
-                <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Assigned Account</label>
-                <div className="relative text-left">
-                    <select 
-                        value={form.department || ''} 
-                        onChange={e => setForm(f => ({ ...f, department: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-xs font-semibold text-surface-800 appearance-none cursor-pointer focus:outline-none focus:border-primary-500 shadow-sm text-left"
-                    >
-                        <option value="">Unassigned / General Pool</option>
-                        {form.department && !departments.some(d => d.name === form.department) && (
-                            <option value={form.department}>{form.department}</option>
-                        )}
-                        {departments.map(dept => (
-                            <option key={dept.id} value={dept.name}>{dept.name}</option>
-                        ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 text-left">
-                        <Building size={14} />
+            <div className="text-left space-y-2">
+                <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Assigned Accounts / Support & Leadership</label>
+                <div className="flex gap-2 text-left">
+                    <div className="relative flex-1 text-left">
+                        <select
+                            value={selectedTempDept}
+                            onChange={e => setSelectedTempDept(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-xs font-semibold text-surface-800 appearance-none cursor-pointer focus:outline-none focus:border-primary-500 shadow-sm text-left"
+                        >
+                            <option value="">Select Account / Support & Leadership...</option>
+                            {accountDepts.length > 0 && (
+                                <optgroup label="Accounts">
+                                    {accountDepts.map(dept => (
+                                        <option key={dept.id} value={dept.name}>{dept.name}</option>
+                                    ))}
+                                </optgroup>
+                            )}
+                            {supportDepts.length > 0 && (
+                                <optgroup label="Support Hiring Roles">
+                                    {supportDepts.map(dept => (
+                                        <option key={dept.id} value={dept.name}>{dept.name}</option>
+                                    ))}
+                                </optgroup>
+                            )}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 text-left">
+                            <Building size={14} />
+                        </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={handleAddDepartment}
+                        disabled={!selectedTempDept}
+                        className="px-3 py-2.5 bg-primary-600 text-white rounded-none hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm flex items-center justify-center cursor-pointer"
+                    >
+                        <Plus size={16} />
+                    </button>
                 </div>
+
+                {selectedDepts.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                        {selectedDepts.map((deptName: string) => (
+                            <span
+                                key={deptName}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface-100 border border-surface-200 text-surface-700 text-[10px] font-bold uppercase rounded-none shadow-sm"
+                            >
+                                {deptName}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveDepartment(deptName)}
+                                    className="text-surface-400 hover:text-red-500 focus:outline-none cursor-pointer"
+                                >
+                                    <X size={10} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-[10px] text-surface-400 italic">No accounts or support & leadership roles assigned (General Pool)</p>
+                )}
             </div>
         );
     };
@@ -298,17 +292,18 @@ export function UserManagement() {
                         showRoleFilter={activeTab === 'RECRUITERS'}
                         accountFilter={accountFilter}
                         onAccountFilterChange={setAccountFilter}
+                        statusFilter={statusFilter}
+                        onStatusFilterChange={setStatusFilter}
                         departments={departments}
                         activeTab={activeTab}
                     />
-
                     <UserTable
                         users={filteredUsers}
                         onToggleActive={toggleActive}
                         onEdit={openEditModal}
                         onDelete={setDeleteConfirm}
                         onViewDashboard={setSelectedRecruiterForDashboard}
-                        groupBy={activeTab === 'VALIDATORS' ? 'department' : undefined}
+                        groupBy="department"
                         departments={departments}
                     />
                 </div>
@@ -316,29 +311,39 @@ export function UserManagement() {
 
             {/* Create User Modal */}
             <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Provision new identity" size="md" closeOnOverlayClick={false}>
-                <div className="space-y-6 text-left">
-                    <div className="space-y-4 text-left">
-                        <div className="flex items-center gap-2 mb-2 text-left">
-                            <span className="w-1 h-3 bg-primary-600 rounded-full" />
-                            <h3 className="text-[11px] font-semibold text-surface-900 uppercase tracking-wider text-left">Personal information</h3>
+                <div className="space-y-6 text-left pb-2">
+                    <div className="space-y-5 text-left">
+                        <div className="flex items-center gap-2.5 mb-2 text-left">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-md bg-blue-50 border border-blue-100 text-blue-600">
+                                <UserIcon size={12} />
+                            </div>
+                            <h3 className="text-[13px] font-extrabold text-surface-900 uppercase tracking-[0.15em] text-left">Personal Information</h3>
                         </div>
 
-                        <div className="flex flex-col items-center justify-center mb-6 pb-4 border-b border-surface-100">
-                            <div className="relative group/avatar cursor-pointer w-20 h-20 rounded-full border border-surface-200 shadow-sm flex items-center justify-center bg-surface-50 overflow-hidden transition-all hover:border-[#0078d4]">
+                        {formError && (
+                            <div className="p-3.5 bg-red-50/80 border border-red-200/80 text-red-700 text-[13px] font-semibold rounded-lg animate-fade-in flex items-start gap-2.5 shadow-sm backdrop-blur-sm">
+                                <span className="mt-0.5 text-red-500"><X size={14} strokeWidth={3} /></span>
+                                {formError}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col items-center justify-center mb-8 pb-6 border-b border-surface-100/60 relative">
+                            <div className="absolute inset-0 bg-gradient-to-b from-blue-50/30 to-transparent pointer-events-none rounded-t-xl -z-10" />
+                            <div className="relative group/avatar cursor-pointer w-24 h-24 rounded-full border-[3px] border-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] flex items-center justify-center bg-gradient-to-br from-surface-50 to-surface-100 overflow-hidden transition-all duration-300 hover:shadow-[0_8px_25px_-5px_rgba(0,120,212,0.25)] hover:border-blue-100 hover:scale-105">
                                 {form.avatar_data ? (
                                     <img src={form.avatar_data} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="text-xl font-black text-surface-400 uppercase">
-                                        {form.full_name ? form.full_name.charAt(0) : <UserIcon size={24} />}
+                                    <span className="text-2xl font-black text-surface-400 uppercase tracking-tighter">
+                                        {form.full_name ? form.full_name.charAt(0) : <UserIcon size={28} strokeWidth={2.5} />}
                                     </span>
                                 )}
-                                <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity text-[8px] font-black uppercase tracking-wider">
-                                    <Camera size={14} className="mb-0.5" />
+                                <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover/avatar:opacity-100 transition-all duration-300 backdrop-blur-sm text-[9px] font-black uppercase tracking-widest cursor-pointer">
+                                    <Camera size={18} className="mb-1 opacity-90" />
                                     Upload
-                                    <input 
-                                        type="file" 
-                                        accept="image/png,image/jpeg,image/webp" 
-                                        className="hidden" 
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        className="hidden"
                                         onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
@@ -352,34 +357,34 @@ export function UserManagement() {
                                     />
                                 </label>
                             </div>
-                            <p className="text-[9px] font-bold text-surface-400 uppercase tracking-widest mt-2">Identity Portrait</p>
+                            <p className="text-[10px] font-bold text-surface-500 uppercase tracking-[0.2em] mt-4">Identity Portrait</p>
                         </div>
 
-                        <div className="text-left">
-                            <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Full legal name</label>
+                        <div className="text-left space-y-1.5">
+                            <label className="block text-[13px] font-bold text-surface-700 text-left">Full legal name</label>
                             <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                                 placeholder="e.g. John Doe"
-                                className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all placeholder:text-surface-300 shadow-sm text-left" />
+                                className="w-full px-4 py-3 bg-surface-50/50 border border-surface-200 rounded-lg text-sm font-semibold text-surface-900 focus:bg-white focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-surface-400 placeholder:font-medium shadow-sm text-left" />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                            <div className="text-left">
-                                <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Primary auth email</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
+                            <div className="text-left space-y-1.5">
+                                <label className="block text-[13px] font-bold text-surface-700 text-left">Primary auth email</label>
                                 <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                                     placeholder="john.doe@company.com"
-                                    className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all placeholder:text-surface-300 shadow-sm text-left" />
+                                    className="w-full px-4 py-3 bg-surface-50/50 border border-surface-200 rounded-lg text-sm font-semibold text-surface-900 focus:bg-white focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-surface-400 placeholder:font-medium shadow-sm text-left" />
                             </div>
-                            <div className="text-left">
-                                <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Auth tier role</label>
-                                <div className="relative text-left">
-                                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
-                                    className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-xs font-semibold text-surface-800 appearance-none cursor-pointer focus:outline-none focus:border-primary-500 shadow-sm text-left">
-                                    {selectableRoles.map(role => (
-                                        <option key={role} value={role}>{getLabel(role)}</option>
-                                    ))}
-                                </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 text-left">
-                                        <Filter size={12} />
+                            <div className="text-left space-y-1.5">
+                                <label className="block text-[13px] font-bold text-surface-700 text-left">Auth tier role</label>
+                                <div className="relative text-left group">
+                                    <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
+                                        className="w-full px-4 py-3 bg-surface-50/50 border border-surface-200 rounded-lg text-[13px] font-bold text-surface-800 appearance-none cursor-pointer focus:bg-white focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm text-left hover:border-surface-300">
+                                        {selectableRoles.map(role => (
+                                            <option key={role} value={role}>{getLabel(role)}</option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 group-hover:text-surface-600 transition-colors">
+                                        <Filter size={14} />
                                     </div>
                                 </div>
                             </div>
@@ -388,59 +393,66 @@ export function UserManagement() {
                         {renderAssignedAccountField()}
                     </div>
 
-                    <div className="space-y-4 pt-2 text-left">
-                        <div className="flex items-center gap-2 mb-2 text-left">
-                            <span className="w-1 h-3 bg-primary-600 rounded-full text-left" />
-                            <h3 className="text-[11px] font-semibold text-surface-900 uppercase tracking-wider text-left">Access credentials</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                            <div className="relative text-left">
-                                <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Backend auth password</label>
-                                <input
-                                    key="provision-password-input"
-                                    id="provision-password"
-                                    name="provision-password"
-                                    type={showProvisionPw ? 'text' : 'password'}
-                                    value={form.password}
-                                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                                    placeholder="••••••••"
-                                    autoComplete="new-password"
-                                    className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all pr-10 shadow-sm text-left"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowProvisionPw(!showProvisionPw)}
-                                    className="absolute right-3 top-[34px] text-surface-400 hover:text-primary-600"
-                                >
-                                    {showProvisionPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
+                    <div className="space-y-5 pt-4 text-left">
+                        <div className="flex items-center gap-2.5 mb-2 text-left">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-md bg-amber-50 border border-amber-100 text-amber-600">
+                                <Lock size={12} />
                             </div>
-                            <div className="relative text-left">
-                                <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Confirm password</label>
-                                <input
-                                    key="provision-confirm-password-input"
-                                    id="provision-confirm-password"
-                                    name="provision-confirm-password"
-                                    type={showProvisionConfirmPw ? 'text' : 'password'}
-                                    value={form.confirmPassword}
-                                    onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                                    placeholder="••••••••"
-                                    autoComplete="new-password"
-                                    className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all pr-10 shadow-sm text-left"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowProvisionConfirmPw(!showProvisionConfirmPw)}
-                                    className="absolute right-3 top-[34px] text-surface-400 hover:text-primary-600"
-                                >
-                                    {showProvisionConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
+                            <h3 className="text-[13px] font-extrabold text-surface-900 uppercase tracking-[0.15em] text-left">Access Credentials</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
+                            <div className="relative text-left space-y-1.5">
+                                <label className="block text-[13px] font-bold text-surface-700 text-left">Backend auth password</label>
+                                <div className="relative">
+                                    <input
+                                        key="provision-password-input"
+                                        id="provision-password"
+                                        name="provision-password"
+                                        type={showProvisionPw ? 'text' : 'password'}
+                                        value={form.password}
+                                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                                        placeholder="••••••••"
+                                        autoComplete="new-password"
+                                        className="w-full px-4 py-3 bg-surface-50/50 border border-surface-200 rounded-lg text-sm font-semibold text-surface-900 focus:bg-white focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all pr-11 shadow-sm text-left placeholder:text-surface-300"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowProvisionPw(!showProvisionPw)}
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-blue-600 transition-colors bg-white p-0.5 rounded"
+                                    >
+                                        {showProvisionPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="relative text-left space-y-1.5">
+                                <label className="block text-[13px] font-bold text-surface-700 text-left">Confirm password</label>
+                                <div className="relative">
+                                    <input
+                                        key="provision-confirm-password-input"
+                                        id="provision-confirm-password"
+                                        name="provision-confirm-password"
+                                        type={showProvisionConfirmPw ? 'text' : 'password'}
+                                        value={form.confirmPassword}
+                                        onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                                        placeholder="••••••••"
+                                        autoComplete="new-password"
+                                        className="w-full px-4 py-3 bg-surface-50/50 border border-surface-200 rounded-lg text-sm font-semibold text-surface-900 focus:bg-white focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all pr-11 shadow-sm text-left placeholder:text-surface-300"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowProvisionConfirmPw(!showProvisionConfirmPw)}
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-blue-600 transition-colors bg-white p-0.5 rounded"
+                                    >
+                                        {showProvisionConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div className="flex justify-end gap-3 pt-8 border-t border-surface-100">
-                        <button onClick={() => setModal(null)} className="px-6 py-2.5 bg-white border border-surface-200 text-surface-600 font-semibold text-[10px] uppercase tracking-wider rounded-sm hover:bg-surface-50 transition-all shadow-sm">Cancel</button>
-                        <button onClick={handleCreate} className="px-8 py-2.5 bg-primary-600 text-white font-semibold text-[10px] uppercase tracking-wider rounded-sm hover:bg-primary-700 transition-all shadow-lg active:scale-95">Provision identity</button>
+
+                    <div className="flex justify-end gap-3.5 pt-8 mt-4 border-t border-surface-100/80">
+                        <button onClick={() => setModal(null)} className="px-6 py-2.5 bg-white border border-surface-200 text-surface-600 font-bold text-[11px] uppercase tracking-widest rounded-lg hover:bg-surface-50 hover:text-surface-900 transition-all shadow-sm">Cancel</button>
+                        <button onClick={handleCreate} className="px-8 py-2.5 bg-blue-600 text-white font-bold text-[11px] uppercase tracking-widest rounded-lg hover:bg-blue-700 hover:shadow-[0_4px_15px_-3px_rgba(37,99,235,0.4)] active:scale-[0.98] transition-all shadow-sm">Provision Identity</button>
                     </div>
                 </div>
             </Modal>
@@ -449,8 +461,14 @@ export function UserManagement() {
             <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Update identity directives" size="md" closeOnOverlayClick={false}>
                 <div className="space-y-6 text-left">
                     <div className="space-y-4 text-left">
+                        {formError && (
+                            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-none animate-fade-in flex items-start gap-2">
+                                <span className="mt-0.5"><X size={14} /></span>
+                                {formError}
+                            </div>
+                        )}
                         <div className="flex flex-col items-center justify-center mb-6 pb-4 border-b border-surface-100">
-                            <div className="relative group/avatar cursor-pointer w-20 h-20 rounded-full border border-surface-200 shadow-sm flex items-center justify-center bg-surface-50 overflow-hidden transition-all hover:border-[#0078d4]">
+                            <div className="relative group/avatar cursor-pointer w-20 h-20 rounded-none border border-surface-200 shadow-sm flex items-center justify-center bg-surface-50 overflow-hidden transition-all hover:border-[#0078d4]">
                                 {form.avatar_data ? (
                                     <img src={form.avatar_data} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
@@ -461,10 +479,10 @@ export function UserManagement() {
                                 <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity text-[8px] font-black uppercase tracking-wider">
                                     <Camera size={14} className="mb-0.5" />
                                     Upload
-                                    <input 
-                                        type="file" 
-                                        accept="image/png,image/jpeg,image/webp" 
-                                        className="hidden" 
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        className="hidden"
                                         onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
@@ -484,33 +502,33 @@ export function UserManagement() {
                         <div className="text-left">
                             <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Full legal name</label>
                             <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                                className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all shadow-sm text-left" />
+                                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all shadow-sm text-left" />
                         </div>
                         <div className="text-left">
                             <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Primary auth email</label>
                             <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                                className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all shadow-sm text-left" />
+                                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all shadow-sm text-left" />
                         </div>
                         <div className="text-left">
                             <label className="block text-xs font-semibold text-surface-600 mb-1.5 text-left">Auth tier role</label>
                             <div className="relative text-left">
-                                    <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
-                                        className="w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-xs font-semibold text-surface-800 appearance-none cursor-pointer focus:outline-none focus:border-primary-500 shadow-sm text-left">
-                                        {selectableRoles.map(role => (
-                                            <option key={role} value={role}>{getLabel(role)}</option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 text-left">
-                                        <Filter size={12} />
-                                    </div>
+                                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-xs font-semibold text-surface-800 appearance-none cursor-pointer focus:outline-none focus:border-primary-500 shadow-sm text-left">
+                                    {selectableRoles.map(role => (
+                                        <option key={role} value={role}>{getLabel(role)}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 text-left">
+                                    <Filter size={12} />
                                 </div>
                             </div>
+                        </div>
 
                         {renderAssignedAccountField()}
 
                         <div className="flex items-center justify-between pt-4 pb-2 border-t border-surface-100 text-left">
                             <div className="flex items-center gap-2 text-left">
-                                <span className="w-1.5 h-3 bg-amber-500 rounded-full" />
+                                <span className="w-1.5 h-3 bg-amber-500 rounded-none" />
                                 <span className="text-[11px] font-bold text-surface-900 uppercase tracking-wider">Credential Lock</span>
                             </div>
                             <button
@@ -528,9 +546,9 @@ export function UserManagement() {
                                     }
                                 }}
                                 className={cn(
-                                    "px-2.5 py-1 text-[10px] font-bold uppercase rounded-sm border transition-all cursor-pointer flex items-center gap-1.5",
-                                    isPasswordUnlocked 
-                                        ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" 
+                                    "px-2.5 py-1 text-[10px] font-bold uppercase rounded-none border transition-all cursor-pointer flex items-center gap-1.5",
+                                    isPasswordUnlocked
+                                        ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
                                         : "bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100"
                                 )}
                             >
@@ -547,24 +565,20 @@ export function UserManagement() {
                                     id="edit-password"
                                     name="edit-password"
                                     type={showEditPw ? 'text' : 'password'}
-                                    value={form.password}
+                                    value={form.password || (showEditPw && !isPasswordUnlocked ? '(Hash only - cannot reveal)' : '')}
                                     onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                                     placeholder={isPasswordUnlocked ? "Leave blank to keep current" : "•••••••• (Locked)"}
                                     disabled={!isPasswordUnlocked}
                                     autoComplete="new-password"
                                     className={cn(
-                                        "w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all pr-10 shadow-sm text-left",
+                                        "w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all pr-10 shadow-sm text-left",
                                         !isPasswordUnlocked && "bg-surface-50 text-surface-400 border-surface-200/50 cursor-not-allowed select-none"
                                     )}
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => isPasswordUnlocked && setShowEditPw(!showEditPw)}
-                                    disabled={!isPasswordUnlocked}
-                                    className={cn(
-                                        "absolute right-3 top-[34px] text-surface-400 hover:text-primary-600",
-                                        !isPasswordUnlocked && "cursor-not-allowed text-surface-300"
-                                    )}
+                                    onClick={() => setShowEditPw(!showEditPw)}
+                                    className="absolute right-3 top-[34px] text-surface-400 hover:text-primary-600 cursor-pointer"
                                 >
                                     {showEditPw ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
@@ -576,24 +590,20 @@ export function UserManagement() {
                                     id="edit-confirm-password"
                                     name="edit-confirm-password"
                                     type={showEditConfirmPw ? 'text' : 'password'}
-                                    value={form.confirmPassword}
+                                    value={form.confirmPassword || (showEditConfirmPw && !isPasswordUnlocked ? '(Hash only - cannot reveal)' : '')}
                                     onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
                                     placeholder={isPasswordUnlocked ? "Confirm new password" : "•••••••• (Locked)"}
                                     disabled={!isPasswordUnlocked}
                                     autoComplete="new-password"
                                     className={cn(
-                                        "w-full px-4 py-2.5 bg-white border border-surface-200 rounded-sm text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all pr-10 shadow-sm text-left",
+                                        "w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 rounded-none text-sm font-normal text-surface-900 focus:outline-none focus:border-primary-500 transition-all pr-10 shadow-sm text-left",
                                         !isPasswordUnlocked && "bg-surface-50 text-surface-400 border-surface-200/50 cursor-not-allowed select-none"
                                     )}
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => isPasswordUnlocked && setShowEditConfirmPw(!showEditConfirmPw)}
-                                    disabled={!isPasswordUnlocked}
-                                    className={cn(
-                                        "absolute right-3 top-[34px] text-surface-400 hover:text-primary-600",
-                                        !isPasswordUnlocked && "cursor-not-allowed text-surface-300"
-                                    )}
+                                    onClick={() => setShowEditConfirmPw(!showEditConfirmPw)}
+                                    className="absolute right-3 top-[34px] text-surface-400 hover:text-primary-600 cursor-pointer"
                                 >
                                     {showEditConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
@@ -601,8 +611,8 @@ export function UserManagement() {
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-8 border-t border-surface-100">
-                        <button onClick={() => setModal(null)} className="px-6 py-2.5 bg-white border border-surface-200 text-surface-600 font-semibold text-[10px] uppercase tracking-wider rounded-sm hover:bg-surface-50 transition-all shadow-sm">Cancel</button>
-                        <button onClick={() => handleEdit()} className="px-8 py-2.5 bg-primary-600 text-white font-semibold text-[10px] uppercase tracking-wider rounded-sm hover:bg-primary-700 transition-all shadow-lg active:scale-95">Update identity</button>
+                        <button onClick={() => setModal(null)} className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-surface-200 text-surface-600 font-semibold text-[10px] uppercase tracking-wider rounded-none hover:bg-surface-50 transition-all shadow-sm">Cancel</button>
+                        <button onClick={() => handleEdit()} className="px-8 py-2.5 bg-primary-600 text-white font-semibold text-[10px] uppercase tracking-wider rounded-none hover:bg-primary-700 transition-all shadow-lg active:scale-95">Update identity</button>
                     </div>
                 </div>
             </Modal>
@@ -611,6 +621,7 @@ export function UserManagement() {
             <UserSettingsModal
                 open={showSettings}
                 onClose={() => setShowSettings(false)}
+                onEditUser={(user) => openEditModal(user as ManagedUser)}
             />
 
             {/* Confirm Dialog for Deletion */}
@@ -648,12 +659,12 @@ export function UserManagement() {
                 <div className="flex flex-col items-center text-center p-6 md:p-8">
                     {/* Header: Company Logo & Label */}
                     <div className="flex flex-col items-center justify-center w-full mb-6 pb-4 border-b border-surface-100">
-                        <img src="/contactpoint-full-logo.png" alt="ContactPoint Logo" className="h-8 object-contain mb-2.5" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200/50 px-2.5 py-0.5 rounded">Security Alert Protocol</span>
+                        <img src="/contactpoint-full-logo.png" alt="ContactPoint 360" className="h-8 object-contain mb-2.5" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200/50 px-2.5 py-0.5 rounded-none">Security Alert Protocol</span>
                     </div>
 
                     {/* Warning Graphic */}
-                    <div className="w-14 h-14 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mb-4 animate-pulse">
+                    <div className="w-14 h-14 rounded-none bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mb-4 animate-pulse">
                         <Lock size={22} />
                     </div>
 
@@ -661,14 +672,14 @@ export function UserManagement() {
                     <h3 className="text-base font-bold text-surface-900 tracking-tight mb-2">
                         Unlock Password Directives
                     </h3>
-                    
+
                     {/* Subtitle / Warning Message */}
                     <p className="text-xs text-surface-500 max-w-md mb-6 leading-relaxed">
                         Warning: You are requesting to override the login credentials for <span className="font-semibold text-surface-800">{form.full_name}</span>. Changing user passwords manually can disrupt their active session and client access.
                     </p>
 
                     {/* Action Panel */}
-                    <div className="w-full bg-surface-50 border border-surface-200/50 rounded p-4 mb-6 text-left space-y-1.5 max-w-md">
+                    <div className="w-full bg-surface-50 border border-surface-200/50 rounded-none p-4 mb-6 text-left space-y-1.5 max-w-md">
                         <span className="text-[9px] font-black uppercase tracking-wider text-surface-500">Security Checklist</span>
                         <ul className="text-[10px] text-surface-600 space-y-1 list-disc list-inside">
                             <li>Ensure you have explicit approval.</li>
@@ -682,7 +693,7 @@ export function UserManagement() {
                         <button
                             type="button"
                             onClick={() => setShowUnlockConfirm(false)}
-                            className="px-5 py-2 bg-white border border-surface-200 text-surface-600 font-bold text-[9px] uppercase tracking-wider rounded-sm hover:bg-surface-50 transition-all cursor-pointer shadow-sm"
+                            className="px-5 py-2 bg-white dark:bg-slate-900 border border-surface-200 text-surface-600 font-bold text-[9px] uppercase tracking-wider rounded-none hover:bg-surface-50 transition-all cursor-pointer shadow-sm"
                         >
                             Cancel
                         </button>
@@ -692,7 +703,7 @@ export function UserManagement() {
                                 setShowUnlockConfirm(false);
                                 setIsPasswordUnlocked(true);
                             }}
-                            className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[9px] uppercase tracking-wider rounded-sm transition-all shadow-md active:scale-95 cursor-pointer"
+                            className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[9px] uppercase tracking-wider rounded-none transition-all shadow-md active:scale-95 cursor-pointer"
                         >
                             Unlock Section
                         </button>
@@ -714,17 +725,17 @@ export function UserManagement() {
                 {selectedRecruiterForDashboard && (
                     <div className="space-y-8 text-left">
                         {/* ── 1. CINEMATIC BANNER & IDENTITY PROFILE ── */}
-                        <div className="relative rounded-lg overflow-hidden border border-surface-200 shadow-sm bg-white pb-6">
+                        <div className="relative rounded-none overflow-hidden border border-surface-200 shadow-sm bg-white dark:bg-slate-900 pb-6">
                             {/* Banner Gradient */}
                             <div className="h-32 bg-gradient-to-r from-neutral-900 via-neutral-800 to-black relative">
-                                <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-md border border-white/20 rounded px-2.5 py-1 text-[10px] font-black uppercase text-white tracking-widest">
+                                <div className="absolute top-4 right-4 bg-white/10 dark:bg-slate-900/10 backdrop-blur-md border border-white/20 rounded-none px-2.5 py-1 text-[10px] font-black uppercase text-white tracking-widest">
                                     {getLabel(selectedRecruiterForDashboard.role as UserRole) || selectedRecruiterForDashboard.role}
                                 </div>
                             </div>
-                            
+
                             {/* Overlapping Avatar */}
                             <div className="relative -mt-14 flex flex-col items-center text-center px-6">
-                                <div className="w-24 h-24 rounded-full border-4 border-white bg-surface-50 flex items-center justify-center overflow-hidden shadow-md">
+                                <div className="w-24 h-24 rounded-none border-4 border-white bg-surface-50 flex items-center justify-center overflow-hidden shadow-md">
                                     {selectedRecruiterForDashboard.avatar_data ? (
                                         <img src={selectedRecruiterForDashboard.avatar_data} alt="Avatar" className="w-full h-full object-cover" />
                                     ) : (
@@ -733,15 +744,15 @@ export function UserManagement() {
                                         </span>
                                     )}
                                 </div>
-                                
+
                                 <h3 className="text-xl font-bold text-surface-900 mt-3 flex items-center gap-2">
                                     {selectedRecruiterForDashboard.full_name}
                                     <span className={cn(
-                                        "w-2 h-2 rounded-full",
+                                        "w-2 h-2 rounded-none",
                                         selectedRecruiterForDashboard.is_active ? "bg-emerald-500" : "bg-red-500"
                                     )} />
                                 </h3>
-                                
+
                                 <p className="text-xs text-surface-500 mt-1 flex items-center gap-1.5 justify-center">
                                     <Mail size={12} className="text-surface-400" /> {selectedRecruiterForDashboard.email}
                                     {selectedRecruiterForDashboard.department && (
@@ -761,17 +772,17 @@ export function UserManagement() {
                                     <h4 className="text-xs font-bold text-surface-900 uppercase tracking-widest">Recruiter Activity Analysis</h4>
                                     <p className="text-[11px] text-surface-400 mt-0.5 uppercase tracking-wide">Real-time candidate pipelines and throughput metrics.</p>
                                 </div>
-                                
+
                                 {/* Slidable Pill Date Filter */}
-                                <div className="flex items-center gap-1 bg-surface-100 p-1 rounded-sm border border-surface-200 w-fit">
+                                <div className="flex items-center gap-1 bg-surface-100 p-1 rounded-none border border-surface-200 w-fit">
                                     {(['ALL', 'TODAY', 'YESTERDAY', 'WEEK', 'MONTH'] as const).map((filter) => (
                                         <button
                                             key={filter}
                                             onClick={() => setRecruiterDateFilter(filter)}
                                             className={cn(
-                                                "px-3 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors duration-200 rounded-sm",
-                                                recruiterDateFilter === filter 
-                                                    ? "text-white font-black" 
+                                                "px-3 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors duration-200 rounded-none",
+                                                recruiterDateFilter === filter
+                                                    ? "text-white font-black"
                                                     : "text-surface-500 hover:text-surface-700"
                                             )}
                                         >
@@ -779,7 +790,7 @@ export function UserManagement() {
                                             {recruiterDateFilter === filter && (
                                                 <motion.div
                                                     layoutId="recruiterDashboardActiveFilterBg"
-                                                    className="absolute inset-0 bg-black shadow-sm rounded-sm z-[-1]"
+                                                    className="absolute inset-0 bg-black shadow-sm rounded-none z-[-1]"
                                                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                                                 />
                                             )}
@@ -803,10 +814,10 @@ export function UserManagement() {
                                             { label: 'Endorsement Rate', value: `${recruiterMetrics.rate}%`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
                                             { label: 'Candidates Hired', value: recruiterMetrics.hired, icon: Award, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                                         ].map((m) => (
-                                            <div key={m.label} className="bg-white border border-surface-200 rounded p-4 flex flex-col justify-between shadow-sm min-h-[110px]">
+                                            <div key={m.label} className="bg-white dark:bg-slate-900 border border-surface-200 rounded-none p-4 flex flex-col justify-between shadow-sm min-h-[110px]">
                                                 <div className="flex items-start justify-between">
                                                     <span className="text-[9px] font-black text-surface-500 uppercase tracking-wider leading-tight">{m.label}</span>
-                                                    <div className={cn("p-1.5 rounded", m.bg)}>
+                                                    <div className={cn("p-1.5 rounded-none", m.bg)}>
                                                         <m.icon size={14} className={m.color} />
                                                     </div>
                                                 </div>
@@ -816,7 +827,7 @@ export function UserManagement() {
                                     </div>
 
                                     {/* Assigned Candidates List */}
-                                    <div className="border border-surface-200 rounded overflow-hidden bg-white shadow-sm">
+                                    <div className="border border-surface-200 rounded-none overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
                                         <div className="px-4 py-3 bg-[#fdfdfd] border-b border-surface-200 flex items-center justify-between">
                                             <span className="text-[10px] font-black text-surface-800 uppercase tracking-widest">Recent Placements & Pipeline ({filteredRecruiterApps.length})</span>
                                         </div>
@@ -850,10 +861,10 @@ export function UserManagement() {
                                                                 </td>
                                                                 <td className="px-4 py-3">
                                                                     <span className={cn(
-                                                                        "px-2 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-tight",
+                                                                        "px-2 py-0.5 rounded-none text-[9px] font-black uppercase tracking-tight",
                                                                         app.current_status === 'HIRED' || app.current_status === 'HIRED_PROCESSED' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
-                                                                        ['FAILED', 'REJECTED', 'WITHDRAWN'].includes(app.current_status?.toUpperCase()) ? "bg-red-50 text-red-700 border border-red-100" :
-                                                                        "bg-blue-50 text-blue-700 border border-blue-100"
+                                                                            ['FAILED', 'REJECTED', 'WITHDRAWN'].includes(app.current_status?.toUpperCase()) ? "bg-red-50 text-red-700 border border-red-100" :
+                                                                                "bg-blue-50 text-blue-700 border border-blue-100"
                                                                     )}>
                                                                         {app.current_status.replace(/_/g, ' ')}
                                                                     </span>

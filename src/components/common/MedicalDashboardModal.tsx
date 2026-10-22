@@ -22,7 +22,7 @@ export function MedicalDashboardModal({ isOpen, onClose, application }: MedicalD
     return createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" onClick={onClose}>
             <div className="absolute inset-0 bg-gradient-to-br from-black/15 via-surface-900/20 to-black/25 backdrop-blur-[3px] transition-opacity" />
-            <div className="w-full max-w-lg bg-white border border-surface-200 shadow-2xl rounded-2xl overflow-hidden relative text-left ring-1 ring-black/5" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-surface-200 shadow-2xl rounded-2xl overflow-hidden relative text-left ring-1 ring-black/5" onClick={e => e.stopPropagation()}>
                 {/* Accent Top Border */}
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-surface-900" />
                 

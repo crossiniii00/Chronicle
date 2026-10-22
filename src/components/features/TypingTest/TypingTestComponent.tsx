@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, Target, Zap, Award, RotateCcw, Play, AlertCircle, XCircle, ExternalLink, Copy, Check } from 'lucide-react';
+import { Clock, Target, Award, Play, AlertCircle, XCircle, CheckCircle } from 'lucide-react';
+import { cn } from '@/utils/formatters';
 import { cooldownService } from '@/services/cooldownService';
-import axios from 'axios';
-
+import LocalTypingTest from './LocalTypingTest';
+import { createPortal } from 'react-dom';
 interface TypingTestResult {
     wpm: number;
     accuracy: number;
@@ -14,65 +15,86 @@ interface TypingTestResult {
 interface TypingTestProps {
     applicantName: string;
     applicantEmail?: string;
-    onComplete: (result: TypingTestResult) => void;
+    onComplete: (result: TypingTestResult, isPassed: boolean) => void;
     onCancel: () => void;
+    isRetake?: boolean;
 }
 
-export function TypingTestComponent({ applicantName, applicantEmail, onComplete, onCancel }: TypingTestProps) {
-    const [testState, setTestState] = useState<'idle' | 'ready' | 'running' | 'completed'>('running');
-    const [currentText, setCurrentText] = useState('');
-    const lastKnownResultTime = useRef<string | null>(null);
-    const initialCheckDone = useRef(false);
-    const [startTime, setStartTime] = useState<number | null>(null);
-    const [copied, setCopied] = useState(false);
-    const [hasCopied, setHasCopied] = useState(false);
+const getBestAttempt = (attemptsList: TypingTestResult[], minWpm: number = 40, minAccuracy: number = 90): TypingTestResult | null => {
+    if (!attemptsList || attemptsList.length === 0) return null;
+    
+    // 1. Always prioritize passing attempts (wpm >= minWpm AND accuracy >= minAccuracy)
+    const passing = attemptsList.filter(a => a.wpm >= minWpm && a.accuracy >= minAccuracy);
+    if (passing.length > 0) {
+        // Sort by highest WPM first, then highest accuracy as tiebreaker
+        return passing.sort((a, b) => {
+            if (b.wpm !== a.wpm) return b.wpm - a.wpm;
+            return b.accuracy - a.accuracy;
+        })[0];
+    }
+    
+    // 2. No passing attempts — pick the one closest to meeting BOTH thresholds
+    //    Score = how close they are to passing (higher is better, max 0 means they passed)
+    return [...attemptsList].sort((a, b) => {
+        const scoreA = Math.min(a.wpm - minWpm, 0) + Math.min(a.accuracy - minAccuracy, 0);
+        const scoreB = Math.min(b.wpm - minWpm, 0) + Math.min(b.accuracy - minAccuracy, 0);
+        if (scoreB !== scoreA) return scoreB - scoreA; // closer to 0 is better
+        if (b.wpm !== a.wpm) return b.wpm - a.wpm;
+        return b.accuracy - a.accuracy;
+    })[0];
+};
 
-    const fallbackCopy = (text: string) => {
+export function TypingTestComponent({ applicantName, applicantEmail, onComplete, onCancel, isRetake }: TypingTestProps) {
+    const safeEmail = (applicantEmail || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const safeName = applicantName.trim().toLowerCase().replace(/\s+/g, '_');
+    const storageId = safeEmail || safeName;
+    const storageKey = `typing_test_all_attempts_${storageId}`;
+    const resultKey = `typing_test_latest_result_${storageId}`;
+
+    const [testState, setTestState] = useState<'idle' | 'ready' | 'running' | 'completed'>(() => {
         try {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.top = '0';
-            textArea.style.left = '0';
-            textArea.style.position = 'fixed';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            const successful = document.execCommand('copy');
-            document.body.removeChild(textArea);
-            if (successful) {
-                setCopied(true);
-                setHasCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            } else {
-                console.error('Fallback copy command failed');
+            const resultSaved = localStorage.getItem(resultKey);
+            const attemptsSaved = localStorage.getItem(storageKey);
+            if (resultSaved || (attemptsSaved && JSON.parse(attemptsSaved).length > 0)) {
+                return 'completed';
             }
-        } catch (err) {
-            console.error('Fallback copy failed:', err);
-        }
-    };
-
-    const handleCopy = () => {
-        if (!applicantEmail) return;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(applicantEmail)
-                .then(() => {
-                    setCopied(true);
-                    setHasCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                })
-                .catch((err) => {
-                    console.error('Failed to copy using clipboard API, using fallback:', err);
-                    fallbackCopy(applicantEmail);
-                });
-        } else {
-            fallbackCopy(applicantEmail);
-        }
-    };
+        } catch (e) {}
+        return 'idle';
+    });
+    const [currentText, setCurrentText] = useState('');
+    const [startTime, setStartTime] = useState<number | null>(null);
+    const [showLocalTest, setShowLocalTest] = useState(false);
+    
     const [timeElapsed, setTimeElapsed] = useState(0);
     const [errors, setErrors] = useState(0);
-    const [result, setResult] = useState<TypingTestResult | null>(null);
-    const [attempts, setAttempts] = useState(() => cooldownService.getAttempts(applicantName));
-    const [isVoided, setIsVoided] = useState(false);
+    const [result, setResult] = useState<TypingTestResult | null>(() => {
+        try {
+            const saved = localStorage.getItem(resultKey);
+            if (saved) return JSON.parse(saved);
+        } catch (e) {}
+        return null;
+    });
+    const [allAttempts, setAllAttempts] = useState<TypingTestResult[]>(() => {
+        try {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) return JSON.parse(saved);
+        } catch (e) {}
+        return [];
+    });
+    const [attempts, setAttempts] = useState(() => {
+        try {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                const parsed: TypingTestResult[] = JSON.parse(saved);
+                // We'll re-evaluate this when minWpm/minAccuracy loads
+                const hasPass = parsed.some(att => att.wpm >= minWpm && att.accuracy >= minAccuracy);
+                if (hasPass) return 0;
+                return parsed.filter(att => att.wpm < minWpm || att.accuracy < minAccuracy).length;
+            }
+        } catch (e) {}
+        return cooldownService.getAttempts(applicantName);
+    });
+    const isVoided = false; // Completely removed lock mechanism
     const [showManualInput, setShowManualInput] = useState(false);
     const [manualWpm, setManualWpm] = useState('');
     const [manualAccuracy, setManualAccuracy] = useState('');
@@ -92,8 +114,38 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
     const [allowBackspace, setAllowBackspace] = useState(true);
     const [showLiveStats, setShowLiveStats] = useState(true);
     const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'normal' | 'hard'>('normal');
+    const [preset, setPreset] = useState<string>('10FASTFINGERS PRESET (GROSS WPM)');
+    const [strictCapitals, setStrictCapitals] = useState(true);
+    const [strictSpaces, setStrictSpaces] = useState(true);
 
     const [selectedText, setSelectedText] = useState("");
+
+    const [selectedAttemptIndex, setSelectedAttemptIndex] = useState<number | null>(null);
+
+    const bestAttempt = getBestAttempt(allAttempts, minWpm, minAccuracy);
+    const chosenAttempt = selectedAttemptIndex !== null && allAttempts[selectedAttemptIndex]
+        ? allAttempts[selectedAttemptIndex]
+        : bestAttempt || result;
+
+    useEffect(() => {
+        try {
+            if (result) {
+                localStorage.setItem(resultKey, JSON.stringify(result));
+            } else {
+                localStorage.removeItem(resultKey);
+            }
+        } catch (e) {}
+    }, [result, resultKey]);
+
+    useEffect(() => {
+        try {
+            if (allAttempts && allAttempts.length > 0) {
+                localStorage.setItem(storageKey, JSON.stringify(allAttempts));
+            } else {
+                localStorage.removeItem(storageKey);
+            }
+        } catch (e) {}
+    }, [allAttempts, storageKey]);
 
     useEffect(() => {
         const loadSettings = async () => {
@@ -108,12 +160,15 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
                     } else {
                         setSelectedText(sampleTexts[Math.floor(Math.random() * sampleTexts.length)]);
                     }
-                    if (cfg.minWpm) setMinWpm(cfg.minWpm);
-                    if (cfg.minAccuracy) setMinAccuracy(cfg.minAccuracy);
-                    if (cfg.duration) setDurationLimit(cfg.duration);
+                    if (cfg.minWpm !== undefined) setMinWpm(cfg.minWpm);
+                    if (cfg.minAccuracy !== undefined) setMinAccuracy(cfg.minAccuracy);
+                    if (cfg.duration !== undefined) setDurationLimit(cfg.duration);
                     if (cfg.allowBackspace !== undefined) setAllowBackspace(cfg.allowBackspace);
                     if (cfg.showLiveStats !== undefined) setShowLiveStats(cfg.showLiveStats);
-                    if (cfg.difficultyLevel) setDifficultyLevel(cfg.difficultyLevel);
+                    if (cfg.difficultyLevel !== undefined) setDifficultyLevel(cfg.difficultyLevel);
+                    if (cfg.preset !== undefined) setPreset(cfg.preset);
+                    if (cfg.strictCapitals !== undefined) setStrictCapitals(cfg.strictCapitals);
+                    if (cfg.strictSpaces !== undefined) setStrictSpaces(cfg.strictSpaces);
                 } else {
                     setSelectedText(sampleTexts[Math.floor(Math.random() * sampleTexts.length)]);
                 }
@@ -125,125 +180,66 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
         loadSettings();
     }, []);
 
+    // Re-evaluate attempts and void status when minWpm/minAccuracy updates
     useEffect(() => {
-        if (testState !== 'running' || !applicantEmail) return;
-
-        const checkResults = async () => {
-            try {
-                const upperEmail = applicantEmail.trim().toUpperCase();
-                const url = 'https://firestore.googleapis.com/v1/projects/cptypefinal/databases/(default)/documents:runQuery';
-                const query = {
-                    structuredQuery: {
-                        from: [{ collectionId: 'applicant_results' }],
-                        where: {
-                            fieldFilter: {
-                                field: { fieldPath: 'applicantEmail' },
-                                op: 'EQUAL',
-                                value: { stringValue: upperEmail }
-                            }
-                        }
-                    }
-                };
-
-                const res = await axios.post(url, query);
+        try {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                const parsed: TypingTestResult[] = JSON.parse(saved);
+                const hasPass = parsed.some(att => att.wpm >= minWpm && att.accuracy >= minAccuracy);
+                const failedCount = parsed.filter(att => att.wpm < minWpm || att.accuracy < minAccuracy).length;
                 
-                // Firestore runQuery returns an array of documents. We extract them.
-                const docs = (res.data || [])
-                    .filter((item: any) => item.document)
-                    .map((item: any) => item.document);
-
-                // Sort by createdAt descending
-                docs.sort((a: any, b: any) => {
-                    const timeA = new Date(a.fields.createdAt?.timestampValue || a.fields.createdAt?.stringValue || 0).getTime();
-                    const timeB = new Date(b.fields.createdAt?.timestampValue || b.fields.createdAt?.stringValue || 0).getTime();
-                    return timeB - timeA;
-                });
-
-                const latestDoc = docs[0];
-                const latestCreatedAt = latestDoc 
-                    ? (latestDoc.fields.createdAt?.timestampValue || latestDoc.fields.createdAt?.stringValue || null)
-                    : null;
-
-                if (!initialCheckDone.current) {
-                    // Baseline: record whatever latest score currently exists in database
-                    lastKnownResultTime.current = latestCreatedAt;
-                    initialCheckDone.current = true;
-                    console.log('Established typing result baseline. Latest result time:', latestCreatedAt);
-                    return;
+                if (hasPass) {
+                    setAttempts(0);
+                } else {
+                    setAttempts(failedCount);
                 }
-
-                // If a new test result is found
-                if (latestCreatedAt && latestCreatedAt !== lastKnownResultTime.current) {
-                    const fields = latestDoc.fields;
-                    
-                    const wpm = fields.wpm ? parseInt(fields.wpm.integerValue || fields.wpm.doubleValue || fields.wpm.stringValue || '0', 10) : 0;
-                    const accuracy = fields.accuracy ? parseInt(fields.accuracy.integerValue || fields.accuracy.doubleValue || fields.accuracy.stringValue || '0', 10) : 0;
-                    const errors = fields.errors ? parseInt(fields.errors.integerValue || fields.errors.doubleValue || fields.errors.stringValue || '0', 10) : 0;
-                    const totalWords = fields.totalWords ? parseInt(fields.totalWords.integerValue || fields.totalWords.doubleValue || fields.totalWords.stringValue || '0', 10) : 0;
-                    const timeTaken = durationLimit;
-
-                    console.log('New typing result fetched via REST:', { wpm, accuracy, createdAt: latestCreatedAt });
-
-                    if (wpm > 0) {
-                        const testResult: TypingTestResult = {
-                            wpm: Math.round(wpm),
-                            accuracy: Math.round(accuracy),
-                            timeTaken: Math.round(timeTaken),
-                            errors: Math.round(errors),
-                            totalWords: Math.round(totalWords || (wpm * timeTaken) / 60)
-                        };
-
-                        setResult(testResult);
-                        setTestState('completed');
-                        lastKnownResultTime.current = latestCreatedAt;
-
-                        if (wpm >= minWpm && accuracy >= minAccuracy) {
-                            cooldownService.clearAttempts(applicantName);
-                        } else {
-                            const newAttempts = cooldownService.incrementAttempt(applicantName);
-                            setAttempts(newAttempts);
-
-                            if (newAttempts >= 3) {
-                                setIsVoided(true);
-                                cooldownService.addNameToCooldown(applicantName);
-                            }
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error('Error fetching typing test results via REST:', err);
             }
+        } catch (e) {}
+    }, [minWpm, minAccuracy, storageKey]);
+
+
+
+    const handleLocalTestFinish = async (metrics: { wpm: number; accuracy: number; errors: number; timeElapsed: number }) => {
+        const testResult: any = {
+            wpm: metrics.wpm,
+            accuracy: metrics.accuracy,
+            timeTaken: metrics.timeElapsed,
+            errors: metrics.errors,
+            totalWords: Math.round((metrics.wpm * (metrics.timeElapsed || 60)) / 60) || metrics.wpm,
+            timedOut: metrics.timeElapsed >= durationLimit
         };
 
-        // Poll every 3 seconds for instant retrieval
-        const interval = setInterval(checkResults, 3000);
+        setResult(testResult);
+        setTestState('completed');
+        setShowLocalTest(false);
+
+        const newAllAttempts = [...allAttempts, testResult];
+        setAllAttempts(newAllAttempts);
+
+        const newAttempts = cooldownService.incrementAttempt(applicantName);
+        setAttempts(newAttempts);
         
-        // Execute baseline check immediately
-        checkResults();
-
-        return () => {
-            clearInterval(interval);
-        };
-    }, [testState, applicantEmail, minWpm, minAccuracy, applicantName, durationLimit]);
-
-    useEffect(() => {
-        if (testState === 'running' && startTime) {
-            timerRef.current = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                setTimeElapsed(elapsed);
-
-                if (elapsed >= durationLimit) {
-                    calculateResult(true);
-                }
-            }, 100);
-        } else if (timerRef.current) {
-            clearInterval(timerRef.current);
+        let voided = false;
+        
+        try {
+            const { apiClient } = await import('@/utils/apiClient');
+            await apiClient.post('/typing-test/log', {
+                applicantName: applicantName,
+                applicantEmail: applicantEmail || '',
+                wpm: testResult.wpm,
+                accuracy: testResult.accuracy,
+                timeTaken: testResult.timeTaken,
+                errors: testResult.errors,
+                totalWords: testResult.totalWords,
+                isPassed: !voided && testResult.wpm >= minWpm && testResult.accuracy >= minAccuracy,
+                attemptNumber: newAttempts
+            });
+        } catch (e) {
+            console.error('Failed to log attempt to backend', e);
         }
+    };
 
-        return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-        };
-    }, [testState, startTime]);
 
     const startTest = () => {
         setTestState('running');
@@ -253,7 +249,7 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
         setResult(null);
     };
 
-    const handleManualSubmit = () => {
+    const handleManualSubmit = async () => {
         const wpm = parseInt(manualWpm, 10);
         const accuracy = parseInt(manualAccuracy, 10);
 
@@ -273,19 +269,30 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
         setResult(testResult);
         setTestState('completed');
 
-        if (wpm >= minWpm && accuracy >= minAccuracy) {
-            cooldownService.clearAttempts(applicantName);
-        } else {
-            const newAttempts = cooldownService.incrementAttempt(applicantName);
-            setAttempts(newAttempts);
-            if (newAttempts >= 3) {
-                setIsVoided(true);
-                cooldownService.addNameToCooldown(applicantName);
-            }
+        const newAttempts = cooldownService.incrementAttempt(applicantName);
+        setAttempts(newAttempts);
+        
+        let voided = false;
+        
+        try {
+            const { apiClient } = await import('@/utils/apiClient');
+            await apiClient.post('/typing-test/log', {
+                applicantName: applicantName,
+                applicantEmail: applicantEmail || '',
+                wpm: testResult.wpm,
+                accuracy: testResult.accuracy,
+                timeTaken: testResult.timeTaken,
+                errors: testResult.errors,
+                totalWords: testResult.totalWords,
+                isPassed: !voided && testResult.wpm >= minWpm && testResult.accuracy >= minAccuracy,
+                attemptNumber: newAttempts
+            });
+        } catch (e) {
+            console.error('Failed to log attempt to backend', e);
         }
     };
 
-    const handleDemoSkip = () => {
+    const handleDemoSkip = async () => {
         const demoResult: any = {
             wpm: 68,
             accuracy: 98,
@@ -297,81 +304,26 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
         setResult(demoResult);
         setTestState('completed');
         cooldownService.clearAttempts(applicantName);
-    };
-
-    const calculateResult = (isTimeout = false) => {
-        if (!startTime) return;
-
-        const timeInMinutes = Math.max(timeElapsed, 1) / 60; // Ensure at least 1 second to avoid Infinity
-        const wordsTyped = currentText.trim() ? currentText.trim().split(/\s+/).length : 0;
-        const wpm = Math.round(wordsTyped / timeInMinutes);
-
-        // Calculate accuracy
-        const typedChars = currentText.length;
-        const correctChars = currentText.split('').filter((char, index) => char === selectedText[index]).length;
-        const accuracy = typedChars > 0 ? Math.round((correctChars / typedChars) * 100) : 0;
-
-        const testResult: any = {
-            wpm,
-            accuracy,
-            timeTaken: timeElapsed,
-            errors,
-            totalWords: wordsTyped,
-            timedOut: isTimeout
-        };
-
-        setResult(testResult);
-        setTestState('completed');
-
-        if (wpm >= minWpm && accuracy >= minAccuracy) {
-            // Passed!
-            cooldownService.clearAttempts(applicantName);
-        } else {
-            // Failed this attempt
-            const newAttempts = cooldownService.incrementAttempt(applicantName);
-            setAttempts(newAttempts);
-
-            if (newAttempts >= 3) {
-                // All attempts exhausted
-                setIsVoided(true);
-                cooldownService.addNameToCooldown(applicantName);
-            }
+        
+        try {
+            const { apiClient } = await import('@/utils/apiClient');
+            await apiClient.post('/typing-test/log', {
+                applicantName: applicantName,
+                applicantEmail: applicantEmail || '',
+                wpm: demoResult.wpm,
+                accuracy: demoResult.accuracy,
+                timeTaken: demoResult.timeTaken,
+                errors: demoResult.errors,
+                totalWords: demoResult.totalWords,
+                isPassed: true,
+                attemptNumber: 1
+            });
+        } catch (e) {
+            console.error('Failed to log demo attempt', e);
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Backspace' && !allowBackspace) {
-            e.preventDefault();
-        }
-    };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newText = e.target.value;
-
-        // Only allow typing if we haven't exceeded the sample text
-        if (newText.length <= selectedText.length) {
-            setCurrentText(newText);
-
-            // Calculate errors
-            let errorCount = 0;
-            for (let i = 0; i < newText.length; i++) {
-                if (newText[i] !== selectedText[i]) {
-                    errorCount++;
-                }
-            }
-            setErrors(errorCount);
-        }
-
-        // Auto-complete when text matches
-        if (newText === selectedText) {
-            calculateResult();
-        }
-    };
-
-    const getCharClass = (index: number) => {
-        if (index >= currentText.length) return 'text-gray-600';
-        return currentText[index] === selectedText[index] ? 'text-green-600' : 'text-red-500 bg-red-100';
-    };
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -379,17 +331,10 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const getPerformanceLevel = (wpm: number) => {
-        if (wpm >= 70) return { level: 'Expert', color: 'text-purple-600', bg: 'bg-purple-100' };
-        if (wpm >= 50) return { level: 'Advanced', color: 'text-blue-600', bg: 'bg-blue-100' };
-        if (wpm >= 35) return { level: 'Intermediate', color: 'text-green-600', bg: 'bg-green-100' };
-        return { level: 'Beginner', color: 'text-amber-600', bg: 'bg-amber-100' };
-    };
-
     return (
-        <div className="w-full bg-white rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative overflow-hidden text-surface-900 text-left">
+        <div className="w-full max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-xl border border-surface-200 p-8 md:p-12 shadow-2xl relative text-surface-900 text-left">
             {/* Brand Top Border */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#ef3e36]" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#ef3e36] rounded-t-xl" />
 
             {/* Header */}
             <div className="text-center mb-8 border-b border-surface-100 pb-6">
@@ -441,91 +386,28 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
             )}
 
             {testState === 'running' && (
-                <div className="text-center py-6 space-y-8 animate-fade-in max-w-md mx-auto flex flex-col items-center">
-                    <div className="relative w-24 h-24 bg-[#ef3e36]/5 border border-[#ef3e36]/15 rounded-full flex items-center justify-center mx-auto shadow-inner ring-8 ring-[#ef3e36]/5">
-                        <img src="/contactpoint-logo.png?v=2" alt="CP360" className="w-12 h-12 object-contain animate-bounce" />
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
-                        </span>
-                    </div>
-
+                <div className="text-center py-6 space-y-8 animate-fade-in max-w-md mx-auto flex flex-col items-center relative">
+                    
                     <div className="space-y-3">
                         <h3 className="text-2xl font-black text-surface-900 tracking-tight uppercase">Secure Assessment Ready</h3>
                         <p className="text-surface-650 text-sm leading-relaxed font-bold">
-                            Click the button below to launch your dedicated <strong className="text-[#ef3e36]">CPTYPE</strong> typing speed assessment in a secure, full-screen tab. 
+                            Click the button below to launch your typing speed assessment in a secure, full-screen environment. 
                         </p>
                     </div>
 
-                    <div className="bg-[#ef3e36]/5 border-l-4 border-[#ef3e36] p-5 rounded-r-xl flex items-start gap-3.5 text-left w-full">
-                        <AlertCircle className="w-5.5 h-5.5 text-[#ef3e36] shrink-0 mt-0.5" />
+                    <div className="bg-[#ef3e36]/5 border-l-4 border-[#ef3e36] p-5 rounded-r-xl flex items-start gap-3.5 text-left w-full transition-all duration-1000">
+                        <AlertCircle className="w-5.5 h-5.5 text-[#ef3e36] shrink-0 mt-0.5 animate-pulse" />
                         <p className="text-xs text-surface-650 font-bold leading-relaxed">
-                            Do not close this main application window. Once you complete the typing test in the new tab, your scores will sync here automatically in real time.
+                            Once you complete the typing test, your scores will sync here automatically and you will proceed to the next step.
                         </p>
-                    </div>
-
-                    {applicantEmail && (
-                        <div className="bg-[#ef3e36]/5 border border-[#ef3e36]/15 rounded-xl p-6 text-center space-y-3.5 w-full">
-                            <p className="text-[10px] text-surface-500 font-black uppercase tracking-[0.2em]">Candidate Email for Assessment</p>
-                            <div className="flex items-center justify-center gap-2 w-full relative">
-                                <code className="bg-white border border-surface-200 px-3.5 py-2.5 rounded-lg text-xs font-mono text-surface-900 select-all font-black truncate flex-1 text-center shadow-inner">
-                                    {applicantEmail}
-                                </code>
-                                <div className="relative shrink-0">
-                                    <button
-                                        onClick={handleCopy}
-                                        className={`p-3 border rounded-lg transition-all flex items-center justify-center shadow-sm relative ${
-                                            !hasCopied 
-                                                ? 'border-[#ef3e36] bg-[#ef3e36]/10 text-[#ef3e36] animate-pulse ring-4 ring-[#ef3e36]/20' 
-                                                : 'border-surface-200 bg-white hover:bg-surface-50 text-surface-700'
-                                        }`}
-                                        title="Copy Email"
-                                    >
-                                        {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                                    </button>
-                                    
-                                    {!hasCopied && (
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-[#ef3e36] text-white text-[10px] font-black uppercase tracking-wider rounded-md shadow-md whitespace-nowrap animate-bounce flex items-center gap-1.5 z-10">
-                                            <span>Copy Email</span>
-                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-[#ef3e36]" />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <p className="text-[10px] text-[#ef3e36] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
-                                ⚠️ You MUST enter this exact email on the CPTYPE page to link your results.
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] text-emerald-600 bg-emerald-50 border border-emerald-150 py-2.5 px-5 rounded-full mx-auto w-fit shadow-sm">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                        Real-time score sync active
                     </div>
 
                     <div className="space-y-4 w-full">
                         <button
-                            onClick={() => {
-                                if (!hasCopied) {
-                                    alert("Please copy your email first using the button above so you can link your test results on the CPTYPE page.");
-                                    return;
-                                }
-                                const name = applicantName || '';
-                                const nameParts = name.trim().split(/\s+/);
-                                const firstName = nameParts[0] || '';
-                                const lastName = nameParts.slice(1).join(' ') || '';
-                                const email = applicantEmail || '';
-                                
-                                const url = `https://cptypefinal.web.app/?name=${encodeURIComponent(name)}&first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
-                                window.open(url, '_blank');
-                            }}
-                            className={`w-full py-4.5 text-white font-black rounded-lg transition-all flex items-center justify-center gap-2 tracking-widest uppercase text-xs active:scale-[0.98] ${
-                                !hasCopied 
-                                    ? 'bg-surface-300 cursor-not-allowed opacity-75' 
-                                    : 'bg-[#ef3e36] hover:bg-[#d32f2f] shadow-lg shadow-[#ef3e36]/10 hover:shadow-[#ef3e36]/20'
-                            }`}
+                            onClick={() => setShowLocalTest(true)}
+                            className="w-full py-4.5 text-white font-black rounded-lg transition-all flex items-center justify-center gap-2 tracking-widest uppercase text-xs active:scale-[0.98] bg-[#ef3e36] hover:bg-[#d32f2f] shadow-lg shadow-[#ef3e36]/10 hover:shadow-[#ef3e36]/20"
                         >
-                            <ExternalLink size={16} />
+                            <Play size={16} />
                             Launch Typing Test
                         </button>
 
@@ -536,104 +418,176 @@ export function TypingTestComponent({ applicantName, applicantEmail, onComplete,
                             >
                                 Cancel
                             </button>
-                            <span className="text-surface-200">|</span>
-                            <button
-                                onClick={handleDemoSkip}
-                                className="hover:text-[#ef3e36] transition-colors"
-                            >
-                                Demo Skip (Bypass)
-                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {testState === 'completed' && result && (
+            {testState === 'completed' && chosenAttempt && (
                 <div className="text-center py-8">
-                    {result.wpm >= minWpm && result.accuracy >= minAccuracy ? (
-                        <div className="w-20 h-20 bg-emerald-50 border border-emerald-150 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Award size={40} className="text-emerald-600" />
+                    {chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy ? (
+                        <div className="w-14 h-14 bg-emerald-50 border border-emerald-150 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Award size={28} className="text-emerald-600" />
                         </div>
                     ) : isVoided ? (
-                        <div className="w-20 h-20 bg-red-50 border border-red-150 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <XCircle size={40} className="text-red-600" />
+                        <div className="w-14 h-14 bg-emerald-50 border border-emerald-150 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <CheckCircle size={28} className="text-emerald-600" />
                         </div>
                     ) : (
-                        <div className="w-20 h-20 bg-amber-50 border border-amber-150 text-amber-650 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <AlertCircle size={40} className="text-amber-605 animate-pulse" />
+                        <div className="w-14 h-14 bg-amber-50 border border-amber-150 text-amber-650 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <AlertCircle size={28} className="text-amber-605 animate-pulse" />
                         </div>
                     )}
 
-                    <h3 className={`text-2xl font-black uppercase tracking-tight mb-2 ${
-                        result.wpm >= minWpm && result.accuracy >= minAccuracy ? 'text-emerald-600' : 'text-red-600'
+                    <h3 className={`text-xl font-black uppercase tracking-tight mb-1 ${
+                        (chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy) || isVoided ? 'text-emerald-600' : 'text-red-600'
                     }`}>
-                        {result.wpm >= minWpm && result.accuracy >= minAccuracy 
+                        {chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy 
                             ? 'Assessment Passed!' 
                             : isVoided 
-                                ? 'Assessment Voided' 
-                                : result.wpm < minWpm 
+                                ? 'Session Concluded' 
+                                : chosenAttempt.wpm < minWpm 
                                     ? 'Minimum WPM Not Met' 
                                     : 'Minimum Accuracy Not Met'}
                     </h3>
 
-                    {!isVoided && (result.wpm < minWpm || result.accuracy < minAccuracy) && (
-                        <p className="text-sm text-surface-500 mb-6 font-bold">
+                    {(chosenAttempt.wpm < minWpm || chosenAttempt.accuracy < minAccuracy) && (
+                        <p className="text-xs text-surface-500 mb-3 font-bold">
                             You need at least <span className="font-black text-surface-950">{minWpm} WPM</span> and <span className="font-black text-surface-950">{minAccuracy}% Accuracy</span> to proceed.
-                            You have <span className="font-black text-red-650">{3 - attempts} retakes</span> remaining.
+                            {attempts < 3 
+                                ? <> You have <span className="font-black text-red-650">{3 - attempts} retakes</span> remaining. Click the Retry button below to take the test again.</>
+                                : <> You have exhausted all 3 attempts. You can still retry, but your handling recruiter will be notified.</>}
                         </p>
                     )}
 
-                    {isVoided && (
-                        <p className="text-sm text-red-600 mb-8 max-w-sm mx-auto font-bold">
-                            You have exhausted all 3 attempts. Your application has been voided.
-                            You may try again after <span className="font-black">24 hours</span>.
-                        </p>
-                    )}
-
-                    {result.wpm >= minWpm && result.accuracy >= minAccuracy && (
-                        <p className="text-sm text-emerald-600 mb-6 font-bold">
+                    {chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy && (
+                        <p className="text-xs text-emerald-600 mb-3 font-bold">
                             Excellent! You've met the requirements to proceed.
                         </p>
                     )}
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div className={`rounded-xl p-5 border text-center ${result.wpm >= minWpm ? 'bg-emerald-50 border-emerald-150' : 'bg-red-50 border-red-150'}`}>
-                            <div className={`text-3xl font-black ${result.wpm >= minWpm ? 'text-emerald-600' : 'text-red-600'}`}>{result.wpm}</div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-surface-450 mt-1">Words Per Minute</div>
-                        </div>
-                        <div className={`rounded-xl p-5 border text-center ${result.accuracy >= minAccuracy ? 'bg-emerald-50 border-emerald-150' : 'bg-red-50 border-red-150'}`}>
-                            <div className={`text-3xl font-black ${result.accuracy >= minAccuracy ? 'text-emerald-600' : 'text-red-600'}`}>{result.accuracy}%</div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-surface-450 mt-1">Accuracy</div>
-                        </div>
-                        <div className="bg-surface-50 border border-surface-150 rounded-xl p-5 text-center">
-                            <div className="text-3xl font-black text-surface-900">{formatTime(result.timeTaken)}</div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-surface-450 mt-1">Time Taken</div>
-                        </div>
-                        <div className="bg-surface-50 border border-surface-150 rounded-xl p-5 text-center">
-                            <div className="text-3xl font-black text-red-650">{result.errors}</div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-surface-450 mt-1">Errors</div>
-                        </div>
+                    <p className="text-[10px] text-surface-400 font-black uppercase tracking-wider text-center mb-2">
+                        💡 Click on any attempt card to select it for submission.
+                    </p>
+
+                    <div className="space-y-2 mb-4 max-h-[350px] overflow-y-auto pr-1">
+                        {(allAttempts.length > 0 ? allAttempts : [chosenAttempt]).map((attempt, index, arr) => {
+                            const attemptNum = arr.length - index;
+                            const isPass = attempt.wpm >= minWpm && attempt.accuracy >= minAccuracy;
+                            const isChosen = attempt === chosenAttempt;
+                            const isSystemRecommended = attempt === bestAttempt;
+                            return (
+                                <div 
+                                    key={index} 
+                                    onClick={() => setSelectedAttemptIndex(index)}
+                                    className={cn(
+                                        "border rounded-xl p-2.5 bg-white dark:bg-slate-900 shadow-sm space-y-2 cursor-pointer transition-all text-left relative",
+                                        isChosen 
+                                            ? "border-emerald-500 ring-2 ring-emerald-500/20" 
+                                            : "border-surface-200 hover:border-surface-300"
+                                    )}
+                                >
+                                    <div className="flex justify-between items-center border-b border-surface-100 pb-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn(
+                                                "w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
+                                                isChosen ? "border-emerald-500 bg-emerald-500 text-white" : "border-surface-300 bg-white dark:bg-slate-900"
+                                            )}>
+                                                {isChosen && <div className="w-1.5 h-1.5 rounded-full bg-white dark:bg-slate-900" />}
+                                            </div>
+                                            <span className="text-xs font-black uppercase tracking-wider text-surface-500">Attempt #{attemptNum}</span>
+                                            {isSystemRecommended && (
+                                                <span className="text-[8px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                                    Chosen (System Recommended)
+                                                </span>
+                                            )}
+                                            {isChosen && !isSystemRecommended && (
+                                                <span className="text-[8px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                                    Selected
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isPass ? 'bg-emerald-50 text-emerald-700 border-emerald-250 animate-pulse' : 'bg-red-50 text-red-750 border-red-250'}`}>
+                                            {isPass ? 'Passed' : 'Failed'}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div className={`p-1.5 border rounded-lg text-center ${isPass ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50/30 border-red-100'}`}>
+                                            <div className={`text-sm font-black ${attempt.wpm >= minWpm ? 'text-emerald-600' : 'text-red-650'}`}>{attempt.wpm}</div>
+                                            <div className="text-[7.5px] font-bold uppercase tracking-wider text-surface-400">WPM</div>
+                                        </div>
+                                        <div className={`p-1.5 border rounded-lg text-center ${isPass ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50/30 border-red-100'}`}>
+                                            <div className={`text-sm font-black ${attempt.accuracy >= minAccuracy ? 'text-emerald-600' : 'text-red-650'}`}>{attempt.accuracy}%</div>
+                                            <div className="text-[7.5px] font-bold uppercase tracking-wider text-surface-400">Accuracy</div>
+                                        </div>
+                                        <div className="p-1.5 border border-surface-150 rounded-lg text-center bg-surface-50/50">
+                                            <div className="text-sm font-black text-surface-800">{formatTime(attempt.timeTaken)}</div>
+                                            <div className="text-[7.5px] font-bold uppercase tracking-wider text-surface-400">Time</div>
+                                        </div>
+                                        <div className="p-1.5 border border-surface-150 rounded-lg text-center bg-surface-50/50">
+                                            <div className="text-sm font-black text-red-600">{attempt.errors}</div>
+                                            <div className="text-[7.5px] font-bold uppercase tracking-wider text-surface-400">Errors</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
 
-                    <div className="flex justify-center gap-4">
-                        {!isVoided && (result.wpm < minWpm || result.accuracy < minAccuracy) && (
+                    <div className="flex justify-center gap-4 w-full mt-10">
+                        {(!(chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy)) && attempts < 3 && (
                             <button
-                                onClick={startTest}
-                                className="bg-[#ef3e36] hover:bg-[#d32f2f] text-white px-8 py-3.5 rounded-md font-black uppercase tracking-widest text-xs transition-all shadow-md flex items-center gap-2 active:scale-[0.98]"
+                                onClick={() => {
+                                    startTest();
+                                    setShowLocalTest(true);
+                                }}
+                                className="px-10 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-md shadow-md transition-all active:scale-[0.98]"
                             >
-                                <RotateCcw size={14} />
-                                Retake Test ({3 - attempts} left)
+                                Retry Test
                             </button>
                         )}
-
+                        {(!(chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy)) && attempts >= 3 && (
+                            <button
+                                onClick={() => {
+                                    if (window.confirm("You already have failed all 3 attempts. TRY AGAIN? This will notify the handling recruiter")) {
+                                        startTest();
+                                        setShowLocalTest(true);
+                                    }
+                                }}
+                                className="px-10 py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest text-xs rounded-md shadow-md transition-all active:scale-[0.98]"
+                            >
+                                Retry Attempts
+                            </button>
+                        )}
                         <button
-                            onClick={() => onComplete(result)}
-                            className="px-10 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-md shadow-md transition-all active:scale-[0.98]"
+                            onClick={() => {
+                                const isPassed = (chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy);
+                                onComplete(chosenAttempt, isPassed);
+                            }}
+                            className={cn(
+                                "px-10 py-3.5 text-white font-black uppercase tracking-widest text-xs rounded-md shadow-md transition-all active:scale-[0.98]",
+                                (chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy) ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"
+                            )}
                         >
-                            Proceed to Review
+                            {(chosenAttempt.wpm >= minWpm && chosenAttempt.accuracy >= minAccuracy) ? (isRetake ? 'Submit Retake' : 'Proceed to Review') : 'Submit Application'}
                         </button>
-                    </div>
+                      </div>
                 </div>
+            )}
+            {showLocalTest && createPortal(
+                <LocalTypingTest 
+                    userName={applicantName} 
+                    text={selectedText} 
+                    durationLimit={durationLimit}
+                    allowBackspace={allowBackspace}
+                    showLiveStats={showLiveStats}
+                    preset={preset}
+                    strictCapitals={strictCapitals}
+                    strictSpaces={strictSpaces}
+                    onFinish={handleLocalTestFinish} 
+                    onCancel={() => setShowLocalTest(false)}
+                />,
+                document.body
             )}
         </div>
     );

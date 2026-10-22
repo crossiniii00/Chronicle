@@ -61,9 +61,9 @@ export function useInterviewCollaborative({ user, activeTab }: CollaborativeProp
         if (user) {
             socket.emit('presence:join', {
                 id: user.id,
-                fullName: user.full_name,
-                email: user.email,
-                activeTab,
+                full_name: user.full_name,
+                role: user.role,
+                page: activeTab || 'Interview',
                 joinedAt: new Date().toISOString()
             });
         }

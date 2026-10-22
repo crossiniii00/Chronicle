@@ -2,13 +2,19 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { loadReroutedAccounts } from '@/pages/admin/hooks/useAccountTypeSettings';
+import { getMasterlistCellValue } from '../components/tableHelpers';
 import { ApplicationService } from '@/services/ApplicationService';
+import { DepartmentService } from '@/services/DepartmentService';
+import { UserService } from '@/services/UserService';
 import { useToast } from '@/components/common/useToast';
-import type { Application } from '@/types/application';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { socketService } from '@/services/socketService';
+import { useGlobalDataStore } from '@/store/globalDataStore';
 import { MONTHS } from '../constants';
 import { SPECIFIC_STATUS_TO_OVERALL } from '@/pages/recruiter/tracker/utils/statusMappings';
+import { DateFilterState } from '@/components/common/AdvancedDateFilter';
+import { Application } from '@/types/application';
+import { cleanColumn1Text } from '@/pages/recruiter/tracker/utils/tableHelpers';
 
 const calculateAge = (birthDate: string) => {
     if (!birthDate) return '';
@@ -25,12 +31,14 @@ const calculateAge = (birthDate: string) => {
 };
 
 const CONCLUDED_STATUSES = [
-    'For Job Offer', 'FOR JOB OFFER', 'FOR_JOB_OFFER', 
-    'HIRED', 'HIRED_PROCESSED', 'PASSED', 'FINAL_VERDICT', 
-    'FOR PAN', 'For PAN', 'FOR_PAN', 
-    'ACCEPTED OFFER', 'ACCEPTED_OFFER', 'Accepted Offer', 
+    'HIRED', 'HIRED_PROCESSED', 'PASSED', 'FINAL_VERDICT',
+    'FOR PAN', 'For PAN', 'FOR_PAN', 'PAN_COMPLETED', 'PAN COMPLETED',
+    'PAN ISSUED', 'PAN_ISSUED', 'PAN ISSUED; FOR SIGNATURE', 'PAN ISSUED FOR SIGNATURE', 'PAN_ISSUED;_FOR_SIGNATURE',
+    'ACCEPTED OFFER', 'ACCEPTED_OFFER', 'Accepted Offer',
     'SENT JO AND BGC', 'SENT_JO_AND_BGC', 'Sent JO and BGC'
 ];
+
+const FAILED_TERMS = ['FAILED', 'REJECTED', 'WITHDRAWN', 'DECLINED', 'NOT_ELIGIBLE_FOR_REHIRE', 'INACTIVE', 'NO SHOW', 'NO_SHOW', 'BACKOUT', 'BACK OUT'];
 
 export function useMasterlist() {
     const { user } = useAuthStore();
@@ -38,17 +46,20 @@ export function useMasterlist() {
     const location = useLocation();
     const [search, setSearch] = useState('');
     const [allApplications, setAllApplications] = useState<Application[]>([]);
+    const [validDepartments, setValidDepartments] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedAccount, setSelectedAccount] = useState<string | null>(
-        user?.role === 'recruiter_s' ? 'PRIORITY' : null
-    );
-    const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
+    const [selectedAccount, setSelectedAccount] = useState<string[]>(['ALL']);
+    const [startDateFilter, setStartDateFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
+    const [dateAddedFilter, setDateAddedFilter] = useState<DateFilterState>({ type: 'ALL', start: null, end: null });
     const [selectedDay, setSelectedDay] = useState<string>('ALL');
     const [showAddModal, setShowAddModal] = useState(false);
     const [activeTab, setActiveTab] = useState<string>('MASTERLIST');
-    const [activeSubTab, setActiveSubTab] = useState<string>('SHEET');
+    const [activeSubTab, setActiveSubTab] = useState<string>('MASTERLIST');
+    const [isOfficialEndorsement, setIsOfficialEndorsement] = useState(false);
 
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(true);
+    const [isConfigEditing, setIsConfigEditing] = useState(false);
+    const [isExclusiveMode, setIsExclusiveMode] = useState(false);
     const [localChanges, setLocalChanges] = useState<Record<string, Partial<Application>>>({});
     const [isSyncing, setIsSyncing] = useState(false);
     const [isSelectMode, setIsSelectMode] = useState(false);
@@ -65,11 +76,15 @@ export function useMasterlist() {
     const [pivotAccount, setPivotAccount] = useState<string>('ALL');
     const [importPreview, setImportPreview] = useState<any[] | null>(null);
 
-    const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+    const [selectedStatus, setSelectedStatus] = useState<string[]>(['ALL']);
     const [selectedWave, setSelectedWave] = useState<string>('ALL');
     const [selectedDateFilter, setSelectedDateFilter] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
+    const [activePassedMonth, setActivePassedMonth] = useState<string>('ALL');
+    const [selectedYear, setSelectedYear] = useState<string>('ALL');
+    const [selectedHireType, setSelectedHireType] = useState<string>('ALL');
     const [emailFilter, setEmailFilter] = useState<'ALL' | 'PENDING' | 'DONE'>('ALL');
     const [focusPath, setFocusPath] = useState<{ appId: string, colKey: string } | null>(null);
+    const { applications: globalApps, isInitialized } = useGlobalDataStore();
     const isEditingRef = useRef(isEditing);
 
     useEffect(() => {
@@ -80,8 +95,36 @@ export function useMasterlist() {
     const loadData = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const apps = await ApplicationService.getAll();
-            const healedApps = apps.map((app: any) => {
+            const [depts, users] = await Promise.all([
+                DepartmentService.getAll(),
+                UserService.getAll()
+            ]);
+
+            const validDeptNames = depts.map((d: any) => d.name);
+            setValidDepartments(validDeptNames);
+            try {
+                localStorage.setItem('cached_users', JSON.stringify(users));
+            } catch (e) {
+                console.warn('Could not cache users in localStorage due to quota limits:', e);
+            }
+
+            const healedApps = globalApps.map((app: any) => {
+                let finalDept = String(app.pis?.final_account || app.endorsement_account || app.department || '');
+                if (finalDept.includes(',')) {
+                    const failedAccounts = app.metadata?.failed_accounts || [];
+                    const failedSet = new Set(failedAccounts.map((f: string) => f.trim().toLowerCase()));
+                    const remaining = finalDept.split(',').map((s: string) => s.trim()).filter((s: string) => s && !failedSet.has(s.toLowerCase()));
+                    finalDept = remaining.length > 0 ? remaining[0] : finalDept.split(',')[0].trim();
+                }
+
+                let cleanDept = 'Support & Leadership / Others';
+                if (validDeptNames.includes(finalDept)) {
+                    cleanDept = finalDept;
+                } else {
+                    const found = validDeptNames.find((vd: string) => finalDept.toLowerCase().includes(vd.toLowerCase()));
+                    if (found) cleanDept = found;
+                }
+
                 if (!app.master_first_name && !app.master_last_name && app.applicant_name) {
                     const parts = app.applicant_name.trim().split(/\s+/);
                     let first = '';
@@ -99,21 +142,50 @@ export function useMasterlist() {
                     }
                     return {
                         ...app,
+                        department: cleanDept,
                         master_first_name: first,
                         master_middle_name: middle,
                         master_last_name: last
                     };
                 }
-                return app;
+                return {
+                    ...app,
+                    department: cleanDept
+                };
             });
             setAllApplications(healedApps);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to load masterlist:', err);
-            if (!silent) error('Loading Failed', 'Could not load records from the database.');
+            const msg = err.response?.data?.message || err.response?.data?.error || err.message || String(err);
+            if (!silent) error('Loading Failed', `Could not load records from the database: ${msg}`);
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [error]);
+    }, [globalApps, error]);
+
+    useEffect(() => {
+        if (isInitialized && globalApps.length > 0) {
+            loadData(true);
+        }
+    }, [isInitialized, globalApps, loadData]);
+
+    const availablePassedMonths = useMemo(() => {
+        return ['December', 'November', 'October', 'September', 'August', 'July', 'June', 'May', 'April', 'March', 'February', 'January'];
+    }, []);
+
+    const availableYears = useMemo(() => {
+        const years = new Set<string>();
+        allApplications.forEach(a => {
+            const dateStr = a.master_training_start_date || a.applied_at;
+            if (dateStr) {
+                const d = new Date(dateStr);
+                if (!isNaN(d.getTime())) {
+                    years.add(String(d.getFullYear()));
+                }
+            }
+        });
+        return Array.from(years).sort((a, b) => Number(b) - Number(a));
+    }, [allApplications]);
 
     useEffect(() => {
         const lastError = localStorage.getItem('last_import_error');
@@ -124,28 +196,43 @@ export function useMasterlist() {
     }, [error]);
 
     useEffect(() => {
-        loadData();
-        const socket = socketService.getSocket();
+        if (!isInitialized) {
+            loadData();
+        }
 
-        socket.on('applications:updated', () => {
-            // Only refresh if the user is NOT currently editing to avoid work disruption
-            if (!isEditingRef.current) {
-                console.log('[Socket] Applications updated, refreshing masterlist...');
-                loadData(true); 
-            } else {
-                console.log('[Socket] Applications updated, but deferring refresh until edit mode is exited.');
+        const handleLocalUpdate = (e: Event) => {
+            const payload = (e as CustomEvent).detail;
+            if (payload?.data && payload.applicationId) {
+                setAllApplications(prev => {
+                    const exists = prev.some(a => a.id === payload.applicationId);
+                    if (exists) {
+                        return prev.map(a => a.id === payload.applicationId ? { ...a, ...payload.data } : a);
+                    } else {
+                        return [payload.data, ...prev];
+                    }
+                });
             }
-        });
+        };
+        window.addEventListener('applications:local_update', handleLocalUpdate);
 
         return () => {
-            socket.off('applications:updated');
+            window.removeEventListener('applications:local_update', handleLocalUpdate);
         };
-    }, [loadData]);
+    }, [loadData, isInitialized]);
 
 
-    const [pendingWithdrawal, setPendingWithdrawal] = useState<{ appId: string, previousStatus: string, previousColumn: string } | null>(null);
+    const [pendingWithdrawal, setPendingWithdrawal] = useState<{ appId: string, previousStatus: string, previousColumn: string, field?: string } | null>(null);
+    const [pendingAccountTransfer, setPendingAccountTransfer] = useState<{ app: Application; field: string; targetAccount: string } | null>(null);
 
-    const handleEdit = useCallback((appId: string, field: keyof Application, value: any) => {
+    const handleEdit = useCallback((appId: string, field: keyof Application, value: any, transferOptions?: {
+        opsValidatorId?: string | null;
+        opsValidatorName?: string | null;
+        opsRemarks?: string | null;
+        hiringRequestId?: string | null;
+        positionId?: string | null;
+        positionTitle?: string | null;
+        jobPosition?: string | null;
+    }) => {
         if (field === 'current_status' && value === 'WITHDRAWN') {
             const app = allApplications.find(a => a.id === appId);
             if (app) {
@@ -155,6 +242,19 @@ export function useMasterlist() {
                     previousColumn: app.master_column || 'MASTERLIST'
                 });
                 return;
+            }
+        }
+
+        // Intercept Account changes to pop up AccountTransferModal if options not provided
+        if ((field === 'department' || field === 'endorsement_account') && !transferOptions) {
+            const app = allApplications.find(a => a.id === appId);
+            if (app) {
+                const accVal = String(value || '');
+                const prevAccount = app?.department || app?.endorsement_account || app?.pis?.final_account || '';
+                if (accVal && prevAccount && accVal.toLowerCase().trim() !== prevAccount.toLowerCase().trim()) {
+                    setPendingAccountTransfer({ app, field: String(field), targetAccount: accVal });
+                    return;
+                }
             }
         }
 
@@ -172,8 +272,13 @@ export function useMasterlist() {
                         newChanges.hired_at = new Date().toISOString();
                     }
                 }
+                const currentCol = (app?.master_column || '').toUpperCase();
+                const isSpecializedCol = ['OFFBOARDING_WINNERS', 'ONBOARDING_WINNERS', 'OFFBOARDING_TRACKER', 'INACTIVE_APPLICATION'].includes(currentCol);
+
                 if (['HIRED', 'HIRED_PROCESSED', 'ACCEPTED OFFER', 'ACCEPTED_OFFER', 'FOR JOB OFFER', 'FOR_JOB_OFFER', 'PASSED', 'SENT JO AND BGC', 'SENT_JO_AND_BGC'].includes(upperVal)) {
-                    newChanges.master_column = 'MASTERLIST';
+                    if (!isSpecializedCol) {
+                        newChanges.master_column = 'MASTERLIST';
+                    }
                     newChanges.master_status = value;
                 }
             }
@@ -185,6 +290,86 @@ export function useMasterlist() {
             ].includes(String(value).toUpperCase())) {
                 if (!newChanges.interview_completed_at && !app?.interview_completed_at) {
                     newChanges.interview_completed_at = new Date().toISOString();
+                }
+            }
+
+            // Keep account fields synchronized globally & perform cascading transfer
+            if (field === 'department' || field === 'endorsement_account') {
+                const accVal = String(value || '');
+                const prevAccount = app?.department || app?.endorsement_account || app?.pis?.final_account || '';
+
+                newChanges.department = accVal;
+                newChanges.endorsement_account = accVal;
+                newChanges.pis = {
+                    ...(app?.pis || {}),
+                    final_account: accVal,
+                    ...(transferOptions && transferOptions.jobPosition !== undefined ? { custom_lob: transferOptions.jobPosition } : {})
+                } as any;
+
+                // If account changed to a different account, perform cascading transfer:
+                if (accVal && prevAccount && accVal.toLowerCase().trim() !== prevAccount.toLowerCase().trim()) {
+                    // 1. Ops Validator assignment
+                    if (transferOptions && transferOptions.opsValidatorId !== undefined) {
+                        newChanges.assigned_ops_validator_id = transferOptions.opsValidatorId as any;
+                        newChanges.assigned_ops_validator_name = transferOptions.opsValidatorName as any;
+                    } else {
+                        newChanges.assigned_ops_validator_id = null as any;
+                        newChanges.assigned_ops_validator_name = null as any;
+                    }
+
+                    // 2. Hiring Request ID
+                    if (transferOptions && transferOptions.hiringRequestId !== undefined) {
+                        newChanges.master_hiring_request_id = transferOptions.hiringRequestId as any;
+                    } else {
+                        newChanges.master_hiring_request_id = null as any;
+                    }
+
+                    if (transferOptions && transferOptions.positionTitle !== undefined) {
+                        newChanges.position_title = transferOptions.positionTitle as any;
+                    }
+                    if (transferOptions && transferOptions.positionId !== undefined) {
+                        newChanges.position_id = transferOptions.positionId as any;
+                    }
+
+                    // 3. Archive previous Ops Validation remarks into candidate notes before updating
+                    const prevRemarks = app?.master_remarks || app?.pis?.ops_validation_remarks || '';
+                    if (prevRemarks && prevRemarks !== '---' && !prevRemarks.includes('Transferred')) {
+                        const transferNote = `[Account Transfer ${new Date().toLocaleDateString()}] Transferred from "${prevAccount}" to "${accVal}". Previous Remarks: "${prevRemarks}"`;
+                        newChanges.notes = app?.notes ? `${app.notes}\n${transferNote}` : transferNote;
+                    }
+
+                    const targetRemarks = transferOptions?.opsRemarks || 'Pending Ops Validation';
+                    newChanges.master_remarks = targetRemarks;
+                }
+
+                const targetRemarks = transferOptions?.opsRemarks || 'Pending Ops Validation';
+                const currentPis = (app?.pis || {});
+                newChanges.pis = {
+                    ...currentPis,
+                    ...(newChanges.pis || {}),
+                    final_account: accVal,
+                    initial_account_assignment: accVal,
+                    ...(accVal && prevAccount && accVal.toLowerCase().trim() !== prevAccount.toLowerCase().trim() ? { ops_validation_remarks: targetRemarks } : {})
+                } as any;
+            }
+            if (field === 'master_first_name' || field === 'master_last_name' || field === 'master_middle_name') {
+                const currentPis = app?.pis || {};
+                const newChangesPis = (newChanges.pis as any) || {};
+
+                const newFirstName = field === 'master_first_name' ? value : (newChanges.master_first_name ?? app?.master_first_name ?? app?.pis?.first_name ?? '');
+                const newLastName = field === 'master_last_name' ? value : (newChanges.master_last_name ?? app?.master_last_name ?? app?.pis?.last_name ?? '');
+                const newMiddleName = field === 'master_middle_name' ? value : (newChanges.master_middle_name ?? app?.master_middle_name ?? app?.pis?.middle_name ?? '');
+
+                newChanges.pis = {
+                    ...currentPis,
+                    ...newChangesPis,
+                    first_name: newFirstName,
+                    last_name: newLastName,
+                    middle_name: newMiddleName,
+                } as any;
+
+                if (newLastName || newFirstName) {
+                    newChanges.applicant_name = `${newLastName ? newLastName + ',' : ''} ${newFirstName} ${newMiddleName}`.trim();
                 }
             }
 
@@ -212,7 +397,7 @@ export function useMasterlist() {
                     }
                 }
 
-                if (value.final_specific_status) {
+                if (value.final_specific_status && value.final_specific_status !== app?.pis?.final_specific_status) {
                     const specStatus = value.final_specific_status;
                     const mappedOverall = SPECIFIC_STATUS_TO_OVERALL[specStatus];
                     if (mappedOverall) {
@@ -238,7 +423,7 @@ export function useMasterlist() {
                             }
                         }
 
-                        const isAlreadyConcluded = app?.master_column === 'MASTERLIST' || 
+                        const isAlreadyConcluded = app?.master_column === 'MASTERLIST' ||
                             CONCLUDED_STATUSES.includes(app?.current_status || '');
 
                         if (nextCurrentStatus) {
@@ -249,20 +434,33 @@ export function useMasterlist() {
                         } else if (!isAlreadyConcluded) {
                             newChanges.master_status = mappedOverall;
                         }
-                        
+
                         newChanges.overall_status = targetOverall;
                         newChanges.master_remarks = specStatus;
-                        if (mappedOverall === 'HIRED' || mappedOverall === 'PASSED' || mappedOverall === 'For Job Offer') {
-                            newChanges.master_column = 'MASTERLIST';
-                        } else if (isAlreadyConcluded) {
-                            newChanges.master_column = 'MASTERLIST';
+
+                        const appObj = allApplications.find(a => a.id === appId);
+                        const hasEid = Boolean(String(appObj?.master_eid || (appObj as any)?.eid || appObj?.metadata?.eid || (appObj?.pis as any)?.eid || '').trim());
+
+                        const existingCol = (appObj?.master_column || app?.master_column || '').toUpperCase();
+                        const isSpecCol = ['OFFBOARDING_WINNERS', 'ONBOARDING_WINNERS', 'OFFBOARDING_TRACKER', 'INACTIVE_APPLICATION'].includes(existingCol);
+
+                        if (nextCurrentStatus === 'WITHDRAWN' || String(specStatus || '').toLowerCase().includes('withdraw')) {
+                            newChanges.master_column = hasEid ? 'OFFBOARDING_TRACKER' : 'INACTIVE_APPLICATION';
+                        } else if (nextCurrentStatus === 'INACTIVE' || String(specStatus || '').toLowerCase().includes('inactive')) {
+                            newChanges.master_column = 'INACTIVE_APPLICATION';
+                        } else if (!isSpecCol) {
+                            if (mappedOverall === 'HIRED' || mappedOverall === 'PASSED' || mappedOverall === 'For Job Offer') {
+                                newChanges.master_column = 'MASTERLIST';
+                            } else if (isAlreadyConcluded) {
+                                newChanges.master_column = 'MASTERLIST';
+                            }
                         }
                     }
                 }
 
                 // Automate interview date on interview activity in PIS object
-                const hasInterviewActivity = value.initial_interview_results || value.final_specific_status || 
-                                             value.ops_validator_status || value.client_interview_status;
+                const hasInterviewActivity = value.initial_interview_results || value.final_specific_status ||
+                    value.ops_validator_status || value.client_interview_status;
                 if (hasInterviewActivity) {
                     if (!newChanges.interview_completed_at && !app?.interview_completed_at) {
                         newChanges.interview_completed_at = new Date().toISOString();
@@ -275,10 +473,10 @@ export function useMasterlist() {
                 const first = field === 'master_first_name' ? value : (newChanges.master_first_name || app?.master_first_name || '');
                 const middle = field === 'master_middle_name' ? value : (newChanges.master_middle_name || app?.master_middle_name || '');
                 const last = field === 'master_last_name' ? value : (newChanges.master_last_name || app?.master_last_name || '');
-                
+
                 const middleStr = middle ? ` (${middle})` : '';
                 newChanges.applicant_name = `${first}${middleStr} ${last}`.trim();
-                
+
                 newChanges.pis = {
                     ...(newChanges.pis || {}),
                     first_name: first,
@@ -297,36 +495,39 @@ export function useMasterlist() {
     const handleSyncAll = useCallback(async () => {
         const appsToUpdate = Object.keys(localChanges);
         if (appsToUpdate.length === 0) {
-            setIsEditing(false);
             setFocusPath(null);
             return;
         }
 
         setIsSyncing(true);
         try {
-            await Promise.all(
-                appsToUpdate.map(id => {
-                    const changes = localChanges[id];
-                    const app = allApplications.find(a => a.id === id);
-                    if (!app) return Promise.resolve();
+            // Build the full patch list
+            const patches: { id: string; data: any }[] = [];
+            for (const id of appsToUpdate) {
+                const changes = localChanges[id];
+                const app = allApplications.find(a => a.id === id);
+                if (!app) continue;
 
-                    const targetStatus = changes.current_status ?? app.current_status;
-                    let autoColumn = changes.master_column ?? app.master_column;
+                const targetStatus = changes.current_status ?? app.current_status;
+                let autoColumn = changes.master_column ?? app.master_column;
 
-                    if (targetStatus === 'ENDORSED' && !changes.master_column) {
-                        autoColumn = 'Sheet';
-                    }
+                if (targetStatus === 'ENDORSED' && !changes.master_column) {
+                    autoColumn = 'Sheet';
+                }
 
-                    return ApplicationService.patch(id, {
-                        ...changes,
-                        master_column: autoColumn
-                    });
-                })
-            );
+                patches.push({ id, data: { ...changes, master_column: autoColumn } });
+            }
+
+            // Send in sequential chunks of 10 to avoid hammering the server
+            const CHUNK_SIZE = 10;
+            for (let i = 0; i < patches.length; i += CHUNK_SIZE) {
+                const chunk = patches.slice(i, i + CHUNK_SIZE);
+                await Promise.all(chunk.map(p => ApplicationService.patch(p.id, p.data)));
+            }
+
             success('Records Updated', `Successfully updated ${appsToUpdate.length} candidate records.`);
             await loadData(true);
             setLocalChanges({});
-            setIsEditing(false);
             setFocusPath(null);
         } catch (err) {
             console.error('Sync failed:', err);
@@ -338,7 +539,6 @@ export function useMasterlist() {
 
     const handleCancelEdit = useCallback(() => {
         setLocalChanges({});
-        setIsEditing(false);
         setFocusPath(null);
     }, []);
 
@@ -416,7 +616,7 @@ export function useMasterlist() {
             await ApplicationService.patch(appId, { notes: updatedNotes });
             setAllApplications(prev => prev.map(a => a.id === appId ? { ...a, notes: updatedNotes } : a));
             if (notesApp?.id === appId) {
-                setNotesApp(prev => prev ? { ...prev, notes: updatedNotes } : null);
+                setNotesApp((prev: Application | null) => prev ? { ...prev, notes: updatedNotes } : null);
             }
             if (author === 'DELETE_TRIGGER_SYNC') {
                 success('Note Deleted', 'Comment has been removed from the candidate profile.');
@@ -442,18 +642,87 @@ export function useMasterlist() {
 
         // Dual Visibility: Show MASTERLIST records + any successful sheet records in Masterview
         return uniqueApps.filter(a => {
-            if (a.metadata?.deleted_from_masterlist) return false;
-            
+            const isSpecializedTab = ['OFFBOARDING_WINNERS', 'ONBOARDING_WINNERS', 'OFFBOARDING_TRACKER', 'INACTIVE_APPLICATION'].includes(activeTab);
+            if (a.metadata?.deleted_from_masterlist && !isSpecializedTab) return false;
+
             // Spotlight Override: always include the applicant we are redirecting to
             if (autoSpotlightAppId && a.id === autoSpotlightAppId) {
                 return true;
             }
 
             const col = a.master_column || '';
+            const allCandidateStatuses = [
+                a.master_status,
+                a.current_status,
+                a.pis?.final_specific_status,
+                a.pis?.ops_validator_status,
+                (a.pis as any)?.initial_status,
+                (a.pis as any)?.assessment_status,
+                (a.pis as any)?.status,
+                a.pis?.overall_status
+            ].map(s => String(s || '').trim().toUpperCase());
+
+            const failedTerms = FAILED_TERMS;
+            const isFailed = allCandidateStatuses.some(s => failedTerms.includes(s) || s === 'FAILED' || s.startsWith('FAILED'));
             const status = a.master_status || a.current_status || 'PENDING';
 
             if (['MASTERLIST', 'PIVOT', 'EMAIL', 'REPORTS'].includes(activeTab)) {
-                const isPassed = ['FOR JOB OFFER', 'FOR_JOB_OFFER', 'PASSED', 'HIRED', 'HIRED_PROCESSED', 'ACCEPTED OFFER', 'ACCEPTED_OFFER', 'SENT JO AND BGC', 'SENT_JO_AND_BGC'].includes(status.toUpperCase());
+                const passedStatuses = ['FOR JOB OFFER', 'FOR_JOB_OFFER', 'PASSED', 'HIRED', 'HIRED_PROCESSED', 'ACCEPTED OFFER', 'ACCEPTED_OFFER', 'SENT JO AND BGC', 'SENT_JO_AND_BGC', 'CONFIRMED TRAINING', 'CONFIRMED_TRAINING', 'LATERAL TRANSFER', 'LATERAL_TRANSFER', 'PROMOTED', 'PROMOTION', 'FOR_PAN', 'FOR PAN', 'PAN_COMPLETED', 'PAN COMPLETED', 'CONTRACT_SENT', 'CONTRACT SENT', 'PAN ISSUED; FOR SIGNATURE', 'PAN ISSUED FOR SIGNATURE', 'PAN ISSUED', 'FOR SIGNATURE', 'PAN_ISSUED', 'POOL', 'POOLED', 'FOR POOL', 'FOR_POOL', 'ACTIVE POOL', 'ACTIVE_POOL', 'POOLING', 'WAITING', 'WAITLISTED'];
+                const statusUpper = status.toUpperCase();
+                const currUpper = (a.current_status || '').toUpperCase();
+
+                const isPassed = passedStatuses.includes(statusUpper) ||
+                    passedStatuses.includes(currUpper) ||
+                    statusUpper.includes('PAN') ||
+                    currUpper.includes('PAN') ||
+                    statusUpper.includes('SIGNATURE') ||
+                    currUpper.includes('SIGNATURE') ||
+                    statusUpper.includes('POOL') ||
+                    currUpper.includes('POOL') ||
+                    statusUpper.includes('WAITING') ||
+                    currUpper.includes('WAITING') ||
+                    statusUpper.includes('WAITLIST') ||
+                    currUpper.includes('WAITLIST') ||
+                    Boolean(a.master_column === 'MASTERLIST') ||
+                    Boolean(a.master_column === 'POOL');
+
+                // Hide failed/rejected candidates UNLESS they've already reached a passed milestone
+                // (e.g. failed OV for one account but reprofiled and passed for another)
+                if (isFailed && !isPassed) return false;
+
+                // Auto-hide if the candidate's resolved current status is terminal
+                const resolvedStatus = String(a.current_status || a.master_status || a.pis?.overall_status || (a.pis as any)?.status || 'PENDING').trim().toUpperCase();
+                const terminalStatuses = ['FAILED', 'INACTIVE', 'WITHDRAWN', 'NO SHOW', 'NO_SHOW', 'FALLOUT', 'FALL_OUT', 'AWOL', 'RESIGNED', 'TERMINATED'];
+                const isCurrentlyTerminal = terminalStatuses.includes(resolvedStatus) || resolvedStatus.startsWith('FAILED');
+                if (isCurrentlyTerminal) {
+                    return false;
+                }
+
+                // Exclude in-progress active interview pipeline statuses from Masterlist unless candidate has passed
+                const inProgressStatuses = [
+                    'INITIAL_INTERVIEW', 'INITIAL INTERVIEW',
+                    'NO_SHOW', 'NO SHOW',
+                    'CLIENT_INTERVIEW', 'CLIENT INTERVIEW',
+                    'OPS_VAL_SCHEDULED', 'OPS VAL SCHEDULED',
+                    'FINAL_INTERVIEW_SCHEDULED', 'FINAL INTERVIEW SCHEDULED',
+                    'FOR_OPS_VAL_SCHEDULING', 'FOR OPS VAL SCHEDULING',
+                    'FINAL_INTERVIEW', 'FINAL INTERVIEW',
+                    'FOR REPROFILING', 'FOR_REPROFILING',
+                    'REPROFILE OPS VAL INTERVIEW', 'REPROFILE_OPS_VAL_INTERVIEW'
+                ];
+                const statUpper = String(status || '').toUpperCase();
+                const isPooledOrWaiting = a.master_column === 'POOL' ||
+                    currUpper.includes('WAITING') ||
+                    currUpper.includes('POOL') ||
+                    statUpper.includes('WAITING') ||
+                    statUpper.includes('POOL');
+                if (isPooledOrWaiting) {
+                    return false; // Candidate is in pool, do not show in masterlist
+                }
+
+                if (inProgressStatuses.includes(currUpper) || inProgressStatuses.includes(statUpper)) {
+                    return false;
+                }
 
                 // Respect explicit SHEET assignment — records kept out of Masterlist via import checkbox
                 const colUpper = (col || '').toUpperCase();
@@ -465,14 +734,47 @@ export function useMasterlist() {
                     return isPassed;
                 }
 
-                return colUpper === 'MASTERLIST' || colUpper === 'PIVOT' || colUpper === 'EMAIL' || colUpper === 'REPORTS' || colUpper === 'SHEET1' || isPassed;
+                return colUpper === 'MASTERLIST' || colUpper === 'PIVOT' || colUpper === 'EMAIL' || colUpper === 'REPORTS' || colUpper === 'SHEET1' || colUpper === 'POOL' || isPassed;
             }
 
-            return col === activeTab;
+            if (activeTab === 'OFFBOARDING_TRACKER' || activeTab === 'INACTIVE_APPLICATION') {
+                const colUpper = (col || '').toUpperCase();
+                const resolvedStatus = String(a.current_status || a.master_status || a.pis?.overall_status || (a.pis as any)?.status || '').trim().toUpperCase();
+                const hasEid = Boolean(String(a.master_eid || (a as any).eid || a.metadata?.eid || (a.pis as any)?.eid || '').trim());
+
+                const isExplicitlyInactive = colUpper === 'INACTIVE_APPLICATION' || colUpper === 'INACTIVE APPLICATION' || colUpper === 'INACTIVE';
+                const isExplicitlyOffboarding = colUpper === 'OFFBOARDING_TRACKER' || colUpper === 'OFFBOARDING TRACKER' || colUpper === 'OFFBOARDING';
+                const isWithdrawn = resolvedStatus === 'WITHDRAWN';
+                const isDroppedOut = isExplicitlyInactive || isExplicitlyOffboarding || isWithdrawn;
+
+                if (!isDroppedOut) return false;
+
+                if (activeTab === 'OFFBOARDING_TRACKER') {
+                    return hasEid;
+                } else {
+                    return !hasEid;
+                }
+            }
+
+            if (activeTab === 'OFFBOARDING_WINNERS' || activeTab === 'ONBOARDING_WINNERS') {
+                const colUpper = (col || '').toUpperCase();
+                return colUpper === 'OFFBOARDING_WINNERS' ||
+                    colUpper === 'ONBOARDING_WINNERS' ||
+                    colUpper === 'OFFBOARDING WINNERS' ||
+                    colUpper === 'ONBOARDING WINNERS';
+            }
+
+            if (activeTab === 'POOL') {
+                const isPool = col === 'POOL' || status.toUpperCase() === 'POOL' || status.toUpperCase() === 'WAITING';
+                return isPool && !isFailed;
+            }
+
+            const colNorm = (col || '').toUpperCase().replace(/\s+/g, '_');
+            const tabNorm = (activeTab || '').toUpperCase().replace(/\s+/g, '_');
+            return colNorm === tabNorm || col === activeTab;
         });
     }, [allApplications, localChanges, activeTab, location.state]);
 
-    const isRecruiterS = user?.role === 'recruiter_s';
 
     const filteredList = useMemo(() => {
         const state = location.state as any;
@@ -484,58 +786,194 @@ export function useMasterlist() {
                 return true;
             }
 
-            const matchesAccount = (selectedAccount === 'PRIORITY' || (!selectedAccount && isRecruiterS))
-                ? loadReroutedAccounts().some(sa => (a.department || '').toLowerCase().includes(sa))
-                : (selectedAccount === 'ALL' || !selectedAccount ? true : a.department === selectedAccount);
-            const matchesSearch = !search || (() => {
-                const term = search.toLowerCase();
-                const terms = term.split('|').map(t => t.trim()).filter(t => t.length >= 2);
-                if (terms.length === 0) return true;
+            const isHiddenRecord = a.is_hidden === true || (a.is_hidden as any) === 1 || String(a.is_hidden).toLowerCase() === 'true' || String(a.is_hidden) === '1' || a.metadata?.deleted_from_masterlist === true || String(a.metadata?.deleted_from_masterlist).toLowerCase() === 'true';
 
-                // Column Search Isolation: Check against all known column labels
-                const allColLabels = [
-                    'wave', 'account', 'position', 'status', 'remarks', 'eid',
-                    'last name', 'middle name', 'first name', 'date of birth',
-                    'contact', 'email', 'training', 'salary', 'allowance',
-                    'exam', 'typing', 'source', 'recruiter', 'neo', 'peme',
-                    'phic', 'bgc', 'nbi', 'bi', 'rcbc', 'h2r',
-                    'department', 'hiring request id', 'position applying for',
-                    'interview date', 'summary of background', 'current status'
-                ];
+            if (user?.role !== 'admin' && user?.role !== 'superadmin' && isHiddenRecord) return false;
+            if (isExclusiveMode && !isHiddenRecord) return false;
 
-                const isColMatch = terms.some(t => allColLabels.some(c => c.includes(t)));
-                if (isColMatch) return true;
-
-                const searchFields = (obj: any, target: string): boolean => {
-                    if (!obj) return false;
-                    return Object.values(obj).some(val => {
-                        if (typeof val === 'string' || typeof val === 'number') {
-                            return String(val).toLowerCase().includes(target);
-                        }
-                        if (typeof val === 'object') {
-                            return searchFields(val, target);
-                        }
-                        return false;
+            const accountToMatch = a.department || '';
+            const matchesAccount = !selectedAccount || selectedAccount.length === 0 || selectedAccount.includes('ALL')
+                ? true
+                : (() => {
+                    const candidateDepts = accountToMatch.split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+                    return selectedAccount.some(acc => {
+                        const accLower = acc.toLowerCase().trim();
+                        return candidateDepts.some(d => d === accLower);
                     });
+                })();
+            const matchesSearch = !search || (() => {
+                const rawTerm = search.toLowerCase().trim();
+                if (!rawTerm) return true;
+
+                const buildCandidateSearchText = (app: any): string => {
+                    const pis = app.pis || {};
+                    const meta = app.metadata || {};
+                    const parts = [
+                        app.applicant_name,
+                        app.first_name,
+                        app.middle_name,
+                        app.last_name,
+                        app.master_first_name,
+                        app.master_middle_name,
+                        app.master_last_name,
+                        pis.first_name,
+                        pis.middle_name,
+                        pis.last_name,
+                        app.applicant_email,
+                        app.email,
+                        app.personal_email,
+                        pis.email,
+                        app.master_eid,
+                        app.eid,
+                        app.phone,
+                        app.contact_no,
+                        pis.contact_no
+                    ];
+                    return parts.filter(Boolean).join(' ').toLowerCase();
                 };
 
-                return terms.some(t => searchFields(a, t));
+                const candidateText = buildCandidateSearchText(a);
+                const pipeTerms = rawTerm.split('|').map(t => t.trim()).filter(Boolean);
+
+                return pipeTerms.some(pipeTerm => {
+                    if (candidateText.includes(pipeTerm)) return true;
+                    const spaceTokens = pipeTerm.split(/\s+/).filter(t => t.length > 0);
+                    if (spaceTokens.length > 1) {
+                        return spaceTokens.every(token => candidateText.includes(token));
+                    }
+                    return false;
+                });
             })();
 
-            let matchesMonth = selectedMonth === 'ALL';
-            if (selectedMonth !== 'ALL') {
-                const trainingDateStr = a.master_training_start_date;
-                if (trainingDateStr) {
-                    const dateObj = new Date(trainingDateStr);
-                    if (!isNaN(dateObj.getTime())) {
-                        const monthMatch = MONTHS[dateObj.getMonth()] === selectedMonth;
-                        const dayMatch = selectedDay === 'ALL' || dateObj.getDate().toString() === selectedDay;
-                        matchesMonth = monthMatch && dayMatch;
+            let matchesYear = true;
+            if (selectedYear !== 'ALL') {
+                const targetDateStr = a.master_training_start_date || a.applied_at;
+                if (targetDateStr) {
+                    const d = new Date(targetDateStr);
+                    if (!isNaN(d.getTime())) {
+                        matchesYear = String(d.getFullYear()) === selectedYear;
                     } else {
-                        // Fallback for string-based months
-                        const monthMatch = trainingDateStr.toUpperCase().includes(selectedMonth);
-                        const dayMatch = selectedDay === 'ALL' || trainingDateStr.includes(` ${selectedDay} `) || trainingDateStr.endsWith(` ${selectedDay}`);
-                        matchesMonth = monthMatch && dayMatch;
+                        matchesYear = false;
+                    }
+                } else {
+                    matchesYear = false;
+                }
+            }
+
+            let matchesPassedMonth = true;
+            if (activePassedMonth !== 'ALL') {
+                const targetDateStr = a.master_training_start_date;
+                if (targetDateStr) {
+                    const d = new Date(targetDateStr);
+                    if (!isNaN(d.getTime())) {
+                        const monthName = d.toLocaleString('default', { month: 'long' });
+                        matchesPassedMonth = monthName === activePassedMonth;
+                    } else {
+                        matchesPassedMonth = false;
+                    }
+                } else {
+                    const ovPassed = String((a as any).ops_validator_status || (a.pis as any)?.ops_validator_status || (a.metadata as any)?.ops_validator_status).toUpperCase().includes('PASS');
+                    const clientPassed = String((a as any).client_interview_status || (a.pis as any)?.client_interview_status || (a.metadata as any)?.client_assessment_status).toUpperCase().includes('PASS');
+
+                    if (ovPassed || clientPassed) {
+                        const dateStr = a.applied_at;
+                        if (dateStr) {
+                            const d = new Date(dateStr);
+                            if (!isNaN(d.getTime())) {
+                                const monthName = d.toLocaleString('default', { month: 'long' });
+                                matchesPassedMonth = monthName === activePassedMonth;
+                            } else {
+                                matchesPassedMonth = false;
+                            }
+                        } else {
+                            matchesPassedMonth = false;
+                        }
+                    } else {
+                        matchesPassedMonth = false;
+                    }
+                }
+            }
+
+            let matchesStartDate = true;
+            if (startDateFilter.type !== 'ALL') {
+                const trainingDateStr = a.master_training_start_date;
+                if (!trainingDateStr) {
+                    matchesStartDate = false;
+                } else {
+                    const dateObj = new Date(trainingDateStr);
+                    if (isNaN(dateObj.getTime())) {
+                        matchesStartDate = false;
+                    } else {
+                        const now = new Date();
+                        if (startDateFilter.type === 'TODAY') {
+                            matchesStartDate = dateObj.toDateString() === now.toDateString();
+                        } else if (startDateFilter.type === 'WEEK') {
+                            const startOfWeek = new Date(now);
+                            const day = startOfWeek.getDay();
+                            if (day !== 1) startOfWeek.setHours(-24 * (day === 0 ? 6 : day - 1));
+                            startOfWeek.setHours(0, 0, 0, 0);
+                            const endOfWeek = new Date(startOfWeek);
+                            endOfWeek.setDate(startOfWeek.getDate() + 6);
+                            endOfWeek.setHours(23, 59, 59, 999);
+                            matchesStartDate = dateObj >= startOfWeek && dateObj <= endOfWeek;
+                        } else if (startDateFilter.type === 'MONTH' || startDateFilter.type === 'CUSTOM') {
+                            const start = startDateFilter.start ? new Date(startDateFilter.start) : null;
+                            const end = startDateFilter.end ? new Date(startDateFilter.end) : null;
+                            if (end) end.setHours(23, 59, 59, 999);
+
+                            if (start && end) {
+                                matchesStartDate = dateObj >= start && dateObj <= end;
+                            } else if (start) {
+                                matchesStartDate = dateObj >= start;
+                            } else if (end) {
+                                matchesStartDate = dateObj <= end;
+                            } else if (startDateFilter.type === 'MONTH') {
+                                matchesStartDate = dateObj.getMonth() === now.getMonth() && dateObj.getFullYear() === now.getFullYear();
+                            }
+                        }
+                    }
+                }
+            }
+
+            let matchesDateAdded = true;
+            if (dateAddedFilter.type !== 'ALL') {
+                const addedDateStr = a.created_at;
+                if (!addedDateStr) {
+                    matchesDateAdded = false;
+                } else {
+                    const dateObj = new Date(addedDateStr);
+                    if (isNaN(dateObj.getTime())) {
+                        matchesDateAdded = false;
+                    } else {
+                        const now = new Date();
+                        if (dateAddedFilter.type === 'TODAY') {
+                            matchesDateAdded = dateObj.toDateString() === now.toDateString();
+                        } else if (dateAddedFilter.type === 'WEEK') {
+                            const startOfWeek = new Date(now);
+                            const day = startOfWeek.getDay();
+                            if (day !== 1) startOfWeek.setHours(-24 * (day === 0 ? 6 : day - 1));
+                            startOfWeek.setHours(0, 0, 0, 0);
+                            const endOfWeek = new Date(startOfWeek);
+                            endOfWeek.setDate(startOfWeek.getDate() + 6);
+                            endOfWeek.setHours(23, 59, 59, 999);
+                            matchesDateAdded = dateObj >= startOfWeek && dateObj <= endOfWeek;
+                        } else if (dateAddedFilter.type === 'MONTH' || dateAddedFilter.type === 'CUSTOM') {
+                            const start = dateAddedFilter.start ? new Date(dateAddedFilter.start) : null;
+                            const end = dateAddedFilter.end ? new Date(dateAddedFilter.end) : null;
+
+                            // Ensure the end date spans the entire day (up to 23:59:59.999) to include all records on that day
+                            if (end) end.setHours(23, 59, 59, 999);
+
+                            if (start && end) {
+                                matchesDateAdded = dateObj >= start && dateObj <= end;
+                            } else if (start) {
+                                matchesDateAdded = dateObj >= start;
+                            } else if (end) {
+                                matchesDateAdded = dateObj <= end;
+                            } else if (dateAddedFilter.type === 'MONTH') {
+                                matchesDateAdded = dateObj.getMonth() === now.getMonth() && dateObj.getFullYear() === now.getFullYear();
+                            }
+                        }
                     }
                 }
             }
@@ -544,7 +982,7 @@ export function useMasterlist() {
             let matchesDateFilter = true;
             if (selectedDateFilter !== 'ALL') {
                 const now = new Date();
-                
+
                 const parseSafe = (val: any) => {
                     if (!val) return null;
                     if (typeof val === 'number') return new Date(Math.round((val - 25569) * 86400 * 1000));
@@ -553,7 +991,7 @@ export function useMasterlist() {
                 };
 
                 const activityDate = parseSafe(a.updated_at || a.applied_at);
-                
+
                 if (activityDate) {
                     if (selectedDateFilter === 'TODAY') {
                         matchesDateFilter = activityDate.toDateString() === now.toDateString();
@@ -573,10 +1011,52 @@ export function useMasterlist() {
             }
 
             const effectiveStatus = a.master_status || a.current_status || '';
-            const matchesStatus = selectedStatus === 'ALL' || String(effectiveStatus).toUpperCase() === selectedStatus.toUpperCase();
-            const matchesWave = selectedWave === 'ALL' || String(a.master_wave || '').toUpperCase() === selectedWave.toUpperCase();
+            let matchesStatus = false;
+            const isSpecializedTab = ['INACTIVE_APPLICATION', 'OFFBOARDING_TRACKER', 'OFFBOARDING_WINNERS', 'ONBOARDING_WINNERS', 'POOL'].includes(activeTab);
 
-            const isBaseMatch = matchesAccount && matchesSearch && matchesMonth && matchesStatus && matchesDateFilter && matchesWave;
+            if (!selectedStatus || selectedStatus.length === 0 || selectedStatus.includes('ALL')) {
+                matchesStatus = isSpecializedTab
+                    ? true
+                    : !['FAILED', 'REJECTED', 'WITHDRAWN', 'DECLINED'].includes(String(effectiveStatus).toUpperCase().trim());
+            } else {
+                matchesStatus = selectedStatus.some(status => {
+                    const s = status.toUpperCase().trim();
+                    const effectiveUpper = String(effectiveStatus).toUpperCase().trim();
+                    if (s === 'RESCHEDULED_INITIAL') {
+                        return effectiveUpper === 'RESCHEDULED' && ((a.pis as any)?.initial_interview_schedule || String(a.position_title).toLowerCase().includes('initial'));
+                    } else if (s === 'RESCHEDULED_ASSESSMENT') {
+                        return effectiveUpper === 'RESCHEDULED' && ((a.pis as any)?.assessment_schedule || String(a.position_title).toLowerCase().includes('assessment'));
+                    } else if (s === 'REJECTED') {
+                        return ['REJECTED', 'FAILED'].includes(effectiveUpper);
+                    } else if (s === 'ACCEPTED_OFFER' || s === 'ACCEPTED OFFER') {
+                        return ['ACCEPTED OFFER', 'ACCEPTED_OFFER', 'HIRED', 'HIRED_PROCESSED', 'PROMOTED', 'PROMOTION', 'LATERAL TRANSFER', 'LATERAL_TRANSFER'].includes(effectiveUpper);
+                    } else if (s === 'FOR_JOB_OFFER' || s === 'FOR JOB OFFER') {
+                        return ['FOR JOB OFFER', 'FOR_JOB_OFFER'].includes(effectiveUpper);
+                    } else if (s === 'SENT_JO_AND_BGC' || s === 'SENT JO AND BGC') {
+                        return ['SENT JO AND BGC', 'SENT_JO_AND_BGC'].includes(effectiveUpper);
+                    } else if (s === 'FOR_PAN' || s === 'FOR PAN') {
+                        return ['FOR PAN', 'FOR_PAN'].includes(effectiveUpper);
+                    } else {
+                        return effectiveUpper === s;
+                    }
+                });
+            }
+            const matchesWave = selectedWave === 'ALL' || String(a.master_wave || '').toUpperCase() === selectedWave.toUpperCase();
+            const type = a.metadata?.candidate_type || a.pis?.candidate_type || 'EXTERNAL';
+            const matchesHireType = selectedHireType === 'ALL' || type.toUpperCase() === selectedHireType.toUpperCase();
+
+            let matchesOfficialEndorsement = true;
+            if (isOfficialEndorsement) {
+                const hasEID = !!a.master_eid || !!(a.pis as any)?.employee_id;
+                const hasEmail = !!a.master_cp36_email || !!(a.pis as any)?.cp360_email || !!(a.pis as any)?.cp360_email;
+                const pemeResult = String(a.master_peme_result || (a.pis as any)?.peme_result || '').toUpperCase();
+                const hasPEME = pemeResult.includes('CLASS A') || pemeResult.includes('CLASS B');
+                if (!hasEID || !hasEmail || !hasPEME) {
+                    matchesOfficialEndorsement = false;
+                }
+            }
+
+            const isBaseMatch = matchesAccount && matchesSearch && matchesStatus && matchesWave && matchesStartDate && matchesDateAdded && matchesPassedMonth && matchesDateFilter && matchesYear && matchesHireType && matchesOfficialEndorsement;
 
             if (activeTab === 'PIVOT') {
                 const matchesTraining = pivotTraining === 'ALL' || a.master_training_start_date === pivotTraining;
@@ -590,6 +1070,58 @@ export function useMasterlist() {
                 if (activeSubTab === 'NOT ELIGIBLE') {
                     return isBaseMatch && a.current_status === 'NOT_ELIGIBLE_FOR_REHIRE';
                 }
+
+                const statusUpper = String(effectiveStatus).toUpperCase();
+                const currUpper = String(a.current_status || '').toUpperCase();
+                const validDropdownStatuses = [
+                    'ACCEPTED_OFFER', 'ACCEPTED OFFER', 'SENT_JO_AND_BGC', 'SENT JO AND BGC',
+                    'FOR_JOB_OFFER', 'FOR JOB OFFER', 'FOR_PAN', 'FOR PAN', 'PAN_COMPLETED', 'PAN COMPLETED',
+                    'CONTRACT_SENT', 'CONTRACT SENT', 'PASSED', 'RESCHEDULED',
+                    'HIRED', 'CONFIRMED TRAINING', 'CONFIRMED_TRAINING',
+                    'LATERAL TRANSFER', 'LATERAL_TRANSFER', 'PROMOTED', 'PROMOTION',
+                    'PAN ISSUED; FOR SIGNATURE', 'PAN ISSUED FOR SIGNATURE', 'PAN ISSUED', 'FOR SIGNATURE', 'PAN_ISSUED',
+                    'POOL', 'POOLED', 'FOR POOL', 'FOR_POOL', 'ACTIVE POOL', 'ACTIVE_POOL', 'POOLING', 'WAITING', 'WAITLISTED'
+                ];
+                const isStatusValid = validDropdownStatuses.includes(statusUpper) ||
+                    validDropdownStatuses.includes(currUpper) ||
+                    statusUpper.includes('PAN') ||
+                    currUpper.includes('PAN') ||
+                    statusUpper.includes('SIGNATURE') ||
+                    currUpper.includes('SIGNATURE') ||
+                    statusUpper.includes('POOL') ||
+                    currUpper.includes('POOL') ||
+                    statusUpper.includes('WAITING') ||
+                    currUpper.includes('WAITING') ||
+                    statusUpper.includes('WAITLIST') ||
+                    currUpper.includes('WAITLIST') ||
+                    Boolean(a.master_status) ||
+                    Boolean(a.master_column === 'MASTERLIST') ||
+                    Boolean(a.master_column === 'POOL');
+
+                const inProgressStatuses = [
+                    'INITIAL_INTERVIEW', 'INITIAL INTERVIEW',
+                    'NO_SHOW', 'NO SHOW',
+                    'CLIENT_INTERVIEW', 'CLIENT INTERVIEW',
+                    'OPS_VAL_SCHEDULED', 'OPS VAL SCHEDULED',
+                    'FINAL_INTERVIEW_SCHEDULED', 'FINAL INTERVIEW SCHEDULED',
+                    'FOR_OPS_VAL_SCHEDULING', 'FOR OPS VAL SCHEDULING',
+                    'FINAL_INTERVIEW', 'FINAL INTERVIEW',
+                    'FOR REPROFILING', 'FOR_REPROFILING',
+                    'REPROFILE OPS VAL INTERVIEW', 'REPROFILE_OPS_VAL_INTERVIEW'
+                ];
+                const isPooledOrWaiting = a.master_column === 'POOL' ||
+                    currUpper.includes('WAITING') ||
+                    currUpper.includes('POOL') ||
+                    statusUpper.includes('WAITING') ||
+                    statusUpper.includes('POOL');
+                if (!isPooledOrWaiting && (inProgressStatuses.includes(currUpper) || inProgressStatuses.includes(statusUpper))) {
+                    return false;
+                }
+
+                if (!isStatusValid) {
+                    return false;
+                }
+
                 return isBaseMatch;
             }
 
@@ -601,7 +1133,8 @@ export function useMasterlist() {
             }
 
             if (activeTab === 'INACTIVE_APPLICATION') {
-                const isInactive = ['REJECTED', 'WITHDRAWN', 'DECLINED', 'NOT_ELIGIBLE_FOR_REHIRE', 'INACTIVE'].includes(String(a.current_status).toUpperCase());
+                const isInactive = ['FAILED', 'REJECTED', 'WITHDRAWN', 'DECLINED', 'NOT_ELIGIBLE_FOR_REHIRE', 'INACTIVE', 'NO SHOW', 'NO_SHOW', 'BACKOUT', 'BACK OUT'].includes(String(a.current_status || '').toUpperCase()) ||
+                    String(a.master_column || '').toUpperCase() === 'INACTIVE_APPLICATION';
                 return isBaseMatch && isInactive;
             }
 
@@ -615,23 +1148,120 @@ export function useMasterlist() {
 
 
             return isBaseMatch;
+        }).sort((a, b) => {
+            const isBuffer = (app: Application) => {
+                const remarks = String(app.master_remarks || app.pis?.ops_validation_remarks || '').toUpperCase();
+                return remarks.includes('CONFIRMED TRAINING - BUFFER');
+            };
+            const aIsBuffer = isBuffer(a);
+            const bIsBuffer = isBuffer(b);
+
+            if (aIsBuffer && !bIsBuffer) return 1;
+            if (!aIsBuffer && bIsBuffer) return -1;
+
+            // Primary sort by explicit sort order or Date Added (Ascending)
+            const getRank = (app: Application) => app.metadata?.master_sort_order ?? new Date(app.applied_at || app.created_at || 0).getTime();
+            const rankA = getRank(a);
+            const rankB = getRank(b);
+
+            if (rankA < rankB) return -1;
+            if (rankA > rankB) return 1;
+
+            // Secondary sort by account
+            const rawA = a.pis?.final_account || a.endorsement_account || a.department || '';
+            const rawB = b.pis?.final_account || b.endorsement_account || b.department || '';
+            const accA = String(rawA).toLowerCase().trim();
+            const accB = String(rawB).toLowerCase().trim();
+
+            if (accA < accB) return -1;
+            if (accA > accB) return 1;
+
+            // Tertiary sort by name
+            const nameA = String(a.applicant_name || '').toLowerCase().trim();
+            const nameB = String(b.applicant_name || '').toLowerCase().trim();
+            return nameA.localeCompare(nameB);
         });
-    }, [activeApplications, selectedAccount, search, selectedMonth, activeTab, pivotTraining, pivotPosition, pivotStatus, pivotAccount, activeSubTab, selectedStatus, selectedWave, emailFilter, selectedDateFilter, selectedDay, location.state]);
+    }, [activeApplications, selectedAccount, search, startDateFilter, dateAddedFilter, activePassedMonth, activeTab, pivotTraining, pivotPosition, pivotStatus, pivotAccount, activeSubTab, selectedStatus, selectedWave, emailFilter, selectedDateFilter, selectedDay, selectedYear, location.state, selectedHireType, isOfficialEndorsement, isExclusiveMode]);
+
+    const officialEndorsementCount = useMemo(() => {
+        if (isOfficialEndorsement) {
+            return filteredList.length;
+        }
+        return filteredList.filter(a => {
+            const hasEID = !!a.master_eid || !!(a.pis as any)?.employee_id;
+            const hasEmail = !!a.master_cp36_email || !!(a.pis as any)?.cp360_email || !!(a.pis as any)?.cp360_email;
+            const pemeResult = String(a.master_peme_result || (a.pis as any)?.peme_result || '').toUpperCase();
+            const hasPEME = pemeResult.includes('CLASS A') || pemeResult.includes('CLASS B');
+            return hasEID && hasEmail && hasPEME;
+        }).length;
+    }, [filteredList, isOfficialEndorsement]);
+
+
+    const handleMoveRow = useCallback(async (appId: string, direction: 'up' | 'down') => {
+        const currentIndex = filteredList.findIndex(a => a.id === appId);
+        if (currentIndex < 0) return;
+        const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (swapIndex < 0 || swapIndex >= filteredList.length) return;
+
+        const currentApp = filteredList[currentIndex];
+        const swapApp = filteredList[swapIndex];
+
+        const getRank = (app: Application) => app.metadata?.master_sort_order ?? new Date(app.applied_at || app.created_at || 0).getTime();
+
+        const rankSwap = getRank(swapApp);
+
+        // Find the boundary app on the other side of the swapApp
+        const boundaryIndex = direction === 'up' ? swapIndex - 1 : swapIndex + 1;
+        const boundaryApp = filteredList[boundaryIndex];
+
+        const rankBoundary = boundaryApp ? getRank(boundaryApp) : (direction === 'up' ? rankSwap - 1000000 : rankSwap + 1000000);
+
+        let newRank = (rankSwap + rankBoundary) / 2;
+
+        if (rankSwap === rankBoundary) {
+            newRank = direction === 'up' ? rankSwap - 1 : rankSwap + 1;
+        }
+
+        setLocalChanges(prev => {
+            return {
+                ...prev,
+                [currentApp.id]: {
+                    ...prev[currentApp.id],
+                    metadata: { ...(currentApp.metadata || {}), master_sort_order: newRank }
+                }
+            };
+        });
+
+        try {
+            await ApplicationService.patch(currentApp.id, { metadata: { ...(currentApp.metadata || {}), master_sort_order: newRank } });
+        } catch (e) {
+            console.error(e);
+        }
+    }, [filteredList]);
 
     const accountMetrics = useMemo(() => {
         const groups: Record<string, { count: number; positions: Set<string> }> = {};
-        activeApplications.forEach(app => {
-            const dept = app.department || 'General';
-            if (!groups[dept]) groups[dept] = { count: 0, positions: new Set() };
-            groups[dept].count++;
-            groups[dept].positions.add(app.position_title);
+
+        // Let's seed with valid departments
+        validDepartments.forEach(dept => {
+            groups[dept] = { count: 0, positions: new Set() };
         });
-        return Object.entries(groups).map(([name, data]) => ({
-            name,
-            count: data.count,
-            positionCount: data.positions.size
-        })).sort((a, b) => b.count - a.count);
-    }, [activeApplications]);
+
+        activeApplications.forEach(app => {
+            const rawDept = app.department || 'Support & Leadership / Others';
+            if (!groups[rawDept]) groups[rawDept] = { count: 0, positions: new Set() };
+            groups[rawDept].count++;
+            groups[rawDept].positions.add(app.position_title);
+        });
+
+        return Object.entries(groups)
+            .filter(([name, data]) => data.count > 0 || validDepartments.includes(name)) // Only show ones with data or explicit valid depts
+            .map(([name, data]) => ({
+                name,
+                count: data.count,
+                positionCount: data.positions.size
+            })).sort((a, b) => b.count - a.count);
+    }, [activeApplications, validDepartments]);
 
     const pivotOptions = useMemo(() => {
         return {
@@ -651,69 +1281,196 @@ export function useMasterlist() {
     }, [allApplications]);
 
     const handleExportExcel = useCallback(() => {
-        const listToExport = selectedAccount ? filteredList : allApplications;
+        const listToExport = filteredList;
         if (listToExport.length === 0) return;
 
-        const exportData = listToExport.map(app => ({
-            'WAVE': app.master_wave || '',
-            'Account': app.department,
-            'Hiring Request ID': app.master_hiring_request_id || '',
-            'Position': app.position_title,
-            'Status': (app.master_status || app.current_status || '').replace(/_/g, ' '),
-            'Remarks': app.final_interview_notes || app.master_remarks || '',
-            'Eid': app.master_eid || '',
-            'Column': app.master_column || '',
-            'Last Name': app.master_last_name || '',
-            'Middle Name': app.master_middle_name || '',
-            'First Name': app.master_first_name || '',
-            'Date of Birth': (() => {
-                const d = app.pis?.birth_date;
-                if (!d || d === '---') return '';
-                const dateObj = new Date(d);
-                return isNaN(dateObj.getTime()) ? d : dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
-            })(),
-            'Contact No.': app.pis?.phone || '',
-            'Personal Email Address': app.applicant_email,
-            'CP360 Email Address': app.master_cp36_email || '',
-            'TRAINING START DATE': (() => {
-                const d = app.master_training_start_date;
-                if (!d || d === '---') return '';
-                const dateObj = new Date(d);
-                if (isNaN(dateObj.getTime())) return d;
-                
-                // Heal 2001 anomaly during export for consistency
-                if (dateObj.getFullYear() === 2001) {
-                    dateObj.setFullYear(new Date().getFullYear());
-                }
-                
-                return dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
-            })(),
-            'BASIC SALARY': app.master_basic_salary || '',
-            'ALLOWANCE': app.master_allowance || '',
-            'Exam Score': app.assessment_score || '',
-            'Typing Test': app.typing_test_wpm ? `${app.typing_test_wpm} WPM / ${app.typing_test_accuracy}%` : '',
-            'SOURCE': app.hiring_source || app.pis?.hiring_source || '',
-            'NAME OF RECRUITER': app.assigned_recruiter_name || 'System',
-            'NEO Date': app.master_neo_date || '',
-            'PEME': app.master_peme_status || '',
-            'PEME Result': app.master_peme_result || '',
-            'PHIC': app.pis?.philhealth_no || '',
+        const exportData = listToExport.map(app => {
+            let trueAccount = app.department || app.endorsement_account || app.pis?.final_account || '';
+            if (trueAccount.includes(',')) {
+                const failedSet = new Set((app.metadata?.failed_accounts || []).map((f: string) => f.trim().toLowerCase()));
+                const parts = trueAccount.split(',').map((s: string) => s.trim()).filter((s: string) => s && !failedSet.has(s.toLowerCase()));
 
-            'BGS Status': app.master_bgs_status || '',
-            'Email NBI': app.master_email_nbi_status || '',
-            'NBI Result': app.master_nbi_result || '',
-            'BI Endorsement': app.master_bi_endorsement_date || '',
-            'BI Result': app.master_bi_result || '',
-            'SSS No.': app.pis?.sss_no || '',
-            'PhilHealth No.': app.pis?.philhealth_no || '',
-            'Pag-Ibig No.': app.pis?.pagibig_no || '',
-            'Tin No.': app.pis?.tin_no || app.tin_no || ''
-        }));
+                // If a specific account filter is active, prefer that account from the list
+                if (selectedAccount && selectedAccount.length > 0 && !selectedAccount.includes('ALL')) {
+                    const matchedPart = parts.find(p =>
+                        selectedAccount.some(acc => p.toLowerCase() === acc.toLowerCase())
+                    );
+                    trueAccount = matchedPart || (parts.length > 0 ? parts[parts.length - 1] : trueAccount.split(',').pop()?.trim() || trueAccount);
+                } else {
+                    trueAccount = parts.length > 0 ? parts[parts.length - 1] : trueAccount.split(',').pop()?.trim() || trueAccount;
+                }
+            }
+
+            const lobsToRemove = ['Technical Support', 'Technical Suppo', 'Agent - Backoffice', 'Agent - Case Manager', 'Case Manager', 'BDR', 'DIA'];
+            for (const lob of lobsToRemove) {
+                const regex = new RegExp(lob, 'gi');
+                if (regex.test(trueAccount)) {
+                    trueAccount = trueAccount.replace(regex, '').trim();
+                }
+            }
+
+            return {
+                'WAVE': app.master_wave || '',
+                'Account': trueAccount,
+                'LOB': (() => {
+                    const deptVal = String(app.department || '');
+                    const knownLobs = ['Technical Support', 'Technical Suppo', 'Agent - Backoffice', 'Agent - Case Manager', 'Case Manager', 'BDR', 'DIA'];
+                    for (const lob of knownLobs) {
+                        if (deptVal.includes(lob)) return lob === 'Technical Suppo' ? 'Technical Support' : lob;
+                    }
+                    const deptUpper = deptVal.toUpperCase();
+                    if (deptUpper.includes('BDR')) return 'BDR';
+                    if (deptUpper.includes('DIA')) return 'DIA';
+                    return app.pis?.custom_lob || '';
+                })(),
+                'Hiring Request ID': app.master_hiring_request_id || '',
+                'Position': app.position_title,
+                'Status': (app.current_status || app.master_status || '').replace(/_/g, ' '),
+                'Remarks': (() => {
+                    let raw = app.final_interview_notes || app.master_remarks || '';
+                    if (raw) raw = raw.replace(/\s*\(Force Pass\)/gi, '').replace(/\s*\(Force Fail\)/gi, '');
+                    return cleanColumn1Text(raw);
+                })(),
+                'Previous Salary': (app.pis as any)?.previous_compensation || (app.pis as any)?.previous_salary || app.metadata?.previous_salary || app.interview_responses?.['be3d7992-f21f-4551-b270-d80503b3a89b'] || '',
+                "If you don't mind us asking how much is your salary expectations?": app.pis?.salary_expectation || app.metadata?.salary_expectations || app.metadata?.salary_expectation || app.interview_responses?.['5c379862-667c-4d5f-abcc-41eb693e811a'] || app.interview_responses?.['737ef5db-461b-4b76-a3de-a3b574f3b163'] || '',
+                'Eid': app.master_eid || '',
+                'Column': app.master_column || '',
+                'Last Name': app.master_last_name || '',
+                'Middle Name': app.master_middle_name || '',
+                'First Name': app.master_first_name || '',
+                'Preferred Nickname': app.preferred_nickname || app.pis?.preferred_nickname || '',
+                'Date of Birth': (() => {
+                    const d = app.pis?.birth_date;
+                    if (!d || d === '---') return '';
+                    const dateObj = new Date(d);
+                    return isNaN(dateObj.getTime()) ? d : dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+                })(),
+                'Contact No.': app.pis?.phone || '',
+                'Personal Email Address': app.applicant_email,
+                'CP360 Email Address': app.master_cp36_email || '',
+                'TRAINING START DATE': (() => {
+                    const d = app.master_training_start_date;
+                    if (!d || d === '---') return '';
+                    const dateObj = new Date(d);
+                    if (isNaN(dateObj.getTime())) return d;
+
+                    // Heal 2001 anomaly during export for consistency
+                    if (dateObj.getFullYear() === 2001) {
+                        dateObj.setFullYear(new Date().getFullYear());
+                    }
+
+                    return dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+                })(),
+                'BASIC SALARY': app.master_basic_salary || '',
+                'ALLOWANCE': app.master_allowance || '',
+                'Exam Score': app.assessment_score || '',
+                'Typing Test': app.typing_test_wpm ? `${app.typing_test_wpm} WPM / ${app.typing_test_accuracy}%` : '',
+                'SOURCE': app.hiring_source || app.pis?.hiring_source || '',
+                'NAME OF RECRUITER': app.assigned_recruiter_name || 'System',
+                'NEO Date': app.master_neo_date || '',
+                'PEME': app.master_peme_status || '',
+                'PEME Result': app.master_peme_result || '',
+                'PHIC': app.pis?.philhealth_no || '',
+
+                'BGS Status': app.master_bgs_status || '',
+                'Email NBI': app.master_email_nbi_status || '',
+                'NBI Result': app.master_nbi_result || '',
+                'BI Endorsement': app.master_bi_endorsement_date || '',
+                'BI Result': app.master_bi_result || '',
+                'SSS No.': app.pis?.sss_no || '',
+                'PhilHealth No.': app.pis?.philhealth_no || '',
+                'Pag-Ibig No.': app.pis?.pagibig_no || '',
+                'Tin No.': app.pis?.tin_no || app.tin_no || ''
+            };
+        });
 
         const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+        // Apply styles to headers and Status column
+        if (exportData.length > 0) {
+            const headerKeys = Object.keys(exportData[0] || {});
+
+            // Style header row
+            for (let C = 0; C < headerKeys.length; ++C) {
+                const cellRef = XLSX.utils.encode_cell({ r: 0, c: C });
+                const cell = worksheet[cellRef];
+                if (cell) {
+                    cell.s = {
+                        font: { bold: true, color: { rgb: "FFFFFF" } },
+                        fill: { fgColor: { rgb: "4B5563" } } // gray-600
+                    };
+                }
+            }
+
+            const statusColIndex = headerKeys.indexOf('Status');
+            if (statusColIndex !== -1) {
+                for (let R = 1; R <= exportData.length; ++R) {
+                    const cellRef = XLSX.utils.encode_cell({ r: R, c: statusColIndex });
+                    const cell = worksheet[cellRef];
+                    if (cell && cell.v) {
+                        const statusStr = String(cell.v).toUpperCase().trim();
+                        let bg = "EFF6FF"; // default blue-50
+                        let fg = "1D4ED8"; // default blue-700
+
+                        if (['HIRED', 'ACCEPTED OFFER', 'PROMOTED', 'LATERAL TRANSFER'].includes(statusStr)) {
+                            bg = "10B981"; fg = "FFFFFF"; // emerald
+                        } else if (['PASSED', 'FOR JOB OFFER'].includes(statusStr)) {
+                            bg = "FFEDD5"; fg = "EA580C"; // orange
+                        } else if (['WITHDRAWN', 'FAILED', 'REJECTED', 'CLOSED'].includes(statusStr)) {
+                            bg = "FCE7F3"; fg = "DB2777"; // pink
+                        } else if (['PAN COMPLETED', 'PAN DONE'].includes(statusStr)) {
+                            bg = "CCFBF1"; fg = "115E59"; // teal
+                        } else if (['PAN ISSUED; FOR SIGNATURE', 'PAN ISSUED FOR SIGNATURE'].includes(statusStr)) {
+                            bg = "CFFAFE"; fg = "155E75"; // cyan
+                        } else if (['PAN OUT FOR APPROVAL', 'PAN FOR APPROVAL'].includes(statusStr)) {
+                            bg = "E0F2FE"; fg = "0369A1"; // sky
+                        } else if (['FOR PAN', 'FOR PAN AND BI', 'INITIAL INTERVIEW', 'WAITING', 'POOL', 'WAITING (POOLED)'].includes(statusStr)) {
+                            bg = "F3E8FF"; fg = "7E22CE"; // purple
+                        } else if (['SENT JO AND BGC', 'QUEUE ASSIGNED'].includes(statusStr)) {
+                            bg = "EFF6FF"; fg = "1D4ED8"; // blue
+                        } else if (['INTERVIEW IN PROGRESS'].includes(statusStr)) {
+                            bg = "3B82F6"; fg = "FFFFFF"; // blue-500
+                        } else if (['ENDORSED'].includes(statusStr)) {
+                            bg = "CFFAFE"; fg = "0E7490"; // cyan
+                        } else if (['FOR SCHEDULING', 'FINAL INTERVIEW', 'FINAL INTERVIEW SCHEDULED', 'MARKED PENDING'].includes(statusStr)) {
+                            bg = "FEF3C7"; fg = "B45309"; // amber
+                        }
+
+                        cell.s = {
+                            fill: { fgColor: { rgb: bg } },
+                            font: { color: { rgb: fg }, bold: true },
+                            alignment: { vertical: "center", horizontal: "center" }
+                        };
+                    }
+                }
+            }
+        }
+
+        // Auto-fit column widths for better readability
+        if (exportData.length > 0) {
+            const colWidths = Object.keys(exportData[0] || {}).map((key) => {
+                let maxLen = key.length;
+                exportData.forEach((row: any) => {
+                    const valStr = String(row[key] || '');
+                    if (valStr.length > maxLen) {
+                        maxLen = valStr.length;
+                    }
+                });
+                return { wch: Math.min(maxLen + 2, 60) }; // Cap width at 60 chars
+            });
+            worksheet['!cols'] = colWidths;
+
+            // Add autofilter to the header row
+            const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+            worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+        }
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Masterlist');
-        XLSX.writeFile(workbook, `RECRUIT360_${selectedAccount ? selectedAccount.toUpperCase() : 'ALL'}_REGISTRY_${new Date().toISOString().split('T')[0]}.xlsx`);
+        const accStr = selectedAccount && !selectedAccount.includes('ALL') && selectedAccount.length > 0
+            ? (selectedAccount.length === 1 ? selectedAccount[0].toUpperCase() : 'MULTI_ACCOUNT')
+            : 'ALL';
+        XLSX.writeFile(workbook, `RECRUIT360_${accStr}_REGISTRY_${new Date().toISOString().split('T')[0]}.xlsx`);
         success('Exported', 'Registry has been saved as Excel.');
     }, [selectedAccount, filteredList, allApplications, success]);
 
@@ -874,7 +1631,7 @@ export function useMasterlist() {
                         const isIdColumn = nk.includes('id') || nk.includes('no.') || nk.includes('#') || nk === 'no';
 
                         let match = nk.includes(variant) || variant.includes(nk);
-                        
+
                         // STRICTURE: Generic 'Name' column should NOT match specific First/Last/Middle requirements
                         if (nk === 'name' && (variant.includes('first') || variant.includes('last') || variant.includes('middle'))) {
                             match = false;
@@ -885,10 +1642,10 @@ export function useMasterlist() {
                         const normalizedV = variant.replace(/[^a-z0-9]/g, '');
                         const isGenericK = normalizedK === 'email' || normalizedK === 'emailaddress';
                         const isGenericV = normalizedV === 'email' || normalizedV === 'emailaddress';
-                        
+
                         // 1. Don't let 'Email' (K) match 'Ops Validator Email' (V)
                         if (isGenericK && normalizedV.includes(normalizedK) && normalizedV.length > 10) match = false;
-                        
+
                         // 2. Don't let 'Ops Validator Email' (K) match 'Email' (V)
                         if (isGenericV && normalizedK.includes(normalizedV) && normalizedK.length > 10) match = false;
 
@@ -911,7 +1668,7 @@ export function useMasterlist() {
             let firstName = find(['First Name', 'Given Name', 'FName', 'FirstName', 'GivenName', 'Candidate First Name', 'Applicant First Name', 'First_Name']);
             let lastName = find(['Last Name', 'Surname', 'LName', 'LastName', 'SurName', 'Candidate Last Name', 'Applicant Last Name', 'Last_Name', 'Family Name']);
             let middleName = find(['Middle Name', 'MName', 'MiddleName', 'M.I', 'MI']);
-            
+
             // Narrow down full name variants to avoid accidental status matches
             let fullName = find(['Applicant Name', 'Full Name', 'Candidate Name', 'Employee Name', 'Name of Candidate', 'Name']);
 
@@ -946,7 +1703,7 @@ export function useMasterlist() {
             // If we have separate name components, they are often more reliable than a single "Name" column 
             if (firstName || lastName) {
                 const constructed = `${lastName || ''}${lastName && firstName ? ', ' : ''}${firstName || ''}${middleName ? ` ${middleName}` : ''}`.trim();
-                
+
                 // If we don't have a full name, or the constructed name is more detailed, use the constructed one.
                 if (!fullName || (fullName.length < constructed.length && constructed.length > 0)) {
                     fullName = constructed;
@@ -974,11 +1731,11 @@ export function useMasterlist() {
                 department: find(['Account', 'Final Account', 'Client', 'Department', 'Dept']),
                 position_title: find(['Position', 'Position Title', 'Position Applying For?', 'Role', 'Job Title', 'Job']),
                 current_status: (find(['STATUS', 'Application Status', 'Step', 'State']) || 'Applicant Form').toString(),
-                source: 'SHEET_IMPORT', 
+                source: 'SHEET_IMPORT',
                 hiring_source: find(['SOURCE', 'Hiring Source', 'Referral Source']) || '',
                 birth_date: find(['Date of Birth', 'DOB', 'Birth Date', 'Birthdate']) || '',
                 phone: find(['Contact no.', 'Contact Number', 'Phone', 'Mobile', 'Contact No', 'Contact']) || '',
-                
+
                 master_wave: find(['WAVE', 'Batch', 'Class', 'WaveNo']),
                 master_hiring_request_id: hrid,
                 master_remarks: find(['Remarks', 'Notes', 'Comments', 'Feedback']),
@@ -1016,7 +1773,7 @@ export function useMasterlist() {
                 typing_test_accuracy: typingAcc ?? null,
 
                 philhealth_no: find(['PHIC', 'PhilHealth', 'PhilHealth No.']),
-                
+
                 // Bundle every single column from the Excel row into metadata as a backup
                 metadata: { ...row },
 
@@ -1083,7 +1840,7 @@ export function useMasterlist() {
             const targetColor = color === 'clear' ? '---' : color;
             await ApplicationService.bulkPatch(ids, { highlight_color: targetColor });
             success('Selection Highlighted', `Applied highlight to ${selectedIds.size} records.`);
-            setAllApplications(prev => prev.map(app => 
+            setAllApplications(prev => prev.map(app =>
                 selectedIds.has(app.id) ? { ...app, highlight_color: targetColor } : app
             ));
             setSelectedIds(new Set());
@@ -1098,7 +1855,7 @@ export function useMasterlist() {
 
 
 
-    const handleBulkMasterlistTransfer = useCallback(async (destination: 'POOL' | 'OFFBOARDING_TRACKER' | 'OFFBOARDING_WINNERS' | 'INACTIVE_APPLICATION') => {
+    const handleBulkMasterlistTransfer = useCallback(async (destination: 'MASTERLIST' | 'POOL' | 'OFFBOARDING_TRACKER' | 'OFFBOARDING_WINNERS' | 'INACTIVE_APPLICATION') => {
         if (selectedIds.size === 0) return;
         setIsSyncing(true);
         try {
@@ -1108,7 +1865,9 @@ export function useMasterlist() {
             };
 
             if (destination === 'POOL') {
-                patchData.current_status = 'Waiting';
+                patchData.current_status = 'Waiting (Pooled)';
+            } else if (destination === 'MASTERLIST') {
+                patchData.current_status = 'Accepted Offer'; // Typical status for returning to masterlist
             } else if (destination === 'OFFBOARDING_TRACKER') {
                 patchData.current_status = 'Withdrawn';
             } else if (destination === 'INACTIVE_APPLICATION') {
@@ -1129,13 +1888,142 @@ export function useMasterlist() {
         }
     }, [selectedIds, success, error, loadData]);
 
+    const handleBulkTransferDate = useCallback(async (month: string, year: string) => {
+        if (selectedIds.size === 0) return;
+        setIsSyncing(true);
+        try {
+            const ids = Array.from(selectedIds);
+
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            // Convert to uppercase for case-insensitive matching if necessary, though UI usually provides exact string
+            const monthIndex = monthNames.findIndex(m => m.toUpperCase() === month.toUpperCase());
+
+            if (monthIndex === -1 || !year) {
+                error('Invalid Date', 'Could not parse the selected month and year.');
+                setIsSyncing(false);
+                return;
+            }
+
+            const newDate = new Date(parseInt(year), monthIndex, 1, 12, 0, 0); // Noon UTC to avoid timezone edge cases
+            const applied_at = newDate.toISOString();
+
+            await ApplicationService.bulkPatch(ids, { applied_at });
+
+            success('Transfer Complete', `Successfully moved ${ids.length} records to ${month} ${year}.`);
+            loadData(true);
+            setSelectedIds(new Set());
+            setIsSelectMode(false);
+        } catch (err) {
+            console.error('Failed to transfer date', err);
+            error('Transfer Failed', 'Failed to move records. Please try again.');
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [selectedIds, success, error, loadData]);
+
+    const confirmAccountTransfer = useCallback(async (transferData: {
+        targetAccount: string;
+        opsValidatorId?: string | null;
+        opsValidatorName?: string | null;
+        opsRemarks?: string | null;
+        hiringRequestId?: string | null;
+        positionId?: string | null;
+        positionTitle?: string | null;
+        jobPosition?: string | null;
+    }) => {
+        if (!pendingAccountTransfer) return;
+        const { app } = pendingAccountTransfer;
+
+        setIsSyncing(true);
+        try {
+            const accVal = transferData.targetAccount;
+            const prevAccount = app?.department || app?.endorsement_account || app?.pis?.final_account || '';
+            const targetRemarks = transferData.opsRemarks || 'Pending Ops Validation';
+
+            const newChanges: any = {
+                department: accVal,
+                endorsement_account: accVal,
+                assigned_ops_validator_id: transferData.opsValidatorId || null,
+                assigned_ops_validator_name: transferData.opsValidatorName || null,
+                master_hiring_request_id: transferData.hiringRequestId || null,
+                position_title: transferData.positionTitle || null,
+                position_id: transferData.positionId || null,
+                master_remarks: targetRemarks,
+                pis: {
+                    ...(app.pis || {}),
+                    final_account: accVal,
+                    initial_account_assignment: accVal,
+                    ops_validation_remarks: targetRemarks,
+                    ...(transferData.jobPosition ? { custom_lob: transferData.jobPosition } : {})
+                }
+            };
+
+            const prevRemarks = app?.master_remarks || app?.pis?.ops_validation_remarks || '';
+            if (prevRemarks && prevRemarks !== '---' && !prevRemarks.includes('Transferred')) {
+                const transferNote = `[Account Transfer ${new Date().toLocaleDateString()}] Transferred from "${prevAccount}" to "${accVal}". Previous Remarks: "${prevRemarks}"`;
+                newChanges.notes = app?.notes ? `${app.notes}\n${transferNote}` : transferNote;
+            }
+
+            await ApplicationService.patch(app.id, newChanges);
+
+            // Wait for fresh data before clearing local changes to prevent UI flickering
+            await loadData(true);
+
+            // Clear from localChanges so UI doesn't have a green border
+            setLocalChanges(prev => {
+                const next = { ...prev };
+                delete next[app.id];
+                return next;
+            });
+
+            success('Account Transferred', `Candidate successfully transferred to ${accVal}.`);
+        } catch (err) {
+            console.error('Account Transfer Failed', err);
+            error('Transfer Error', 'Failed to transfer account.');
+        } finally {
+            setIsSyncing(false);
+            setPendingAccountTransfer(null);
+        }
+    }, [pendingAccountTransfer, success, error, loadData]);
+
+    const cancelAccountTransfer = useCallback(() => {
+        setPendingAccountTransfer(null);
+    }, []);
+
+    const duplicateGovIdsMap = useMemo(() => {
+        const map: Record<string, string[]> = {};
+        const addToMap = (id: any, name: string) => {
+            if (!id) return;
+            const cleanId = String(id).trim().toUpperCase().replace(/[^0-9]/g, '');
+            if (cleanId.length < 5) return;
+            if (!map[cleanId]) map[cleanId] = [];
+            map[cleanId].push(name);
+        };
+
+        allApplications.forEach(app => {
+            const name = app.applicant_name || 'Unknown Candidate';
+            const _app = app as any;
+            const _pis = app.pis as any;
+            addToMap(_pis?.sss_no || _app.sss_no || _app.metadata?.sss_no, name);
+            addToMap(_pis?.philhealth_no || _app.philhealth_no || _app.metadata?.philhealth_no, name);
+            addToMap(_pis?.pagibig_no || _pis?.pag_ibig_no || _app.pagibig_no || _app.metadata?.pagibig_no, name);
+            addToMap(_pis?.tin_no || _app.tin_no || _app.metadata?.tin_no || _app.metadata?.master_tin_no, name);
+        });
+
+        return map;
+    }, [allApplications]);
+
     return {
         search, setSearch, allApplications, loading, selectedAccount, setSelectedAccount,
-        selectedMonth, setSelectedMonth, selectedDay, setSelectedDay,
+        startDateFilter, setStartDateFilter, dateAddedFilter, setDateAddedFilter, selectedDay, setSelectedDay,
+        activePassedMonth, setActivePassedMonth, availablePassedMonths,
+        selectedYear, setSelectedYear, availableYears,
         selectedDateFilter, setSelectedDateFilter,
         showAddModal, setShowAddModal,
         activeTab, setActiveTab, activeSubTab, setActiveSubTab,
-        isEditing, setIsEditing, localChanges, setLocalChanges,
+        isOfficialEndorsement, setIsOfficialEndorsement, officialEndorsementCount, duplicateGovIdsMap,
+        isEditing, setIsEditing, isConfigEditing, setIsConfigEditing, localChanges, setLocalChanges,
+        isExclusiveMode, setIsExclusiveMode,
         isSyncing, isSelectMode, setIsSelectMode,
         isBulkDeleting, bulkDeleteProgress,
         selectedIds, setSelectedIds,
@@ -1144,12 +2032,14 @@ export function useMasterlist() {
         pivotStatus, setPivotStatus, pivotAccount, setPivotAccount,
         selectedStatus, setSelectedStatus, selectedWave, setSelectedWave, waveOptions,
         emailFilter, setEmailFilter,
+        selectedHireType, setSelectedHireType,
         importPreview, setImportPreview, pendingWithdrawal, setPendingWithdrawal,
-        loadData, handleEdit, handleSyncAll, handleCancelEdit, handleBulkDelete, handleDelete,
+        pendingAccountTransfer, setPendingAccountTransfer, confirmAccountTransfer, cancelAccountTransfer,
+        loadData, handleEdit, handleMoveRow, handleSyncAll, handleCancelEdit, handleBulkDelete, handleDelete,
         filteredList, accountMetrics, pivotOptions, handleExportExcel,
         toggleSelectAll, toggleSelect, handleImportCSV, handleConfirmImport,
         notesApp, setNotesApp, handleSaveNote, anchorRect, setAnchorRect,
         success, error,
-        focusPath, setFocusPath, handleBulkHighlight, handleBulkMasterlistTransfer
+        focusPath, setFocusPath, handleBulkHighlight, handleBulkMasterlistTransfer, handleBulkTransferDate
     };
 }

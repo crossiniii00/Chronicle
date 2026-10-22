@@ -1,4 +1,6 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useActiveAccountStore } from '@/store/activeAccountStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Modal, ConfirmDialog } from '@/components/common/Modal';
 import { CalendarDropdown } from '@/components/common/CalendarDropdown';
@@ -9,9 +11,11 @@ import {
     Users, History, Camera, Calendar,
     Lock, Plus, Ban, UserCheck, Clock,
     TrendingDown, Settings, Save, AlertCircle, Briefcase, Trash2, Edit2,
-    ClipboardList, ChevronRight, Sparkles, X, BarChart3, List, LayoutGrid
+    ClipboardList, ChevronRight, Sparkles, X, BarChart3, List, LayoutGrid, ChevronUp, ChevronDown, Network
 } from 'lucide-react';
 import { DepartmentService, type Department } from '@/services/DepartmentService';
+import { ApplicationService } from '@/services/ApplicationService';
+import { DetailModalPortal } from '@/components/common/DetailModalPortal';
 import { useToast } from '@/components/common/useToast';
 import type { Application } from '@/types';
 import { PositionService, type HiringQuotaHistory } from '@/services/PositionService';
@@ -20,6 +24,38 @@ import { QuotaHistoryDashboardModal } from './QuotaHistoryDashboardModal';
 import { type CancelledClass } from '../AccountManagement';
 import { MASTERLIST_COLUMNS, NOT_ELIGIBLE_COLUMNS } from '../../recruiter/tracker/masterlist/constants';
 import { SPECIFIC_STATUS_OPTIONS } from '../../recruiter/tracker/utils/statusMappings';
+import { OverviewTab } from './AccountDashboardTabs/OverviewTab';
+import { HistoryTab } from './AccountDashboardTabs/HistoryTab';
+import { CancelledTab } from './AccountDashboardTabs/CancelledTab';
+import { HiringRequirementsTab } from './AccountDashboardTabs/HiringRequirementsTab';
+import { SubAccountsTab } from './AccountDashboardTabs/SubAccountsTab';
+import { UnassignedTab } from './AccountDashboardTabs/UnassignedTab';
+
+
+export interface Opening {
+    id: string;
+    name: string;
+    quota: number;
+    hired: number;
+    manualHired: number;
+    inPipeline: number;
+    failedCount: number;
+    totalApplicants: number;
+    remaining: number;
+    progress: number;
+    hiringType: 'Billed' | 'Non-Billed';
+    quotaStart?: string | null;
+    quotaEnd?: string | null;
+    trainingStartDate?: string | null;
+    hiringQuotaId?: string;
+    durationLabel: string;
+    country?: string | null;
+    city?: string | null;
+    notes?: string | null;
+    requesterName?: string | null;
+    recruitmentProgress?: string | null;
+    concatenate?: string | null;
+}
 
 export interface AccountDashboardData {
     totalQuota: number;
@@ -40,6 +76,7 @@ export interface AccountDashboardData {
     filteredApplicants: Application[];
     trainingStartDate?: string | null;
     hiringQuotaId?: string;
+    openings: Opening[];
 }
 
 interface AccountDashboardModalProps {
@@ -48,8 +85,8 @@ interface AccountDashboardModalProps {
     selectedAccount: Department | null;
     setSelectedAccount: (dept: Department | null) => void;
     accountDashboardData: AccountDashboardData | null;
-    dashboardTab: 'overview' | 'history' | 'cancelled' | 'hiring_requirements';
-    setDashboardTab: (tab: 'overview' | 'history' | 'cancelled' | 'hiring_requirements') => void;
+    dashboardTab: 'overview' | 'history' | 'cancelled' | 'hiring_requirements' | 'sub_accounts' | 'unassigned';
+    setDashboardTab: (tab: 'overview' | 'history' | 'cancelled' | 'hiring_requirements' | 'sub_accounts' | 'unassigned') => void;
     activePipelineFilter: string | null;
     setActivePipelineFilter: (filter: string | null) => void;
     setQuotaHistoryDrilldown: (drilldown: { item: HiringQuotaHistory; metric: QuotaHistoryMetric } | null) => void;
@@ -59,27 +96,39 @@ interface AccountDashboardModalProps {
     setQuotaManualHired: (val: number) => void;
     setQuotaStartDate: (date: string) => void;
     setQuotaEndDate: (date: string) => void;
-    setQuotaHiringType: (val: 'Billed' | 'Non-Billed') => void;
+    setQuotaHiringType: (val: string) => void;
     setQuotaTrainingStartDate: (date: string) => void;
     setQuotaHiringQuotaId: (val: string) => void;
+    setQuotaCountry: (val: string) => void;
+    setQuotaCity: (val: string) => void;
+    setQuotaRequesterName: (val: string) => void;
+    setQuotaRecruitmentProgress: (val: string) => void;
+    setQuotaConcatenate: (val: string) => void;
     setQuotaModal: (open: boolean) => void;
     setCloseConfirm: (open: boolean) => void;
     setCancelConfirm: (open: boolean) => void;
+    setQuotaOpeningName: (val: string) => void;
+    setEditingPositionId: (id: string | null) => void;
+    handleUpdateQuota: (newVal?: number, isCancel?: boolean) => Promise<void>;
     cancelledClasses: CancelledClass[];
     onDeleteCancelled?: (id: string) => void;
     todayInputValue: () => string;
     toDateInputValue: (value?: string | null) => string;
     getDurationLabel: (start?: string | null, end?: string | null) => string;
     loadData?: () => Promise<void>;
+    allApplications?: Application[];
 }
 
 export function AccountDashboardModal({
     dashboardModal, setDashboardModal, selectedAccount, setSelectedAccount, accountDashboardData,
     dashboardTab, setDashboardTab, activePipelineFilter, setActivePipelineFilter, setQuotaHistoryDrilldown,
     handleAccountImageUpload, submitting, setQuotaForm, setQuotaManualHired, setQuotaStartDate, setQuotaEndDate,
-    setQuotaHiringType, setQuotaTrainingStartDate, setQuotaHiringQuotaId, setQuotaModal, setCloseConfirm,
-    setCancelConfirm, cancelledClasses, onDeleteCancelled, todayInputValue, toDateInputValue, getDurationLabel, loadData
+    setQuotaHiringType, setQuotaTrainingStartDate, setQuotaHiringQuotaId, setQuotaCountry, setQuotaCity, setQuotaRequesterName, setQuotaRecruitmentProgress, setQuotaConcatenate, setQuotaModal, setCloseConfirm,
+    setCancelConfirm, setQuotaOpeningName, setEditingPositionId, handleUpdateQuota, cancelledClasses, onDeleteCancelled, todayInputValue, toDateInputValue, getDurationLabel, loadData, allApplications = []
 }: AccountDashboardModalProps) {
+
+    const navigate = useNavigate();
+    const { setActiveAccount } = useActiveAccountStore();
 
     const [expandedCardId, setExpandedCardId] = React.useState<string | null>(null);
     const [quotaHistoryViewMode, setQuotaHistoryViewMode] = React.useState<'list' | 'cards'>('list');
@@ -103,6 +152,7 @@ export function AccountDashboardModal({
     };
     const [deletingId, setDeletingId] = React.useState<string | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+    const [deleteLobConfirmOpen, setDeleteLobConfirmOpen] = React.useState(false);
     const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null);
     const [deleteProgress, setDeleteProgress] = React.useState(0);
     const [deleteStage, setDeleteStage] = React.useState('');
@@ -115,9 +165,27 @@ export function AccountDashboardModal({
     const [historyEnd, setHistoryEnd] = React.useState<string>('');
     const [historyTrainingStart, setHistoryTrainingStart] = React.useState<string>('');
     const [historyHiringQuotaId, setHistoryHiringQuotaId] = React.useState<string>('');
+    const [historyOpeningName, setHistoryOpeningName] = React.useState<string>('');
+    const [historyAssignedCandidates, setHistoryAssignedCandidates] = React.useState<string[]>([]);
+    const [historySalaryMatrixCategory, setHistorySalaryMatrixCategory] = React.useState<string>('');
+    const [historyClassType, setHistoryClassType] = React.useState<string>('');
+    const [historyRosterDate, setHistoryRosterDate] = React.useState<string>('');
+    const [historyHiringReqHc, setHistoryHiringReqHc] = React.useState<number>(0);
+    const [historyTotalOffersExtended, setHistoryTotalOffersExtended] = React.useState<number>(0);
+    const [historyManualJobOffers, setHistoryManualJobOffers] = React.useState<number>(0);
+    const [historyManualFallout, setHistoryManualFallout] = React.useState<number>(0);
+    const [historyNetHiresInternal, setHistoryNetHiresInternal] = React.useState<number>(0);
+    const [historyNetHiresExternal, setHistoryNetHiresExternal] = React.useState<number>(0);
+    const [historyManualBalance, setHistoryManualBalance] = React.useState<number>(0);
+    const [historyJoBalance, setHistoryJoBalance] = React.useState<number>(0);
+    const [historyManualDay1ShowUp, setHistoryManualDay1ShowUp] = React.useState<number>(0);
+    const [historyNotes, setHistoryNotes] = React.useState<string>('');
     const [savingHistory, setSavingHistory] = React.useState(false);
     const [filterStartDate, setFilterStartDate] = React.useState<string>('');
     const [filterEndDate, setFilterEndDate] = React.useState<string>('');
+    const [selectedApplicantForAssignment, setSelectedApplicantForAssignment] = React.useState<Application | null>(null);
+    const [assignmentLobId, setAssignmentLobId] = React.useState<string>('');
+    const [assigningLob, setAssigningLob] = React.useState(false);
 
     const filteredHistory = React.useMemo(() => {
         let list = [...(accountDashboardData?.history || [])];
@@ -136,15 +204,97 @@ export function AccountDashboardModal({
         });
     }, [accountDashboardData?.history, filterStartDate, filterEndDate]);
 
-    const [localSettings, setLocalSettings] = React.useState<{ required: string[]; optional: string[]; customRules?: any[]; standardSettings?: Record<string, string>; activeStandards?: string[] }>({
+    const [localSettings, setLocalSettings] = React.useState<{
+        required: string[];
+        optional: string[];
+        customRules?: any[];
+        standardSettings?: Record<string, string>;
+        activeStandards?: string[];
+        processOrder?: string[];
+        requiredProcesses?: string[];
+    }>({
         required: selectedAccount?.eligibilitySettings?.required || ['Status', '1st Day Show up', 'Final Specific Status'],
         optional: selectedAccount?.eligibilitySettings?.optional || ['2nd Day Show up'],
         customRules: selectedAccount?.eligibilitySettings?.customRules || [],
         standardSettings: selectedAccount?.eligibilitySettings?.standardSettings || {},
-        activeStandards: selectedAccount?.eligibilitySettings?.activeStandards || ['Status', '1st Day Show up', 'Final Specific Status', '2nd Day Show up', 'PEME Status', 'BGS Status', 'RCBC Status', 'NBI Status']
+        activeStandards: selectedAccount?.eligibilitySettings?.activeStandards || ['Status', '1st Day Show up', 'Final Specific Status', '2nd Day Show up', 'PEME Status', 'BGS Status', 'RCBC Status', 'NBI Status'],
+        processOrder: selectedAccount?.eligibilitySettings?.processOrder || [
+            'TYPING_TEST',
+            'INITIAL_INTERVIEW',
+            'ACCOUNT_ASSIGNMENT',
+            'ASSESSMENT',
+            'CLIENT_ASSESSMENT',
+            'CLIENT_INTERVIEW'
+        ],
+        requiredProcesses: selectedAccount?.eligibilitySettings?.requiredProcesses || [
+            'TYPING_TEST',
+            'INITIAL_INTERVIEW',
+            'ACCOUNT_ASSIGNMENT',
+            'ASSESSMENT',
+            'CLIENT_ASSESSMENT',
+            'CLIENT_INTERVIEW'
+        ]
     });
     const [savingSettings, setSavingSettings] = React.useState(false);
     const [applicantsTab, setApplicantsTab] = React.useState<'ongoing' | 'hired'>('ongoing');
+    const [subAccounts, setSubAccounts] = React.useState<Array<{ id: string, name: string, description?: string }>>([]);
+    const [isAddingSubAccount, setIsAddingSubAccount] = React.useState(false);
+    const [newSubAccountName, setNewSubAccountName] = React.useState('');
+    const [newSubAccountDesc, setNewSubAccountDesc] = React.useState('');
+
+    const STAGE_LABELS: Record<string, { label: string; desc: string }> = {
+        'TYPING_TEST': { label: 'Typing Test', desc: 'Typing speed and accuracy test' },
+        'INITIAL_INTERVIEW': { label: 'Initial Screening', desc: 'Initial candidate profile validation and screening' },
+        'ACCOUNT_ASSIGNMENT': { label: 'Account Assignment', desc: 'Operations review and endorsement' },
+        'ASSESSMENT': { label: 'Proficiency Assessment & Scheduling', desc: 'SpeechX/Wonderlic test evaluation and final interview scheduling' },
+        'CLIENT_ASSESSMENT': { label: 'Client Assessment', desc: 'Assessment and testing required by the client' },
+        'CLIENT_INTERVIEW': { label: 'Client Interview', desc: 'Final client-led interview evaluation' }
+    };
+
+    const moveStage = (index: number, direction: 'up' | 'down') => {
+        const order = [...(localSettings.processOrder || [
+            'TYPING_TEST',
+            'INITIAL_INTERVIEW',
+            'ACCOUNT_ASSIGNMENT',
+            'ASSESSMENT',
+            'CLIENT_ASSESSMENT',
+            'CLIENT_INTERVIEW'
+        ])];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= order.length) return;
+
+        const temp = order[index];
+        order[index] = order[targetIndex];
+        order[targetIndex] = temp;
+
+        setLocalSettings(prev => ({
+            ...prev,
+            processOrder: order
+        }));
+    };
+
+    const toggleStageActive = (stageId: string) => {
+        const activeStages = [...(localSettings.requiredProcesses || [
+            'TYPING_TEST',
+            'INITIAL_INTERVIEW',
+            'ACCOUNT_ASSIGNMENT',
+            'ASSESSMENT',
+            'CLIENT_ASSESSMENT',
+            'CLIENT_INTERVIEW'
+        ])];
+
+        let nextActiveStages: string[];
+        if (activeStages.includes(stageId)) {
+            nextActiveStages = activeStages.filter(id => id !== stageId);
+        } else {
+            nextActiveStages = [...activeStages, stageId];
+        }
+
+        setLocalSettings(prev => ({
+            ...prev,
+            requiredProcesses: nextActiveStages
+        }));
+    };
 
     const [isAddingRule, setIsAddingRule] = React.useState(false);
     const [ruleSource, setRuleSource] = React.useState<'masterlist' | 'interview'>('masterlist');
@@ -160,7 +310,7 @@ export function AccountDashboardModal({
         try {
             const saved = localStorage.getItem('masterlist_custom_column_meta');
             if (saved) customMeta = JSON.parse(saved);
-        } catch {}
+        } catch { }
 
         const baseDropdowns: Record<string, string[]> = {
             'current_status': [
@@ -179,7 +329,7 @@ export function AccountDashboardModal({
             'master_h2r_status': ['Passed', 'Failed', 'Pending', '---'],
             'pis.ops_validator_status': ['Passed', 'Failed', 'Pending', '---'],
             'pis.client_interview_status': ['Passed', 'Failed', 'Pending', '---'],
-            'pis.leadership_assessment_status': ['Passed', 'Failed', 'Pending', '---'],
+            'pis.leadership_score': ['Passed', 'Failed', 'Pending', '---'],
             'pis.wonderlic_status': ['Passed', 'Failed', 'Pending', '---'],
             'pis.overall_status': ['Passed', 'Failed', 'Pending', '---'],
             'pis.initial_interview_results': ['Passed', 'Failed', 'Pending', '---'],
@@ -218,7 +368,23 @@ export function AccountDashboardModal({
                 optional: selectedAccount.eligibilitySettings?.optional || ['2nd Day Show up'],
                 customRules: selectedAccount.eligibilitySettings?.customRules || [],
                 standardSettings: selectedAccount.eligibilitySettings?.standardSettings || {},
-                activeStandards: selectedAccount.eligibilitySettings?.activeStandards || ['Status', '1st Day Show up', 'Final Specific Status', '2nd Day Show up', 'PEME Status', 'BGS Status', 'RCBC Status', 'NBI Status']
+                activeStandards: selectedAccount.eligibilitySettings?.activeStandards || ['Status', '1st Day Show up', 'Final Specific Status', '2nd Day Show up', 'PEME Status', 'BGS Status', 'RCBC Status', 'NBI Status'],
+                processOrder: selectedAccount.eligibilitySettings?.processOrder || [
+                    'TYPING_TEST',
+                    'INITIAL_INTERVIEW',
+                    'ACCOUNT_ASSIGNMENT',
+                    'ASSESSMENT',
+                    'CLIENT_ASSESSMENT',
+                    'CLIENT_INTERVIEW'
+                ],
+                requiredProcesses: selectedAccount.eligibilitySettings?.requiredProcesses || [
+                    'TYPING_TEST',
+                    'INITIAL_INTERVIEW',
+                    'ACCOUNT_ASSIGNMENT',
+                    'ASSESSMENT',
+                    'CLIENT_ASSESSMENT',
+                    'CLIENT_INTERVIEW'
+                ]
             });
         }
     }, [selectedAccount, dashboardTab]);
@@ -231,10 +397,18 @@ export function AccountDashboardModal({
         setFilterEndDate('');
     }, [dashboardTab, selectedAccount]);
 
+    React.useEffect(() => {
+        if (selectedAccount) {
+            setSubAccounts(selectedAccount.subAccounts || []);
+        } else {
+            setSubAccounts([]);
+        }
+    }, [selectedAccount]);
+
     const CRITERIA_ITEMS = [
         { name: 'Status', desc: 'Candidate status (overall status = Accepted Offer, Hired, etc.)' },
         { name: '1st Day Show up', desc: 'Candidate present on the first training/neo day (showed/present)' },
-        { name: 'Final Specific Status', desc: 'Passed final validations (client interview or ops validation passed)' },
+        { name: 'Final Specific Status', desc: 'Passed final validations (client interview or Account Assignment passed)' },
         { name: '2nd Day Show up', desc: 'Candidate present on the second day (showed/present)' },
         { name: 'PEME Status', desc: 'Pre-employment Medical Examination fit/passed' },
         { name: 'BGS Status', desc: 'Background check completed or cleared' },
@@ -261,9 +435,9 @@ export function AccountDashboardModal({
             });
             setSelectedAccount(updated);
             if (loadData) await loadData();
-            success('Settings Saved', 'Hire eligibility criteria updated successfully.');
+            success('Settings Saved', 'Account and process settings updated successfully.');
         } catch (err) {
-            toastError('Save Failed', 'Could not update eligibility settings.');
+            toastError('Save Failed', 'Could not update settings.');
         } finally {
             setSavingSettings(false);
         }
@@ -286,7 +460,22 @@ export function AccountDashboardModal({
                 hiringType: historyHiringType,
                 manualHires: historyManualHires,
                 trainingStartDate: historyTrainingStart || undefined,
-                hiringQuotaId: historyHiringQuotaId || undefined
+                hiringQuotaId: historyHiringQuotaId || undefined,
+                openingName: historyOpeningName || undefined,
+                salaryMatrixCategory: historySalaryMatrixCategory || undefined,
+                classType: historyClassType || undefined,
+                rosterDate: historyRosterDate || undefined,
+                hiringReqHc: historyHiringReqHc || undefined,
+                totalOffersExtended: historyTotalOffersExtended || undefined,
+                manualJobOffers: historyManualJobOffers || undefined,
+                manualFallout: historyManualFallout || undefined,
+                netHiresInternal: historyNetHiresInternal || undefined,
+                netHiresExternal: historyNetHiresExternal || undefined,
+                manualBalance: historyManualBalance || undefined,
+                joBalance: historyJoBalance || undefined,
+                manualDay1ShowUp: historyManualDay1ShowUp || undefined,
+                notes: historyNotes || undefined,
+                assignedCandidates: historyAssignedCandidates
             };
 
             if (editingHistoryId) {
@@ -305,6 +494,21 @@ export function AccountDashboardModal({
             setHistoryEnd('');
             setHistoryTrainingStart('');
             setHistoryHiringQuotaId('');
+            setHistoryOpeningName('');
+            setHistoryAssignedCandidates([]);
+            setHistorySalaryMatrixCategory('');
+            setHistoryClassType('');
+            setHistoryRosterDate('');
+            setHistoryHiringReqHc(0);
+            setHistoryTotalOffersExtended(0);
+            setHistoryManualJobOffers(0);
+            setHistoryManualFallout(0);
+            setHistoryNetHiresInternal(0);
+            setHistoryNetHiresExternal(0);
+            setHistoryManualBalance(0);
+            setHistoryJoBalance(0);
+            setHistoryManualDay1ShowUp(0);
+            setHistoryNotes('');
             if (loadData) await loadData();
         } catch (err) {
             toastError('Save Failed', 'Could not save historical quota record.');
@@ -322,6 +526,21 @@ export function AccountDashboardModal({
         setHistoryEnd(toDateInputValue(item.endDate));
         setHistoryTrainingStart(item.trainingStartDate ? toDateInputValue(item.trainingStartDate) : '');
         setHistoryHiringQuotaId(item.hiringQuotaId || '');
+        setHistoryOpeningName(item.openingName || '');
+        setHistoryAssignedCandidates(item.assignedCandidates || []);
+        setHistorySalaryMatrixCategory(item.salaryMatrixCategory || '');
+        setHistoryClassType(item.classType || '');
+        setHistoryRosterDate(item.rosterDate ? toDateInputValue(item.rosterDate) : '');
+        setHistoryHiringReqHc(item.hiringReqHc || 0);
+        setHistoryTotalOffersExtended(item.totalOffersExtended || 0);
+        setHistoryManualJobOffers(item.manualJobOffers || 0);
+        setHistoryManualFallout(item.manualFallout || 0);
+        setHistoryNetHiresInternal(item.netHiresInternal || 0);
+        setHistoryNetHiresExternal(item.netHiresExternal || 0);
+        setHistoryManualBalance(item.manualBalance || 0);
+        setHistoryJoBalance(item.joBalance || 0);
+        setHistoryManualDay1ShowUp(item.manualDay1ShowUp || 0);
+        setHistoryNotes(item.notes || '');
         setIsAddingHistory(true);
     };
 
@@ -364,6 +583,7 @@ export function AccountDashboardModal({
         }
     };
 
+
     if (!selectedAccount || !accountDashboardData) return null;
 
     const hiringSuccess = accountDashboardData.totalApplicants > 0
@@ -393,7 +613,9 @@ export function AccountDashboardModal({
         { key: 'overview' as const, label: 'Recruitment Funnel', icon: ClipboardList, desc: 'Conversion funnel & performance metrics' },
         { key: 'history' as const, label: 'Quota History', icon: History, desc: 'Past campaign results & archives' },
         { key: 'cancelled' as const, label: 'Cancelled Campaigns', icon: Ban, desc: 'Aborted quota seasons' },
-        { key: 'hiring_requirements' as const, label: 'Hiring & Eligibility', icon: Settings, desc: 'Milestones & candidate listing' }
+        { key: 'hiring_requirements' as const, label: 'Hiring & Eligibility', icon: Settings, desc: 'Milestones & candidate listing' },
+        { key: 'sub_accounts' as const, label: 'Job Positions', icon: Network, desc: 'Manage Job Positions' },
+        { key: 'unassigned' as const, label: 'Unassigned Candidates', icon: Users, desc: 'Candidates awaiting Job Position assignment' }
     ];
 
     return (
@@ -410,9 +632,9 @@ export function AccountDashboardModal({
             }}
             title=""
             size="2xl"
-            className="max-w-[1200px] w-full"
+            className="max-w-[1300px] w-full"
         >
-            <div className="flex flex-col bg-slate-50/30 text-left overflow-hidden rounded-b-none font-sans p-8 space-y-6 select-none relative">
+            <div className="flex flex-col bg-slate-50 dark:bg-slate-800/30 text-left overflow-hidden rounded-none-b-none font-sans p-6 md:p-8 space-y-6 select-none relative">
                 <button
                     onClick={() => {
                         setDashboardModal(false);
@@ -423,20 +645,21 @@ export function AccountDashboardModal({
                         setExpandedCardId(null);
                         setSelectedHistoryDashboard(null);
                     }}
-                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 text-slate-450 hover:text-slate-700 transition-all cursor-pointer z-50"
+                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-450 hover:text-slate-700 dark:text-slate-300 transition-all cursor-pointer z-50"
                 >
                     <X size={18} />
                 </button>
-                
-                <div className="bg-white border border-slate-200 rounded-md p-5 shadow-sm space-y-5">
+
+                {/* Header */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-none p-5 shadow-sm space-y-5">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                         <div className="flex items-start sm:items-center gap-5 min-w-0 text-left">
-                            <div className="relative group/avatar shrink-0">
-                                <div className="p-1 rounded-sm bg-slate-50 border border-slate-200 shadow-xs overflow-hidden transition-all duration-300">
+                            <div className="relative shrink-0">
+                                <div className="p-1 rounded-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all duration-300">
                                     <AccountAvatar department={selectedAccount} size="xl" quota={accountDashboardData.totalQuota} />
                                 </div>
-                                <label className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 group-hover/avatar:opacity-100 transition-all duration-300 cursor-pointer rounded-sm">
-                                    <Camera size={16} />
+                                <label className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-1.5 rounded-full text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all cursor-pointer z-10">
+                                    <Camera size={12} />
                                     <input
                                         type="file"
                                         accept="image/png,image/jpeg,image/webp,image/gif"
@@ -452,1283 +675,269 @@ export function AccountDashboardModal({
 
                             <div className="min-w-0 text-left space-y-2.5">
                                 <div className="flex items-center gap-3 flex-wrap">
-                                    <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight leading-none uppercase">
+                                    <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none uppercase">
                                         {selectedAccount.name}
                                     </h2>
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className={cn(
-                                            "px-2 py-0.5 text-[10px] font-bold tracking-wide rounded-sm border flex items-center gap-1 shadow-xs",
+                                            "px-2 py-0.5 text-[10px] font-bold tracking-wide rounded-none border flex items-center gap-1 shadow-xs",
                                             accountDashboardData.isActive
                                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                                : "bg-slate-100 text-slate-500 border-slate-200"
+                                                : "bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800"
                                         )}>
                                             <span className={cn("w-1.5 h-1.5 rounded-full", accountDashboardData.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
                                             {accountDashboardData.isActive ? 'Active' : 'Paused'}
                                         </span>
                                         {accountDashboardData.hiringType && (
-                                            <span className="px-2 py-0.5 text-[10px] font-bold tracking-wide rounded-sm border bg-blue-50 text-blue-700 border-blue-200 shadow-xs">
+                                            <span className="px-2 py-0.5 text-[10px] font-bold tracking-wide rounded-none border bg-blue-50 text-blue-700 border-blue-200 shadow-xs">
                                                 {accountDashboardData.hiringType}
                                             </span>
                                         )}
-                                        <span className="text-[10px] text-slate-400 font-mono tracking-tight bg-slate-50 px-2 py-0.5 rounded-sm border border-slate-200">ID: {selectedAccount.id.slice(0, 8)}</span>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-wrap gap-2 text-[11px]">
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-650 rounded-sm shadow-2xs">
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-650 rounded-none shadow-2xs">
                                         <UserCheck size={13} className="text-blue-500" />
                                         <span className="text-slate-450 font-medium">Owner:</span>
-                                        <span className="font-bold text-slate-700">{selectedAccount.head || 'Maria Cruz'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-650 rounded-sm shadow-2xs">
-                                        <Briefcase size={13} className="text-slate-400" />
-                                        <span className="text-slate-450 font-medium">Budget:</span>
-                                        <span className="font-bold text-slate-700">{selectedAccount.budgetCode || 'N/A'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-650 rounded-sm shadow-2xs">
-                                        <Calendar size={13} className="text-slate-400" />
-                                        <span className="text-slate-450 font-medium">Period:</span>
-                                        <span className="font-bold text-slate-700">{formatDisplayDate(accountDashboardData.quotaStart)} – {formatDisplayDate(accountDashboardData.quotaEnd)}</span>
-                                        <span className="ml-1 px-1.5 py-0.2 bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-bold rounded-sm flex items-center gap-1 shadow-2xs">
-                                            <Clock size={10} className="text-blue-500" />
-                                            {accountDashboardData.durationLabel}
-                                        </span>
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">{selectedAccount.head || 'Maria Cruz'}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-150">
-                            {accountDashboardData.isActive ? (
-                                <>
-                                    <button
-                                        onClick={() => {
-                                            setQuotaForm(accountDashboardData.totalQuota);
-                                            setQuotaManualHired(accountDashboardData.manualHired || 0);
-                                            const existingStart = toDateInputValue(accountDashboardData.quotaStart);
-                                            setQuotaStartDate(existingStart && existingStart >= todayInputValue() ? existingStart : todayInputValue());
-                                            setQuotaEndDate(toDateInputValue(accountDashboardData.quotaEnd));
-                                            setQuotaHiringType(accountDashboardData.hiringType || 'Billed');
-                                            setQuotaTrainingStartDate(accountDashboardData.trainingStartDate ? toDateInputValue(accountDashboardData.trainingStartDate) : '');
-                                            setQuotaHiringQuotaId(accountDashboardData.hiringQuotaId || '');
-                                            setQuotaModal(true);
-                                        }}
-                                        className="px-3.5 h-8 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-sm transition-colors border border-blue-750 shadow-sm cursor-pointer"
-                                    >
-                                        Update Quota
-                                    </button>
-                                    <button
-                                        onClick={() => setCloseConfirm(true)}
-                                        className="flex items-center gap-1 px-3 h-8 bg-white border border-slate-250 hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-sm transition-colors shadow-xs cursor-pointer"
-                                    >
-                                        <Lock size={12} />
-                                        Close
-                                    </button>
-                                    <button
-                                        onClick={() => setCancelConfirm(true)}
-                                        className="flex items-center gap-1 px-3 h-8 bg-white border border-rose-205 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 text-slate-650 text-[11px] font-bold rounded-sm transition-colors shadow-xs cursor-pointer"
-                                    >
-                                        <Ban size={12} />
-                                        Cancel
-                                    </button>
-                                </>
-                            ) : (
-                                <button
-                                    onClick={() => {
-                                        setQuotaForm(0);
-                                        setQuotaManualHired(0);
-                                        setQuotaStartDate(todayInputValue());
-                                        setQuotaEndDate('');
-                                        setQuotaHiringType('Billed');
-                                        setQuotaTrainingStartDate('');
-                                        setQuotaHiringQuotaId('');
-                                        setQuotaModal(true);
-                                    }}
-                                    className="flex items-center gap-1 px-3.5 h-8 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-sm transition-colors border border-blue-750 shadow-sm cursor-pointer"
-                                >
-                                    <Plus size={13} strokeWidth={2.5} />
-                                    Open Recruitment
-                                </button>
-                            )}
+                            <button
+                                onClick={() => {
+                                    setQuotaForm(0);
+                                    setQuotaManualHired(0);
+                                    setQuotaStartDate(todayInputValue());
+                                    setQuotaEndDate('');
+                                    setQuotaHiringType('Internal/External');
+                                    setQuotaTrainingStartDate('');
+                                    setQuotaHiringQuotaId('');
+                                    setQuotaOpeningName('');
+                                    setEditingPositionId(null);
+                                    setQuotaModal(true);
+                                }}
+                                className="flex items-center gap-1 px-3.5 h-8 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-none transition-colors border border-blue-750 shadow-sm cursor-pointer"
+                            >
+                                <Plus size={13} strokeWidth={2.5} />
+                                Add Job Position Hiring Quota
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {tabItems.map((item) => {
-                        const isActive = dashboardTab === item.key;
-                        const Icon = item.icon;
-                        return (
-                            <button
-                                key={item.key}
-                                onClick={() => setDashboardTab(item.key)}
-                                className={cn(
-                                    "flex items-start gap-3 p-3.5 rounded-sm border text-left transition-all duration-200 relative group overflow-hidden shadow-xs cursor-pointer outline-none",
-                                    isActive
-                                        ? "bg-white border-blue-600 ring-1 ring-blue-100 shadow-sm"
-                                        : "bg-white border-slate-200 hover:border-blue-400 hover:bg-slate-50/50"
-                                )}
-                            >
-                                <div className={cn(
-                                    "p-2 rounded-sm border transition-colors shrink-0",
-                                    isActive
-                                        ? "bg-blue-50 text-blue-600 border-blue-200"
-                                        : "bg-slate-50 text-slate-400 border-slate-200 group-hover:bg-blue-50/50 group-hover:text-blue-500 group-hover:border-blue-150"
-                                )}>
-                                    <Icon size={18} />
-                                </div>
-                                <div className="min-w-0 pr-2">
-                                    <h4 className={cn(
-                                        "text-[12.5px] font-bold transition-colors uppercase tracking-tight",
-                                        isActive ? "text-blue-600" : "text-slate-700"
-                                    )}>
-                                        {item.label}
-                                    </h4>
-                                    <p className="text-[10px] text-slate-400 font-medium mt-1 leading-tight">{item.desc}</p>
-                                </div>
-                                
-                                {isActive && (
-                                    <div className="absolute right-3 bottom-3 text-blue-500">
-                                        <ChevronRight size={14} strokeWidth={2.5} />
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div className="w-full">
-                    {dashboardTab === 'overview' && (
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="lg:col-span-2 bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden text-left">
-                                    <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <div>
-                                            <h3 className="text-[13px] font-bold text-slate-700 uppercase tracking-wider">Recruitment Funnel</h3>
-                                            <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Stage-by-stage conversions</p>
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0 min-w-[240px]">
-                                            <div className="flex-1">
-                                                <div className="flex justify-between items-center text-[10px] mb-1">
-                                                    <span className="font-bold text-slate-500 uppercase tracking-wider">Quota Progress</span>
-                                                    <span className="font-extrabold text-blue-600">{accountDashboardData.totalHired} / {accountDashboardData.totalQuota} Hired ({hiringSuccess}%)</span>
-                                                </div>
-                                                <div className="w-full h-2 bg-slate-100 border border-slate-200/50 rounded-none overflow-hidden">
-                                                    <motion.div
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${Math.min(100, hiringSuccess)}%` }}
-                                                        className="h-full bg-blue-600 rounded-none"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-5 space-y-3">
-                                        {funnelStages.map((stage, i) => {
-                                            const prev = i > 0 ? funnelStages[i - 1].count : stage.count;
-                                            const conv = i === 0 ? 100 : (prev > 0 ? Math.round((stage.count / prev) * 100) : 0);
-                                            const barWidth = Math.max(2, (stage.count / maxFunnelCount) * 100);
-                                            const isActive = activePipelineFilter === stage.label;
-
-                                            return (
-                                                <button
-                                                    key={stage.key}
-                                                    onClick={() => setActivePipelineFilter(isActive ? null : stage.label)}
-                                                    className={cn(
-                                                        "w-full transition-all p-3.5 rounded-sm border text-left flex flex-col gap-2.5 shadow-xs cursor-pointer outline-none",
-                                                        isActive ? "bg-blue-50/40 border-blue-300 shadow-sm" : "bg-white hover:bg-slate-50/40 border-slate-200"
-                                                    )}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <span className={cn(
-                                                            "w-6 h-6 text-[10px] font-bold rounded-sm flex items-center justify-center border shadow-inner shrink-0",
-                                                            stage.bg, stage.text, isActive ? "border-blue-300" : "border-slate-200"
-                                                        )}>
-                                                            {String(i + 1).padStart(2, '0')}
-                                                        </span>
-                                                        <span className={cn("text-[12px] font-bold flex-1 uppercase tracking-tight", isActive ? "text-blue-600" : "text-slate-600")}>
-                                                            {stage.label}
-                                                        </span>
-                                                        <span className="text-[13px] font-bold text-slate-800">{stage.count}</span>
-                                                        {i > 0 && (
-                                                            <span className="text-[9px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-sm font-bold border border-slate-200">
-                                                                {conv}% conv
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="w-full h-1.5 bg-slate-100 rounded-none overflow-hidden border border-slate-200/50">
-                                                        <motion.div
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${barWidth}%` }}
-                                                            className="h-full rounded-none transition-all duration-500"
-                                                            style={{ backgroundColor: stage.color }}
-                                                        />
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden flex flex-col divide-y divide-slate-200 text-left">
-                                    <div className="px-5 py-4 bg-slate-50/30">
-                                        <h3 className="text-[13px] font-bold text-slate-700 uppercase tracking-wider">Account Diagnostics</h3>
-                                    </div>
-
-                                    <div className="p-5 space-y-3.5">
-                                        {[
-                                            { label: 'Hire Rate', value: hiringSuccess, icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-                                            { label: 'Rejection Rate', value: falloutRate, icon: TrendingDown, color: 'text-rose-600 bg-rose-50 border-rose-100' },
-                                            { label: 'Pipeline Progress', value: pipelineConv, icon: Activity, color: 'text-amber-600 bg-amber-50 border-amber-100' },
-                                            { label: 'Offer Acceptance Rate', value: offerAcceptance, icon: UserCheck, color: 'text-blue-600 bg-blue-50 border-blue-100' }
-                                        ].map((m) => (
-                                            <div key={m.label} className="flex items-center justify-between bg-slate-50/40 p-3 rounded-sm border border-slate-200">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className={cn("w-6 h-6 rounded-sm flex items-center justify-center border", m.color)}>
-                                                        <m.icon size={12} strokeWidth={2.5} />
-                                                    </div>
-                                                    <span className="text-[12px] font-bold text-slate-600">{m.label}</span>
-                                                </div>
-                                                <span className={cn("text-[13px] font-bold", m.color.split(' ')[0])}>
-                                                    {m.value}%
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="p-5 bg-slate-50/20 space-y-3">
-                                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Account Overview</span>
-                                        {[
-                                            { label: 'Manager', value: selectedAccount.head || 'Unassigned' },
-                                            { label: 'Budget code', value: selectedAccount.budgetCode || 'N/A' },
-                                            { label: 'Created', value: new Date(selectedAccount.created_at).toLocaleDateString() },
-                                            { label: 'Total candidates', value: accountDashboardData.totalApplicants.toString() }
-                                        ].map((row) => (
-                                            <div key={row.label} className="flex justify-between items-center text-[12px]">
-                                                <span className="text-slate-500 font-semibold">{row.label}</span>
-                                                <span className="font-bold text-slate-700">{row.value}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {dashboardTab === 'history' && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden text-left">
-                            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                                <div>
-                                    <h3 className="text-[13px] font-bold text-slate-705 uppercase tracking-wider">Hiring Quota History</h3>
-                                    <p className="text-[10px] text-slate-400 mt-0.5">Closed seasonal quota archives</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center bg-slate-100 border border-slate-200 p-0.5 rounded-lg shrink-0">
-                                        <button
-                                            type="button"
-                                            onClick={() => setQuotaHistoryViewMode('list')}
-                                            className={cn(
-                                                "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-md transition-all flex items-center gap-1.5 cursor-pointer border-0 outline-none",
-                                                quotaHistoryViewMode === 'list'
-                                                    ? "bg-white text-slate-800 shadow-xs"
-                                                    : "bg-transparent text-slate-500 hover:text-slate-800"
-                                            )}
-                                        >
-                                            <List size={11} />
-                                            <span>List</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setQuotaHistoryViewMode('cards')}
-                                            className={cn(
-                                                "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-md transition-all flex items-center gap-1.5 cursor-pointer border-0 outline-none",
-                                                quotaHistoryViewMode === 'cards'
-                                                    ? "bg-white text-slate-800 shadow-xs"
-                                                    : "bg-transparent text-slate-500 hover:text-slate-800"
-                                            )}
-                                        >
-                                            <LayoutGrid size={11} />
-                                            <span>Cards</span>
-                                        </button>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setEditingHistoryId(null);
-                                            setHistoryQuota(0);
-                                            setHistoryHiringType('Billed');
-                                            setHistoryManualHires(0);
-                                            setHistoryStart('');
-                                            setHistoryEnd('');
-                                            setHistoryTrainingStart('');
-                                            setHistoryHiringQuotaId('');
-                                            setIsAddingHistory(true);
-                                        }}
-                                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition-all border border-indigo-700 shadow-xs cursor-pointer"
-                                    >
-                                        Add Previous Quota
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <Modal
-                                open={isAddingHistory}
-                                onClose={() => { setIsAddingHistory(false); setEditingHistoryId(null); }}
-                                title={editingHistoryId ? "EDIT PREVIOUS QUOTA RECORD" : "ADD PREVIOUS QUOTA RECORD"}
-                                size="lg"
-                            >
-                                <div className="space-y-6 text-left">
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Target Units</label>
-                                            <input
-                                                type="number" min="0" value={historyQuota}
-                                                onChange={e => setHistoryQuota(parseInt(e.target.value) || 0)}
-                                                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-[12px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Hiring Type</label>
-                                            <select
-                                                value={historyHiringType}
-                                                onChange={e => setHistoryHiringType(e.target.value as 'Billed' | 'Non-Billed')}
-                                                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-[12px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none cursor-pointer"
-                                            >
-                                                <option value="Billed">Billed</option>
-                                                <option value="Non-Billed">Non-Billed</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Manual Hires</label>
-                                            <input
-                                                type="number" min="0" value={historyManualHires}
-                                                onChange={e => setHistoryManualHires(parseInt(e.target.value) || 0)}
-                                                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-[12px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Season Start</label>
-                                            <CalendarDropdown
-                                                value={historyStart}
-                                                onChange={setHistoryStart}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Season End</label>
-                                            <CalendarDropdown
-                                                value={historyEnd}
-                                                onChange={setHistoryEnd}
-                                                min={historyStart}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Training Start Date</label>
-                                            <CalendarDropdown
-                                                value={historyTrainingStart}
-                                                onChange={setHistoryTrainingStart}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Hiring Quota ID</label>
-                                            <input
-                                                type="text" value={historyHiringQuotaId}
-                                                onChange={e => setHistoryHiringQuotaId(e.target.value)}
-                                                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-[12px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none"
-                                                placeholder="e.g. Q-101"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                                        <button
-                                            onClick={() => { setIsAddingHistory(false); setEditingHistoryId(null); }}
-                                            className="px-4 py-2 bg-white border border-slate-200 text-[11px] font-bold rounded-xl hover:bg-slate-50 cursor-pointer transition-all"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={handleSaveHistoryRecord}
-                                            disabled={savingHistory}
-                                            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-xl cursor-pointer disabled:opacity-50 transition-all shadow-sm"
-                                        >
-                                            {savingHistory ? 'Saving…' : (editingHistoryId ? 'Save Changes' : 'Save Record')}
-                                        </button>
-                                    </div>
-                                </div>
-                            </Modal>
-
-                            {accountDashboardData.history.length > 0 && (
-                                <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/20 flex flex-wrap items-center gap-4 text-left">
-                                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Filter campaigns:</span>
-                                    <div className="flex items-center gap-2 max-w-[200px] w-full">
-                                        <span className="text-[10px] text-slate-400 font-medium shrink-0">From</span>
-                                        <CalendarDropdown
-                                            value={filterStartDate}
-                                            onChange={setFilterStartDate}
-                                            label="Start Date"
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-2 max-w-[200px] w-full">
-                                        <span className="text-[10px] text-slate-400 font-medium shrink-0">To</span>
-                                        <CalendarDropdown
-                                            value={filterEndDate}
-                                            onChange={setFilterEndDate}
-                                            label="End Date"
-                                            min={filterStartDate}
-                                        />
-                                    </div>
-                                    {(filterStartDate || filterEndDate) && (
-                                        <button
-                                            type="button"
-                                            onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }}
-                                            className="text-[10px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/60 px-2.5 py-1 rounded-lg cursor-pointer transition-colors"
-                                        >
-                                            Clear Filters
-                                        </button>
+                <div className="flex flex-col md:flex-row gap-6">
+                    {/* Left Sidebar Tabs */}
+                    <div className="w-full md:w-64 shrink-0 flex flex-col gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-1">Navigation</span>
+                        {tabItems.map((item) => {
+                            const isActive = dashboardTab === item.key;
+                            const Icon = item.icon;
+                            return (
+                                <button
+                                    key={item.key}
+                                    onClick={() => setDashboardTab(item.key)}
+                                    className={cn(
+                                        "flex items-center gap-3 p-3 rounded-none text-left transition-all duration-200 outline-none w-full",
+                                        isActive
+                                            ? "bg-blue-50 text-blue-700 shadow-[inset_3px_0_0_0_#2563eb]"
+                                            : "hover:bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:text-white"
                                     )}
-                                </div>
-                            )}
-
-                            {filteredHistory.length > 0 ? (
-                                quotaHistoryViewMode === 'cards' ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar p-5">
-                                        {filteredHistory.map((item) => {
-                                            const originalIndex = accountDashboardData.history.findIndex(h => h.id === item.id);
-                                            const attainment = item.quota > 0 ? Math.round((item.hiredCount / item.quota) * 100) : 0;
-                                            const duration = getDurationLabel(toDateInputValue(item.startDate), toDateInputValue(item.endDate));
-                                            const seasonLabel = item.startDate || item.endDate
-                                                ? `${item.startDate ? formatDisplayDate(item.startDate) : 'No start'} – ${item.endDate ? formatDisplayDate(item.endDate) : 'No end'}`
-                                                : 'No season dates recorded';
-                                            const isExpanded = expandedCardId === item.id;
-
-                                            return (
-                                                <div
-                                                    key={item.id}
-                                                    onClick={() => setExpandedCardId(isExpanded ? null : item.id)}
-                                                    className={cn(
-                                                        "border rounded-xl bg-white hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between",
-                                                        isExpanded ? "border-blue-500 shadow-md ring-1 ring-blue-100" : "border-slate-200"
-                                                    )}
-                                                >
-                                                    <div className="p-4 space-y-3">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="px-2 py-0.5 bg-slate-50 text-slate-600 border border-slate-200 text-[10px] font-extrabold rounded-md shadow-xs">
-                                                                Season #{accountDashboardData.history.length - originalIndex}
-                                                            </span>
-                                                            <span className={cn(
-                                                                "text-[10px] font-bold px-2 py-0.5 rounded-md border",
-                                                                attainment >= 100
-                                                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                                                    : attainment >= 50
-                                                                        ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                                        : "bg-rose-50 text-rose-700 border-rose-200"
-                                                            )}>
-                                                                {attainment}% Attained
-                                                            </span>
-                                                        </div>
-                                                        
-                                                        <div>
-                                                            <h4 className="text-[13px] font-extrabold text-slate-800 line-clamp-2 uppercase tracking-tight leading-tight">{seasonLabel}</h4>
-                                                            <p className="text-[10px] text-slate-400 font-semibold mt-1 flex items-center gap-1">
-                                                                <Clock size={11} />
-                                                                {duration}
-                                                            </p>
-                                                        </div>
-
-                                                        {isExpanded ? (
-                                                            <div className="space-y-3 pt-2">
-                                                                <div className="grid grid-cols-2 gap-2.5 text-[11px]">
-                                                                    {[
-                                                                        { metric: 'quota' as const, label: 'Target', value: item.quota, color: 'text-slate-800 bg-slate-50 border-slate-200' },
-                                                                        { metric: 'hired' as const, label: 'Hired', value: item.hiredCount, color: 'text-emerald-700 bg-emerald-50/40 border-emerald-200' },
-                                                                        { metric: 'processed' as const, label: 'Applicants', value: item.totalApplicants, color: 'text-blue-700 bg-blue-50/40 border-blue-200' },
-                                                                        { metric: 'fallout' as const, label: 'Rejected', value: item.failedCount, color: 'text-rose-700 bg-rose-50/40 border-rose-200' }
-                                                                    ].map(stat => (
-                                                                        <button
-                                                                            key={stat.label}
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setQuotaHistoryDrilldown({ item, metric: stat.metric });
-                                                                            }}
-                                                                            className={cn("border p-2.5 text-left rounded-lg shadow-xs transition-all hover:bg-slate-50/80 active:scale-[0.98] outline-none cursor-pointer flex flex-col justify-between", stat.color)}
-                                                                            title={`View ${stat.label.toLowerCase()} details`}
-                                                                        >
-                                                                            <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">{stat.label}</span>
-                                                                            <span className="block text-[13px] font-extrabold leading-none mt-1">{stat.value}</span>
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-
-                                                                {item.closedAt && (
-                                                                    <div className="flex justify-between items-center text-[10.5px] border-t border-slate-100 pt-2 text-slate-500">
-                                                                        <span className="font-semibold uppercase tracking-wider">Closed At</span>
-                                                                        <span className="font-bold">{formatDisplayDate(item.closedAt)}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 text-[11px]">
-                                                                <div className="bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                                                                    <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Hired Units</span>
-                                                                    <span className="text-[12.5px] font-black text-slate-700 mt-0.5">{item.hiredCount} / {item.quota}</span>
-                                                                </div>
-                                                                <div className="bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                                                                    <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Hiring Type</span>
-                                                                    <span className="text-[12.5px] font-black text-slate-705 mt-0.5">{item.hiringType || 'Billed'}</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="bg-slate-50 px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setSelectedHistoryDashboard(item); }}
-                                                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-bold text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-lg cursor-pointer transition-all bg-white"
-                                                        >
-                                                            <BarChart3 size={12} />
-                                                            Dashboard
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                >
+                                    <Icon size={16} className={isActive ? "text-blue-600" : "text-slate-400"} />
+                                    <div className="min-w-0">
+                                        <h4 className="text-[12px] font-bold tracking-tight whitespace-nowrap truncate">
+                                            {item.label}
+                                        </h4>
                                     </div>
-                            ) : (
-                                <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                                    <div className="divide-y divide-slate-100">
-                                        {filteredHistory.map((item) => {
-                                            const originalIndex = accountDashboardData.history.findIndex(h => h.id === item.id);
-                                            const attainment = item.quota > 0 ? Math.round((item.hiredCount / item.quota) * 100) : 0;
-                                            const duration = getDurationLabel(toDateInputValue(item.startDate), toDateInputValue(item.endDate));
-                                            const seasonLabel = item.startDate || item.endDate
-                                                ? `${item.startDate ? formatDisplayDate(item.startDate) : 'No start'} – ${item.endDate ? formatDisplayDate(item.endDate) : 'No end'}`
-                                                : 'No season dates recorded';
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                                            return (
-                                                <div
-                                                    key={item.id}
-                                                    className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-slate-50/50 transition-colors group/row"
-                                                >
-                                                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                                        <span className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-extrabold text-slate-600 shrink-0 shadow-xs">
-                                                            {accountDashboardData.history.length - originalIndex}
-                                                        </span>
-                                                        <div className="min-w-0">
-                                                            <h4 className="text-[12px] font-bold text-slate-800 truncate">{seasonLabel}</h4>
-                                                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">{duration}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="text-center shrink-0">
-                                                        <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider">Hired</span>
-                                                        <span className="text-[13px] font-black text-slate-700">{item.hiredCount} / {item.quota}</span>
-                                                    </div>
-
-                                                    <span className={cn(
-                                                        "text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0",
-                                                        attainment >= 100
-                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                                            : attainment >= 50
-                                                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                                : "bg-rose-50 text-rose-700 border-rose-200"
-                                                    )}>
-                                                        {attainment}%
-                                                    </span>
-
-                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                        <button
-                                                            onClick={() => setSelectedHistoryDashboard(item)}
-                                                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-md cursor-pointer transition-all bg-white"
-                                                            title="View dashboard"
-                                                        >
-                                                            <BarChart3 size={11} />
-                                                            Dashboard
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setExpandedCardId(expandedCardId === item.id ? null : item.id)}
-                                                            className="px-2 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-100 border border-slate-200 rounded-md cursor-pointer transition-all bg-white"
-                                                            title="Expand details"
-                                                        >
-                                                            Expand
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleEditHistoryClick(item)}
-                                                            className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md cursor-pointer transition-all border border-transparent hover:border-blue-200"
-                                                            title="Edit"
-                                                        >
-                                                            <Edit2 size={12} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => { setPendingDeleteId(item.id); setDeleteConfirmOpen(true); }}
-                                                            className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md cursor-pointer transition-all border border-transparent hover:border-rose-200"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 size={12} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="p-16 text-center">
-                                    <History size={32} className="mx-auto text-slate-300 mb-2.5" />
-                                    <p className="text-[11px] font-bold text-slate-450">
-                                        {accountDashboardData.history.length > 0 
-                                            ? "No quota seasons match the filters" 
-                                            : "No closed quota seasons yet"}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                    {/* Right Content Panel */}
+                    <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-none p-6 shadow-sm overflow-hidden">
+                    {dashboardTab === 'overview' && accountDashboardData && selectedAccount && (
+                        <OverviewTab
+                            accountDashboardData={accountDashboardData}
+                            selectedAccount={selectedAccount}
+                            setSelectedHistoryDashboard={setSelectedHistoryDashboard}
+                            setEditingPositionId={(id) => {
+                                setEditingPositionId(id);
+                                setPendingDeleteId(id);
+                            }}
+                            setQuotaForm={setQuotaForm}
+                            setQuotaManualHired={setQuotaManualHired}
+                            setQuotaStartDate={setQuotaStartDate}
+                            setQuotaEndDate={setQuotaEndDate}
+                            setQuotaHiringType={setQuotaHiringType}
+                            setQuotaTrainingStartDate={setQuotaTrainingStartDate}
+                            setQuotaHiringQuotaId={setQuotaHiringQuotaId}
+                            setQuotaOpeningName={setQuotaOpeningName}
+                            setQuotaCountry={setQuotaCountry}
+                            setQuotaCity={setQuotaCity}
+                            setQuotaRequesterName={setQuotaRequesterName}
+                            setQuotaRecruitmentProgress={setQuotaRecruitmentProgress}
+                            setQuotaConcatenate={setQuotaConcatenate}
+                            setQuotaModal={setQuotaModal}
+                            setCloseConfirm={setCloseConfirm}
+                            setDeleteLobConfirm={setDeleteLobConfirmOpen}
+                            toDateInputValue={toDateInputValue}
+                            todayInputValue={todayInputValue}
+                        />
+                    )}                    {dashboardTab === 'history' && accountDashboardData && (
+                        <HistoryTab
+                            accountDashboardData={accountDashboardData}
+                            quotaHistoryViewMode={quotaHistoryViewMode}
+                            setQuotaHistoryViewMode={setQuotaHistoryViewMode}
+                            isAddingHistory={isAddingHistory}
+                            setIsAddingHistory={setIsAddingHistory}
+                            editingHistoryId={editingHistoryId}
+                            setEditingHistoryId={setEditingHistoryId}
+                            historyQuota={historyQuota}
+                            setHistoryQuota={setHistoryQuota}
+                            historyHiringType={historyHiringType}
+                            setHistoryHiringType={setHistoryHiringType}
+                            historyManualHires={historyManualHires}
+                            setHistoryManualHires={setHistoryManualHires}
+                            historyStart={historyStart}
+                            setHistoryStart={setHistoryStart}
+                            historyEnd={historyEnd}
+                            setHistoryEnd={setHistoryEnd}
+                            historyTrainingStart={historyTrainingStart}
+                            setHistoryTrainingStart={setHistoryTrainingStart}
+                            historyHiringQuotaId={historyHiringQuotaId}
+                            setHistoryHiringQuotaId={setHistoryHiringQuotaId}
+                            historyOpeningName={historyOpeningName}
+                            setHistoryOpeningName={setHistoryOpeningName}
+                            historyAssignedCandidates={historyAssignedCandidates}
+                            setHistoryAssignedCandidates={setHistoryAssignedCandidates}
+                            historySalaryMatrixCategory={historySalaryMatrixCategory}
+                            setHistorySalaryMatrixCategory={setHistorySalaryMatrixCategory}
+                            historyClassType={historyClassType}
+                            setHistoryClassType={setHistoryClassType}
+                            historyRosterDate={historyRosterDate}
+                            setHistoryRosterDate={setHistoryRosterDate}
+                            historyHiringReqHc={historyHiringReqHc}
+                            setHistoryHiringReqHc={setHistoryHiringReqHc}
+                            historyTotalOffersExtended={historyTotalOffersExtended}
+                            setHistoryTotalOffersExtended={setHistoryTotalOffersExtended}
+                            historyManualJobOffers={historyManualJobOffers}
+                            setHistoryManualJobOffers={setHistoryManualJobOffers}
+                            historyManualFallout={historyManualFallout}
+                            setHistoryManualFallout={setHistoryManualFallout}
+                            historyNetHiresInternal={historyNetHiresInternal}
+                            setHistoryNetHiresInternal={setHistoryNetHiresInternal}
+                            historyNetHiresExternal={historyNetHiresExternal}
+                            setHistoryNetHiresExternal={setHistoryNetHiresExternal}
+                            historyManualBalance={historyManualBalance}
+                            setHistoryManualBalance={setHistoryManualBalance}
+                            historyJoBalance={historyJoBalance}
+                            setHistoryJoBalance={setHistoryJoBalance}
+                            historyManualDay1ShowUp={historyManualDay1ShowUp}
+                            setHistoryManualDay1ShowUp={setHistoryManualDay1ShowUp}
+                            historyNotes={historyNotes}
+                            setHistoryNotes={setHistoryNotes}
+                            savingHistory={savingHistory}
+                            handleSaveHistoryRecord={handleSaveHistoryRecord}
+                            filterStartDate={filterStartDate}
+                            setFilterStartDate={setFilterStartDate}
+                            filterEndDate={filterEndDate}
+                            setFilterEndDate={setFilterEndDate}
+                            filteredHistory={filteredHistory}
+                            setSelectedHistoryDashboard={setSelectedHistoryDashboard}
+                            setQuotaHistoryDrilldown={setQuotaHistoryDrilldown}
+                            handleEditHistoryClick={handleEditHistoryClick}
+                            handleReactivateHistory={() => {}}
+                            setPendingDeleteId={setPendingDeleteId}
+                            setDeleteConfirmOpen={setDeleteConfirmOpen}
+                            getDurationLabel={getDurationLabel}
+                            toDateInputValue={toDateInputValue}
+                            allApplications={allApplications}
+                            subAccounts={subAccounts}
+                            departmentName={selectedAccount?.name || ''}
+                        />
                     )}
 
-                    {dashboardTab === 'cancelled' && (() => {
-                        const accountCancelled = cancelledClasses.filter(c => c.department.trim().toLowerCase() === selectedAccount.name.trim().toLowerCase());
-                        return (
-                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden text-left">
-                                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                                    <div>
-                                        <h3 className="text-[13px] font-bold text-slate-705 uppercase tracking-wider">Cancelled Campaigns</h3>
-                                        <p className="text-[10px] text-slate-400 mt-0.5">Aborted recruitment seasons</p>
-                                    </div>
-                                    <div className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-center shadow-inner">
-                                        <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Cancelled</span>
-                                        <span className="block text-[15px] font-bold text-rose-600 leading-tight tabular-nums">
-                                            {accountCancelled.length}
-                                        </span>
-                                    </div>
-                                </div>
-                                {accountCancelled.length > 0 ? (
-                                    <div className="p-5 space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
-                                        {accountCancelled.map((item, index, arr) => {
-                                            const duration = getDurationLabel(toDateInputValue(item.startDate), toDateInputValue(item.endDate));
-                                            const seasonLabel = item.startDate || item.endDate
-                                                ? `${item.startDate ? new Date(item.startDate).toLocaleDateString() : 'No start'} – ${item.endDate ? new Date(item.endDate).toLocaleDateString() : 'No end'}`
-                                                : 'No season dates recorded';
-                                            const isExpanded = expandedCardId === item.id;
 
-                                            if (!isExpanded) {
-                                                return (
-                                                    <div
-                                                        key={item.id}
-                                                        onClick={() => setExpandedCardId(item.id)}
-                                                        className="border border-slate-200 bg-white hover:border-rose-400 rounded-xl cursor-pointer hover:shadow-xs transition-colors px-4 py-3 flex items-center justify-between gap-4"
-                                                    >
-                                                        <div className="flex items-center gap-3 min-w-0">
-                                                            <span className="w-6 h-6 bg-rose-50 text-rose-700 border border-rose-100 flex items-center justify-center text-[10px] font-bold rounded-lg shrink-0 shadow-inner">
-                                                                {arr.length - index}
-                                                            </span>
-                                                            <div className="min-w-0">
-                                                                <h4 className="text-[12.5px] font-bold text-slate-700 truncate">{seasonLabel}</h4>
-                                                                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{duration}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="hidden sm:flex flex-col items-end shrink-0">
-                                                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Planned Quota</span>
-                                                            <span className="text-[12px] font-bold text-slate-700 mt-0.5">{item.quota} slots</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-3 shrink-0">
-                                                            <span className="text-[9.5px] font-bold text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full">Cancelled</span>
-                                                            <span className="text-[11px] text-rose-600 font-bold hover:text-rose-700">Expand</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }
+                    {dashboardTab === 'cancelled' && selectedAccount && (
+                        <CancelledTab
+                            selectedAccount={selectedAccount}
+                            cancelledClasses={cancelledClasses}
+                            getDurationLabel={getDurationLabel}
+                            toDateInputValue={toDateInputValue}
+                            setPendingDeleteId={setPendingDeleteId}
+                            setDeleteConfirmOpen={setDeleteConfirmOpen}
+                        />
+                    )}
+                    {dashboardTab === 'hiring_requirements' && accountDashboardData && (
+                        <HiringRequirementsTab
+                            accountDashboardData={accountDashboardData}
+                            localSettings={localSettings}
+                            setLocalSettings={setLocalSettings}
+                            STAGE_LABELS={STAGE_LABELS}
+                            COLUMN_DROPDOWNS={COLUMN_DROPDOWNS}
+                            STANDARD_FIELD_COLUMN_MAP={STANDARD_FIELD_COLUMN_MAP}
+                            CRITERIA_ITEMS={CRITERIA_ITEMS}
+                            moveStage={moveStage}
+                            toggleStageActive={toggleStageActive}
+                            handleSaveSettings={handleSaveSettings}
+                            savingSettings={savingSettings}
+                            isAddingRule={isAddingRule}
+                            setIsAddingRule={setIsAddingRule}
+                            ruleSource={ruleSource}
+                            setRuleSource={setRuleSource}
+                            ruleColumn={ruleColumn}
+                            setRuleColumn={setRuleColumn}
+                            ruleMatchingType={ruleMatchingType}
+                            setRuleMatchingType={setRuleMatchingType}
+                            ruleMatchingValue={ruleMatchingValue}
+                            setRuleMatchingValue={setRuleMatchingValue}
+                            ruleType={ruleType}
+                            setRuleType={setRuleType}
+                            editingRuleId={editingRuleId}
+                            setEditingRuleId={setEditingRuleId}
+                            editingStandardField={editingStandardField}
+                            setEditingStandardField={setEditingStandardField}
+                            handleCriteriaChange={handleCriteriaChange}
+                            applicantsTab={applicantsTab}
+                            setApplicantsTab={setApplicantsTab}
+                        />
+                    )}
 
-                                            return (
-                                                <div key={item.id} className="border border-rose-300 bg-rose-50/10 rounded-xl p-4.5 flex flex-col space-y-4">
-                                                    <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3">
-                                                        <div className="flex items-center gap-3 min-w-0">
-                                                            <span className="w-6 h-6 bg-rose-50 text-rose-700 border border-rose-100 flex items-center justify-center text-[10px] font-bold rounded-lg shrink-0 shadow-inner">
-                                                                {arr.length - index}
-                                                            </span>
-                                                            <div className="min-w-0">
-                                                                <h4 className="text-[12.5px] font-bold text-slate-800 truncate">{seasonLabel}</h4>
-                                                                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{duration}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex gap-2 items-start shrink-0">
-                                                            <div className="text-right">
-                                                                <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none">Aborted</span>
-                                                                <span className="block text-[11px] font-bold text-slate-600 mt-1">{new Date(item.cancelledAt).toLocaleDateString()}</span>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => setExpandedCardId(null)}
-                                                                className="text-[10px] text-slate-600 hover:bg-slate-100 border border-slate-200 font-bold px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
-                                                            >
-                                                                Collapse
-                                                            </button>
-                                                            <button
-                                                                onClick={() => { setPendingDeleteId(item.id); setDeleteConfirmOpen(true); }}
-                                                                className="text-[10px] text-rose-600 hover:bg-rose-50 border border-rose-200 font-bold px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    </div>
+                    {dashboardTab === 'sub_accounts' && selectedAccount && (
+                        <SubAccountsTab
+                            selectedAccount={selectedAccount}
+                            setSelectedAccount={setSelectedAccount}
+                            subAccounts={subAccounts}
+                            setSubAccounts={setSubAccounts}
+                            isAddingSubAccount={isAddingSubAccount}
+                            setIsAddingSubAccount={setIsAddingSubAccount}
+                            newSubAccountName={newSubAccountName}
+                            setNewSubAccountName={setNewSubAccountName}
+                            newSubAccountDesc={newSubAccountDesc}
+                            setNewSubAccountDesc={setNewSubAccountDesc}
+                            loadData={loadData}
+                            accountDashboardData={accountDashboardData}
+                            allApplications={allApplications}
+                        />
+                    )}
 
-                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                        {[
-                                                            { label: 'Planned quota', value: item.quota, color: 'text-slate-800 bg-slate-50 border-slate-100' },
-                                                            { label: 'Hired at abort', value: item.hiredCount, color: 'text-emerald-700 bg-emerald-50/30 border-emerald-100' },
-                                                            { label: 'Total processed', value: item.totalApplicants, color: 'text-indigo-600 bg-indigo-50/30 border-indigo-100' },
-                                                            { label: 'Fallout at abort', value: item.failedCount, color: 'text-rose-700 bg-rose-50/30 border-rose-100' }
-                                                        ].map(stat => (
-                                                            <div key={stat.label} className={cn("border p-3 rounded-xl shadow-xs", stat.color)}>
-                                                                <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1.5">{stat.label}</span>
-                                                                <span className="block text-[14px] font-bold mt-1 leading-none">{stat.value}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="p-16 text-center">
-                                        <Ban size={32} className="mx-auto text-slate-300 mb-2.5" />
-                                        <p className="text-[11px] font-bold text-slate-400">No cancelled classes yet</p>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
-
-                    {dashboardTab === 'hiring_requirements' && (() => {
-                        return (
-                            <div className="space-y-6 text-left">
-                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                                    <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/30">
-                                        <div>
-                                            <h3 className="text-[13px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                                                <Settings size={14} className="text-indigo-500" />
-                                                Hire Eligibility Settings
-                                            </h3>
-                                            <p className="text-[10px] text-slate-400 mt-0.5">Define milestones required for promotions</p>
-                                        </div>
-                                        {!isAddingRule && (() => {
-                                             const ALL_STANDARD_NAMES = ['Status', '1st Day Show up', 'Final Specific Status', '2nd Day Show up', 'PEME Status', 'BGS Status', 'RCBC Status', 'NBI Status'];
-                                             const deletedStandards = ALL_STANDARD_NAMES.filter(name => !(localSettings.activeStandards || ALL_STANDARD_NAMES).includes(name));
-                                             return (
-                                                 <div className="flex flex-wrap items-center gap-2">
-                                                     {deletedStandards.length > 0 && (
-                                                         <select
-                                                             value=""
-                                                             onChange={(e) => {
-                                                                 const name = e.target.value;
-                                                                 if (!name) return;
-                                                                 setLocalSettings(prev => ({
-                                                                     ...prev,
-                                                                     activeStandards: [...(prev.activeStandards || ALL_STANDARD_NAMES), name],
-                                                                     required: [...prev.required, name]
-                                                                 }));
-                                                             }}
-                                                             className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-lg px-3 py-1.5 outline-none cursor-pointer shadow-xs font-sans"
-                                                         >
-                                                             <option value="">+ Add Standard Milestone</option>
-                                                             {deletedStandards.map(name => (
-                                                                 <option key={name} value={name}>{name}</option>
-                                                             ))}
-                                                         </select>
-                                                     )}
-                                                     <button
-                                                         type="button"
-                                                         onClick={() => {
-                                                             setIsAddingRule(true);
-                                                             setRuleSource('masterlist');
-                                                             setRuleColumn('');
-                                                             setRuleMatchingType('content');
-                                                             setRuleMatchingValue('');
-                                                             setRuleType('required');
-                                                         }}
-                                                         className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg border border-indigo-700 shadow-xs cursor-pointer shrink-0"
-                                                     >
-                                                         <Plus size={13} strokeWidth={2.5} />
-                                                         Add Custom Requirement
-                                                     </button>
-                                                 </div>
-                                             );
-                                         })()}
-                                    </div>
-
-                                    <div className="p-5">
-                                        {isAddingRule && (
-                                            <div className="bg-slate-50/50 border border-slate-200 p-4 mb-4 rounded-xl space-y-4">
-                                                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                                    {editingRuleId ? 'Edit Custom Requirement' : 'New Custom Requirement'}
-                                                </h5>
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Source Sheet</label>
-                                                        <select
-                                                            value={ruleSource}
-                                                            onChange={(e) => {
-                                                                setRuleSource(e.target.value as any);
-                                                                setRuleColumn('');
-                                                                setRuleMatchingValue('');
-                                                            }}
-                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[11.5px] outline-none focus:border-indigo-400"
-                                                        >
-                                                            <option value="masterlist">Masterlist</option>
-                                                            <option value="interview">Interview Form</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Column / Field</label>
-                                                        <select
-                                                            value={ruleColumn}
-                                                            onChange={(e) => {
-                                                                const colKey = e.target.value;
-                                                                setRuleColumn(colKey);
-                                                                setRuleMatchingValue('');
-                                                                if (COLUMN_DROPDOWNS[colKey]) setRuleMatchingType('dropdown');
-                                                                else setRuleMatchingType('content');
-                                                            }}
-                                                        >
-                                                            <option value="">-- Select Column --</option>
-                                                            {(() => {
-                                                                const standardCols = ruleSource === 'masterlist' ? MASTERLIST_COLUMNS : NOT_ELIGIBLE_COLUMNS;
-                                                                
-                                                                let customColsList: any[] = [];
-                                                                try {
-                                                                    const saved = localStorage.getItem('masterlist_custom_columns_by_tab');
-                                                                    if (saved) {
-                                                                        const parsed = JSON.parse(saved);
-                                                                        const merged: Record<string, any> = {};
-                                                                        Object.values(parsed).forEach((list: any) => {
-                                                                            if (Array.isArray(list)) {
-                                                                                list.forEach(col => {
-                                                                                    const key = col.subField ? `${col.field}.${col.subField}` : col.field;
-                                                                                    merged[key] = col;
-                                                                                });
-                                                                            }
-                                                                        });
-                                                                        customColsList = Object.values(merged);
-                                                                    }
-                                                                } catch {}
-
-                                                                const allCols = [...standardCols, ...customColsList];
-
-                                                                return allCols
-                                                                    .filter(col => col.field && col.field !== 'actions' && col.field !== 'email_actions')
-                                                                    .map((col, idx) => {
-                                                                        const key = col.subField ? `${col.field}.${col.subField}` : col.field;
-                                                                        return <option key={key + '-' + idx} value={key}>{col.label}</option>;
-                                                                    });
-                                                            })()}
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Condition</label>
-                                                        <select
-                                                            value={ruleMatchingType}
-                                                            onChange={(e) => {
-                                                                setRuleMatchingType(e.target.value as any);
-                                                                setRuleMatchingValue('');
-                                                            }}
-                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[11.5px] outline-none focus:border-indigo-400"
-                                                        >
-                                                            {ruleColumn && COLUMN_DROPDOWNS[ruleColumn] ? (
-                                                                <>
-                                                                    <option value="dropdown">Specific Value</option>
-                                                                    <option value="content">Not Empty</option>
-                                                                    <option value="na">Is N/A / Empty</option>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <option value="content">Not Empty</option>
-                                                                    <option value="na">Is N/A / Empty</option>
-                                                                </>
-                                                            )}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                                    {ruleMatchingType === 'dropdown' && ruleColumn ? (
-                                                        <div className="md:col-span-2">
-                                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Matching Value</label>
-                                                            <div className="flex gap-2">
-                                                                <select
-                                                                    value={ruleMatchingValue}
-                                                                    onChange={(e) => setRuleMatchingValue(e.target.value)}
-                                                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[11.5px] outline-none focus:border-indigo-400"
-                                                                >
-                                                                    <option value="">-- Select Option --</option>
-                                                                    {COLUMN_DROPDOWNS[ruleColumn]?.map(opt => (
-                                                                        <option key={opt} value={opt}>{opt}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <input
-                                                                    type="text" placeholder="Custom value..."
-                                                                    value={ruleMatchingValue}
-                                                                    onChange={(e) => setRuleMatchingValue(e.target.value)}
-                                                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[11.5px] outline-none focus:border-indigo-400"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ) : null}
-                                                    <div className={ruleMatchingType === 'dropdown' && ruleColumn ? "md:col-span-1" : "md:col-span-3"}>
-                                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Eligibility Type</label>
-                                                        <div className="flex gap-6 h-9 items-center">
-                                                            <label className="flex items-center gap-2 text-[11.5px] font-bold text-slate-700 cursor-pointer">
-                                                                <input
-                                                                    type="radio" name="ruleType" checked={ruleType === 'required'}
-                                                                    onChange={() => setRuleType('required')}
-                                                                    className="w-3.5 h-3.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                                                />
-                                                                Required
-                                                            </label>
-                                                            <label className="flex items-center gap-2 text-[11.5px] font-bold text-slate-700 cursor-pointer">
-                                                                <input
-                                                                    type="radio" name="ruleType" checked={ruleType === 'optional'}
-                                                                    onChange={() => setRuleType('optional')}
-                                                                    className="w-3.5 h-3.5 text-orange-600 focus:ring-orange-500 cursor-pointer"
-                                                                />
-                                                                Optional
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                                                    <button
-                                                        type="button" onClick={() => { setIsAddingRule(false); setEditingRuleId(null); }}
-                                                        className="px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (!ruleColumn) { alert('Please select a column.'); return; }
-                                                            if (ruleMatchingType === 'dropdown' && !ruleMatchingValue) { alert('Please select a matching value.'); return; }
-                                                            const matchedCol = (ruleSource === 'masterlist' ? MASTERLIST_COLUMNS : NOT_ELIGIBLE_COLUMNS).find(c => (c.subField ? `${c.field}.${c.subField}` : c.field) === ruleColumn);
-                                                            const label = matchedCol ? matchedCol.label : ruleColumn;
-                                                            const parts = ruleColumn.split('.');
-                                                            const ruleData = {
-                                                                source: ruleSource, columnLabel: label, columnField: parts[0],
-                                                                columnSubField: parts[1], matchingType: ruleMatchingType,
-                                                                matchingValue: ruleMatchingValue, type: ruleType
-                                                            };
-                                                            if (editingRuleId) {
-                                                                setLocalSettings((prev: any) => ({
-                                                                    ...prev, customRules: (prev.customRules || []).map((r: any) => r.id === editingRuleId ? { ...r, ...ruleData } : r)
-                                                                }));
-                                                                setEditingRuleId(null);
-                                                            } else {
-                                                                const newRule = { id: Math.random().toString(36).substring(2, 9), ...ruleData };
-                                                                setLocalSettings((prev: any) => ({ ...prev, customRules: [...(prev.customRules || []), newRule] }));
-                                                            }
-                                                            setIsAddingRule(false);
-                                                        }}
-                                                        className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition-colors border border-indigo-700 shadow-xs cursor-pointer"
-                                                    >
-                                                        {editingRuleId ? 'Save' : 'Add'}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left border-collapse text-[12px]">
-                                                <thead>
-                                                    <tr className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                        <th className="px-4 py-3">Criteria Milestone</th>
-                                                        <th className="px-4 py-3 text-center w-24">Required</th>
-                                                        <th className="px-4 py-3 text-center w-24">Optional</th>
-                                                        <th className="px-4 py-3 text-center w-24">Disabled</th>
-                                                        <th className="px-4 py-3 text-center w-16">Remove</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100 bg-white">
-                                                    {(() => {
-                                                        const ALL_STANDARD_NAMES = ['Status', '1st Day Show up', 'Final Specific Status', '2nd Day Show up', 'PEME Status', 'BGS Status', 'RCBC Status', 'NBI Status'];
-                                                        const visibleStandards = CRITERIA_ITEMS.filter(item => (localSettings.activeStandards || ALL_STANDARD_NAMES).includes(item.name));
-                                                        return visibleStandards.map((item) => {
-                                                            const isRequired = localSettings.required.includes(item.name);
-                                                            const isOptional = localSettings.optional.includes(item.name);
-                                                            const isDisabled = !isRequired && !isOptional;
-                                                            return (
-                                                                <tr key={item.name} className="hover:bg-slate-50/30">
-                                                                    <td className="px-4 py-3.5">
-                                                                        <div className="font-bold text-slate-700">{item.name}</div>
-                                                                        {editingStandardField === item.name ? (
-                                                                            <div className="mt-2 flex items-center gap-2 bg-slate-50 p-2 border border-slate-200 rounded-lg w-fit">
-                                                                                <span className="text-[10px] font-bold text-slate-500 uppercase">Target:</span>
-                                                                                <select
-                                                                                    value={localSettings.standardSettings?.[item.name] || ''}
-                                                                                    onChange={(e) => {
-                                                                                        const val = e.target.value;
-                                                                                        setLocalSettings(prev => ({
-                                                                                            ...prev, standardSettings: { ...(prev.standardSettings || {}), [item.name]: val }
-                                                                                        }));
-                                                                                    }}
-                                                                                    className="bg-white border border-slate-350 rounded-md px-2 py-0.5 text-[11px] outline-none focus:border-indigo-400 font-sans"
-                                                                                >
-                                                                                    <option value="">-- Default Logic --</option>
-                                                                                    {COLUMN_DROPDOWNS[STANDARD_FIELD_COLUMN_MAP[item.name]]?.map(opt => (
-                                                                                        <option key={opt} value={opt}>{opt}</option>
-                                                                                    ))}
-                                                                                </select>
-                                                                                <button
-                                                                                    type="button" onClick={() => setEditingStandardField(null)}
-                                                                                    className="text-indigo-650 hover:underline text-[10px] font-bold cursor-pointer"
-                                                                                >
-                                                                                    Done
-                                                                                </button>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-                                                                                <span>{item.desc}</span>
-                                                                                {COLUMN_DROPDOWNS[STANDARD_FIELD_COLUMN_MAP[item.name]] && (
-                                                                                    <>
-                                                                                        <span className="text-slate-200">|</span>
-                                                                                        <button
-                                                                                            type="button" onClick={() => setEditingStandardField(item.name)}
-                                                                                            className="text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
-                                                                                        >
-                                                                                            <Edit2 size={10} />
-                                                                                            {localSettings.standardSettings?.[item.name] 
-                                                                                                ? `Target: ${localSettings.standardSettings[item.name]}` 
-                                                                                                : 'Set Target Value'}
-                                                                                        </button>
-                                                                                    </>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="px-4 py-3.5 text-center">
-                                                                        <input
-                                                                            type="radio" name={`criteria-${item.name}`} checked={isRequired}
-                                                                            onChange={() => handleCriteriaChange(item.name, 'required')}
-                                                                            className="w-3.5 h-3.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                                                        />
-                                                                    </td>
-                                                                    <td className="px-4 py-3.5 text-center">
-                                                                        <input
-                                                                            type="radio" name={`criteria-${item.name}`} checked={isOptional}
-                                                                            onChange={() => handleCriteriaChange(item.name, 'optional')}
-                                                                            className="w-3.5 h-3.5 text-orange-600 focus:ring-orange-500 cursor-pointer"
-                                                                        />
-                                                                    </td>
-                                                                    <td className="px-4 py-3.5 text-center">
-                                                                        <input
-                                                                            type="radio" name={`criteria-${item.name}`} checked={isDisabled}
-                                                                            onChange={() => handleCriteriaChange(item.name, 'disabled')}
-                                                                            className="w-3.5 h-3.5 text-slate-400 focus:ring-slate-500 cursor-pointer"
-                                                                        />
-                                                                    </td>
-                                                                    <td className="px-4 py-3.5 text-center">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setLocalSettings(prev => ({
-                                                                                    ...prev,
-                                                                                    required: prev.required.filter(x => x !== item.name),
-                                                                                    optional: prev.optional.filter(x => x !== item.name),
-                                                                                    activeStandards: (prev.activeStandards || ALL_STANDARD_NAMES).filter(x => x !== item.name)
-                                                                                }));
-                                                                            }}
-                                                                            className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer"
-                                                                        >
-                                                                            <Trash2 size={13} />
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        });
-                                                    })()}
-                                                    {localSettings.customRules?.map((rule) => {
-                                                        const isRequired = rule.type === 'required';
-                                                        const isOptional = rule.type === 'optional';
-                                                        const isDisabled = !isRequired && !isOptional;
-                                                        return (
-                                                            <tr key={rule.id} className="hover:bg-slate-50/30">
-                                                                <td className="px-4 py-3.5">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="font-bold text-slate-700">{rule.columnLabel}</div>
-                                                                        <span className="px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-violet-50 text-violet-700 border border-violet-200 rounded-md">Custom</span>
-                                                                    </div>
-                                                                    <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap items-center gap-2">
-                                                                        <span>
-                                                                            Source: <span className="capitalize">{rule.source}</span>
-                                                                            {' | '} Condition: {rule.matchingType === 'content' ? 'Has Content' : rule.matchingType === 'na' ? 'Is Empty' : `Equals "${rule.matchingValue}"`}
-                                                                        </span>
-                                                                        <span className="text-slate-200">|</span>
-                                                                        <button type="button" onClick={() => {
-                                                                            setEditingRuleId(rule.id);
-                                                                            setRuleSource(rule.source);
-                                                                            const colKey = rule.columnSubField ? `${rule.columnField}.${rule.columnSubField}` : rule.columnField;
-                                                                            setRuleColumn(colKey);
-                                                                            setRuleMatchingType(rule.matchingType);
-                                                                            setRuleMatchingValue(rule.matchingValue);
-                                                                            setRuleType(rule.type);
-                                                                            setIsAddingRule(true);
-                                                                        }} className="text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer">
-                                                                            <Edit2 size={10} /> Edit
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-4 py-3.5 text-center">
-                                                                    <input type="radio" name={`criteria-custom-${rule.id}`} checked={isRequired} onChange={() => {
-                                                                        setLocalSettings((prev: any) => ({
-                                                                            ...prev, customRules: (prev.customRules || []).map((r: any) => r.id === rule.id ? { ...r, type: 'required' } : r)
-                                                                        }));
-                                                                    }} className="w-3.5 h-3.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
-                                                                </td>
-                                                                <td className="px-4 py-3.5 text-center">
-                                                                    <input type="radio" name={`criteria-custom-${rule.id}`} checked={isOptional} onChange={() => {
-                                                                        setLocalSettings((prev: any) => ({
-                                                                            ...prev, customRules: (prev.customRules || []).map((r: any) => r.id === rule.id ? { ...r, type: 'optional' } : r)
-                                                                        }));
-                                                                    }} className="w-3.5 h-3.5 text-orange-600 focus:ring-orange-500 cursor-pointer" />
-                                                                </td>
-                                                                <td className="px-4 py-3.5 text-center">
-                                                                    <input type="radio" name={`criteria-custom-${rule.id}`} checked={isDisabled} onChange={() => {
-                                                                        setLocalSettings((prev: any) => ({
-                                                                            ...prev, customRules: (prev.customRules || []).filter((r: any) => r.id !== rule.id)
-                                                                        }));
-                                                                    }} className="w-3.5 h-3.5 text-slate-400 focus:ring-slate-500 cursor-pointer" />
-                                                                </td>
-                                                                <td className="px-4 py-3.5 text-center">
-                                                                    <button
-                                                                        type="button" onClick={() => {
-                                                                            setLocalSettings((prev: any) => ({
-                                                                                ...prev, customRules: (prev.customRules || []).filter((r: any) => r.id !== rule.id)
-                                                                            }));
-                                                                        }}
-                                                                        className="text-slate-400 hover:text-rose-500 transition-colors p-1"
-                                                                    >
-                                                                        <Trash2 size={13} />
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                        <div className="flex justify-between items-center mt-5 pt-4 border-t border-slate-100">
-                                            <div className="text-[11px] text-[#605e5c] font-semibold flex items-center gap-1.5">
-                                                <AlertCircle size={13} className="text-indigo-500 shrink-0" />
-                                                <span>Changes immediately update eligibility calculations.</span>
-                                            </div>
-                                            <button
-                                                onClick={handleSaveSettings} disabled={savingSettings}
-                                                className="px-4 h-8 bg-indigo-600 hover:bg-indigo-705 text-white text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-indigo-700 shadow-xs cursor-pointer disabled:opacity-50"
-                                            >
-                                                <Save size={13} />
-                                                {savingSettings ? 'Saving...' : 'Save Settings'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Applicants Table (Ongoing vs Hired) */}
-                                {(() => {
-                                    const ongoingApplicants = accountDashboardData.filteredApplicants.filter(
-                                        app => app.current_status?.toUpperCase() !== 'HIRED' &&
-                                        !['FAILED', 'REJECTED', 'WITHDRAWN', 'FALLOUT', 'INACTIVE'].includes(app.current_status?.toUpperCase() || '')
-                                    );
-                                    const hiredApplicants = accountDashboardData.filteredApplicants.filter(
-                                        app => app.current_status?.toUpperCase() === 'HIRED'
-                                    );
-                                    const displayApplicants = applicantsTab === 'ongoing' ? ongoingApplicants : hiredApplicants;
-
-                                    return (
-                                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden text-left">
-                                            <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/30">
-                                                <div>
-                                                    <h3 className="text-[13px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                                                        <Users size={14} className="text-indigo-505" />
-                                                        Candidates Listing
-                                                    </h3>
-                                                    <p className="text-[10px] text-slate-400 mt-0.5">Track and view candidates under this account</p>
-                                                </div>
-                                                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 w-fit">
-                                                    <button
-                                                        onClick={() => setApplicantsTab('ongoing')}
-                                                        className={cn(
-                                                            "px-3 py-1 text-[10px] font-bold rounded-md cursor-pointer transition-all",
-                                                            applicantsTab === 'ongoing' ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-800"
-                                                        )}
-                                                    >
-                                                        Ongoing ({ongoingApplicants.length})
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setApplicantsTab('hired')}
-                                                        className={cn(
-                                                            "px-3 py-1 text-[10px] font-bold rounded-md cursor-pointer transition-all",
-                                                            applicantsTab === 'hired' ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-800"
-                                                        )}
-                                                    >
-                                                        Hired ({hiredApplicants.length})
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                                                {displayApplicants.length > 0 ? (
-                                                    <table className="w-full text-left border-collapse">
-                                                        <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
-                                                            <tr className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                                                <th className="px-5 py-3">Candidate</th>
-                                                                <th className="px-5 py-3">Position</th>
-                                                                <th className="px-5 py-3">Status</th>
-                                                                <th className="px-5 py-3">Applied Date</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-slate-100 bg-white">
-                                                            {displayApplicants.map((app) => (
-                                                                <tr key={app.id} className="hover:bg-slate-50/30 transition-colors text-[12px]">
-                                                                    <td className="px-5 py-3">
-                                                                        <div className="flex flex-col">
-                                                                            <span className="font-bold text-slate-700">{app.applicant_name}</span>
-                                                                            <span className="text-[9px] text-slate-400 font-mono tracking-tight mt-0.5">ID: {app.id.slice(0, 8)}</span>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-5 py-3">
-                                                                        <span className="text-slate-650 font-semibold">{app.position_title}</span>
-                                                                    </td>
-                                                                    <td className="px-5 py-3">
-                                                                        <span className={cn(
-                                                                            "px-2 py-0.5 text-[9px] font-bold rounded-full border inline-block uppercase tracking-wider",
-                                                                            app.current_status === 'HIRED' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                                                            ['FAILED', 'REJECTED', 'WITHDRAWN'].includes(app.current_status?.toUpperCase() || '') ? "bg-rose-50 text-rose-700 border-rose-200" :
-                                                                            "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                                                        )}>
-                                                                            {app.current_status}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-5 py-3">
-                                                                        <span className="text-slate-500 font-medium tabular-nums">{new Date(app.applied_at).toLocaleDateString()}</span>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                ) : (
-                                                    <div className="p-16 text-center">
-                                                        <Users size={32} className="mx-auto text-slate-300 mb-2.5" />
-                                                        <p className="text-[11px] font-bold text-slate-400">No {applicantsTab} candidates recorded.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-                        );
-                    })()}
+                    {dashboardTab === 'unassigned' && selectedAccount && accountDashboardData && (
+                        <UnassignedTab
+                            selectedAccount={selectedAccount}
+                            allApplications={allApplications}
+                            accountDashboardData={accountDashboardData}
+                            loadData={loadData}
+                        />
+                    )}
+                    </div>
                 </div>
             </div>
-            
+
             <AnimatePresence>
                 {deletingId !== null && (
                     <motion.div
@@ -1737,21 +946,21 @@ export function AccountDashboardModal({
                     >
                         <motion.div
                             initial={{ scale: 0.95, y: 15 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 15 }}
-                            className="bg-white border border-slate-100 p-8 rounded-2xl w-full max-w-md shadow-2xl text-center space-y-6"
+                            className="bg-white dark:bg-slate-900 border border-slate-100 p-8 rounded-none w-full max-w-md shadow-2xl text-center space-y-6"
                         >
                             <div className="space-y-4">
-                                <div className="mx-auto w-16 h-16 bg-rose-50 border border-rose-100 flex items-center justify-center rounded-2xl text-rose-500 shadow-md">
+                                <div className="mx-auto w-16 h-16 bg-rose-50 border border-rose-100 flex items-center justify-center rounded-none text-rose-500 shadow-md">
                                     <Trash2 className="w-8 h-8 animate-bounce" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-800 tracking-tight">Purging Quota History</h3>
-                                <p className="text-xs text-slate-500 font-semibold">{deleteStage}</p>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 tracking-tight">Purging Quota History</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{deleteStage}</p>
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[11px] font-bold text-slate-400 tabular-nums">
                                     <span>Progress</span>
                                     <span>{deleteProgress}%</span>
                                 </div>
-                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800">
                                     <motion.div
                                         className="h-full bg-gradient-to-r from-rose-500 to-indigo-500 rounded-full shadow-lg"
                                         animate={{ width: `${deleteProgress}%` }}
@@ -1781,10 +990,32 @@ export function AccountDashboardModal({
                 confirmClass="bg-rose-600 hover:bg-rose-700"
             />
 
+            <ConfirmDialog
+                open={deleteLobConfirmOpen}
+                onClose={() => { setDeleteLobConfirmOpen(false); setPendingDeleteId(null); }}
+                onConfirm={async () => {
+                    if (pendingDeleteId) {
+                        try {
+                            await PositionService.delete(pendingDeleteId);
+                            success('LOB Deleted', 'The Line of Business has been deleted.');
+                            if (loadData) await loadData();
+                        } catch {
+                            toastError('Delete Failed', 'Failed to delete the Line of Business.');
+                        }
+                    }
+                    setDeleteLobConfirmOpen(false);
+                }}
+                title="Delete Line of Business"
+                message="Are you sure you want to permanently delete this Line of Business? This action cannot be undone."
+                confirmText="Delete"
+                confirmClass="bg-red-600 hover:bg-red-700"
+            />
+
             <QuotaHistoryDashboardModal
                 item={selectedHistoryDashboard}
                 onClose={() => setSelectedHistoryDashboard(null)}
                 onEdit={handleEditHistoryClick}
+                allApplications={allApplications}
             />
         </Modal>
     );

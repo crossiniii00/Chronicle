@@ -29,28 +29,27 @@ export function QueuePromptModal({
     const [loadingGuests, setLoadingGuests] = React.useState(false);
 
     React.useEffect(() => {
-        loadInterviewerOptions();
-    }, [showQueuePrompt]);
-
-    const loadInterviewerOptions = async () => {
-        setLoadingGuests(true);
-        try {
-            const allUsers = await UserService.getAll();
-            let filteredList: User[] = [];
-            
-            if (showQueuePrompt.queueType === 'FINAL') {
-                filteredList = allUsers.filter(u => {
-                    if (u.role !== 'ops_validator') return false;
-                    if (u.id === showQueuePrompt.opsValidatorId) return true;
-                    if (!u.department) return false;
+        const loadInterviewerOptions = async () => {
+            setLoadingGuests(true);
+            try {
+                const allUsers = await UserService.getAll();
+                let filteredList: User[] = [];
+                
+                if (showQueuePrompt.queueType === 'FINAL') {
+                    filteredList = allUsers.filter(u => {
+                        if (u.role !== 'ops_validator') return false;
+                        if (u.is_active === false && u.id !== showQueuePrompt.opsValidatorId) return false;
+                        if (u.id === showQueuePrompt.opsValidatorId) return true;
+                        if (!u.department) return false;
                     const userDepts = u.department.split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
-                    const targetDept = showQueuePrompt.department?.trim().toLowerCase();
+                    const targetDept = showQueuePrompt.department?.trim()?.toLowerCase();
                     return targetDept ? userDepts.includes(targetDept) : false;
                 });
             } else {
-                // For INITIAL queue, show all Recruiter roles
+                // For INITIAL queue, show all Recruiter and Admin roles
                 filteredList = allUsers.filter(u => 
-                    u.role.startsWith('recruiter_')
+                    (u.role.startsWith('recruiter_') || u.role.startsWith('admin') || u.role === 'super_admin') &&
+                    u.is_active !== false
                 );
             }
 
@@ -67,7 +66,9 @@ export function QueuePromptModal({
         } finally {
             setLoadingGuests(false);
         }
-    };
+        };
+        loadInterviewerOptions();
+    }, [showQueuePrompt.queueType, showQueuePrompt.department, showQueuePrompt.opsValidatorId]);
 
     const handleConfirm = () => {
         const selected = guests.find(g => g.id === selectedGuestId);
@@ -96,17 +97,17 @@ export function QueuePromptModal({
                 initial={{ opacity: 0, scale: 0.98, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 10 }}
-                className="relative w-full max-w-lg bg-white border border-[#edebe9] shadow-[0_16px_40px_-8px_rgba(0,0,0,0.3)] rounded-sm overflow-hidden"
+                className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-surface-200 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.3)] rounded-sm overflow-hidden"
             >
                 <div className="p-10 space-y-8">
                     <div className="space-y-4 text-center">
-                        <div className="w-14 h-14 bg-[#f3f2f1] rounded-sm flex items-center justify-center mx-auto border border-[#edebe9] mb-2">
+                        <div className="w-14 h-14 bg-[#f3f2f1] rounded-sm flex items-center justify-center mx-auto border border-surface-200 mb-2">
                             <Clock3 size={24} className="text-[#0078d4]" />
                         </div>
-                        <h2 className="text-xl font-bold text-[#323130] tracking-tight uppercase flex items-center justify-center gap-2">
+                        <h2 className="text-xl font-bold text-[#323130] dark:text-slate-300 tracking-tight uppercase flex items-center justify-center gap-2">
                             {showQueuePrompt.queueType === 'FINAL' ? 'Add to Final Queue' : 'Add to Initial Queue'}
                         </h2>
-                        <p className="text-[#605e5c] font-medium text-[12px] uppercase tracking-wide">
+                        <p className="text-[#605e5c] dark:text-slate-400 font-medium text-[12px] uppercase tracking-wide">
                             Add <span className="text-[#0078d4] font-bold">{showQueuePrompt.name}</span> to the {showQueuePrompt.queueType.toLowerCase()} interview queue?
                         </p>
                     </div>
@@ -114,15 +115,15 @@ export function QueuePromptModal({
                     {showQueuePrompt.queueType === 'FINAL' && (
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-[#605e5c] uppercase tracking-wider flex items-center gap-2">
+                                <label className="text-[10px] font-bold text-[#605e5c] dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
                                     <UserCheck size={14} className="text-[#0078d4]" /> 
-                                    Select OPS Validator
+                                    Select Final Interviewer
                                 </label>
                                 <select
                                     disabled={isQueueing || loadingGuests}
                                     value={selectedGuestId}
                                     onChange={(e) => setSelectedGuestId(e.target.value)}
-                                    className="w-full px-4 py-3 bg-[#f3f2f1] border border-[#edebe9] rounded-sm text-xs focus:outline-none focus:border-[#0078d4] font-bold uppercase tracking-wider outline-none transition-all"
+                                    className="w-full px-4 py-3 bg-[#f3f2f1] border border-surface-200 rounded-sm text-xs focus:outline-none focus:border-[#0078d4] font-bold uppercase tracking-wider outline-none transition-all"
                                 >
                                     <option value="">Select Validator...</option>
                                     {guests.map((guest) => (
@@ -147,7 +148,7 @@ export function QueuePromptModal({
                                             <div className="space-y-1">
                                                 <p className="text-[10px] font-bold text-orange-900 uppercase leading-none">Reassignment Warning</p>
                                                 <p className="text-[9px] text-orange-700 font-medium leading-relaxed">
-                                                    This interviewer differs from the initially endorsed OPS Validator.
+                                                    This interviewer differs from the initially endorsed Final Interviewer.
                                                 </p>
                                             </div>
                                         </div>
@@ -161,7 +162,7 @@ export function QueuePromptModal({
                         <button
                             disabled={isQueueing}
                             onClick={() => setShowQueuePrompt(null)}
-                            className="flex-1 px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-[#605e5c] border border-[#edebe9] rounded-sm hover:bg-[#f3f2f1] transition-colors disabled:opacity-50"
+                            className="flex-1 px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-[#605e5c] dark:text-slate-400 border border-surface-200 rounded-sm hover:bg-[#f3f2f1] transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>
@@ -179,3 +180,4 @@ export function QueuePromptModal({
         document.body
     );
 }
+

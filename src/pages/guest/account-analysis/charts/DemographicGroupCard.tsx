@@ -25,13 +25,13 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
     const totalAll = data.reduce((sum, item) => sum + item.total, 0) || 1;
 
     return (
-        <div className="bg-white p-5 border border-surface-200 rounded-sm shadow-sm flex flex-col gap-4">
+        <div className="bg-white dark:bg-slate-900 p-5 border border-surface-200 rounded-sm shadow-sm flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#f3f2f1] pb-3">
-                <h3 className="text-xs font-bold text-[#323130] uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-xs font-bold text-[#323130] dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
                     <Icon size={16} className="text-[#0078d4]" />
                     {title}
                 </h3>
-                <div className="flex bg-[#f3f2f1] p-0.5 rounded-sm self-start sm:self-auto border border-[#edebe9]">
+                <div className="flex bg-[#f3f2f1] p-0.5 rounded-sm self-start sm:self-auto border border-[#edebe9] dark:border-slate-800">
                     {(['table', 'bar', 'pie'] as const).map(mode => (
                         <button
                             key={mode}
@@ -40,8 +40,8 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
                             className={cn(
                                 "px-3 py-1 text-[10px] font-bold rounded-sm uppercase tracking-wider transition-all",
                                 viewMode === mode
-                                    ? "bg-white text-[#0078d4] shadow-sm font-black"
-                                    : "text-[#605e5c] hover:text-[#323130]"
+                                    ? "bg-white dark:bg-slate-900 text-[#0078d4] shadow-sm font-black"
+                                    : "text-[#605e5c] dark:text-slate-400 hover:text-[#323130] dark:text-slate-300"
                             )}
                         >
                             {mode}
@@ -54,7 +54,7 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
                 <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left border-collapse">
                         <thead>
-                            <tr className="border-b border-[#edebe9] text-[#605e5c] font-bold">
+                            <tr className="border-b border-[#edebe9] dark:border-slate-800 text-[#605e5c] dark:text-slate-400 font-bold">
                                 <th className="py-2.5 pr-4">Category</th>
                                 <th className="py-2.5 px-4 text-center">Total</th>
                                 <th className="py-2.5 px-4 text-center">Passed</th>
@@ -65,16 +65,16 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
                         <tbody className="divide-y divide-[#f3f2f1]">
                             {data.map(item => (
                                 <tr key={item.label} className="hover:bg-[#f3f2f1]/40 transition-colors">
-                                    <td className="py-2.5 pr-4 font-semibold text-[#323130] truncate max-w-[150px]" title={item.label}>
+                                    <td className="py-2.5 pr-4 font-semibold text-[#323130] dark:text-slate-300 truncate max-w-[150px]" title={item.label}>
                                         {item.label}
                                     </td>
-                                    <td className="py-2.5 px-4 text-center text-[#323130] font-medium">{item.total}</td>
+                                    <td className="py-2.5 px-4 text-center text-[#323130] dark:text-slate-300 font-medium">{item.total}</td>
                                     <td className="py-2.5 px-4 text-center text-[#107c10] font-bold">{item.passed}</td>
                                     <td className="py-2.5 px-4 text-center text-[#a4262c] font-bold">{item.failed}</td>
                                     <td className="py-2.5 pl-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            <span className="font-bold text-[#323130]">{Math.round(item.passRate)}%</span>
-                                            <div className="w-12 h-1.5 bg-[#f3f2f1] rounded-full overflow-hidden inline-block border border-[#edebe9]">
+                                            <span className="font-bold text-[#323130] dark:text-slate-300">{Math.round(item.passRate)}%</span>
+                                            <div className="w-12 h-1.5 bg-[#f3f2f1] rounded-full overflow-hidden inline-block border border-[#edebe9] dark:border-slate-800">
                                                 <div 
                                                     className="h-full bg-[#107c10]" 
                                                     style={{ width: `${item.passRate}%` }}
@@ -94,12 +94,12 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
                     {data.map((item, idx) => (
                         <div key={item.label} className="space-y-1.5">
                             <div className="flex items-center justify-between text-xs">
-                                <span className="font-bold text-[#323130] truncate max-w-[200px]" title={item.label}>
-                                    {item.label} <span className="text-[10px] font-normal text-[#605e5c]">({item.total} candidates)</span>
+                                <span className="font-bold text-[#323130] dark:text-slate-300 truncate max-w-[200px]" title={item.label}>
+                                    {item.label} <span className="text-[10px] font-normal text-[#605e5c] dark:text-slate-400">({item.total} candidates)</span>
                                 </span>
                                 <span className="font-bold text-[#107c10]">{Math.round(item.passRate)}% pass rate</span>
                             </div>
-                            <div className="h-4 bg-[#f3f2f1] border border-[#edebe9] rounded-sm overflow-hidden relative flex items-center">
+                            <div className="h-4 bg-[#f3f2f1] border border-[#edebe9] dark:border-slate-800 rounded-sm overflow-hidden relative flex items-center">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${item.passRate}%` }}
@@ -148,9 +148,9 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
                                 <div key={item.label} className="flex items-center justify-between text-xs border-b border-[#f3f2f1] pb-1.5 last:border-none">
                                     <div className="flex items-center gap-2 truncate max-w-[150px]">
                                         <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: colors[idx % colors.length] }} />
-                                        <span className="text-[#323130] font-semibold truncate" title={item.label}>{item.label}</span>
+                                        <span className="text-[#323130] dark:text-slate-300 font-semibold truncate" title={item.label}>{item.label}</span>
                                     </div>
-                                    <span className="font-bold text-[#323130] ml-2 shrink-0">{item.total} candidates <span className="text-surface-400 font-normal">({Math.round(pct)}%)</span></span>
+                                    <span className="font-bold text-[#323130] dark:text-slate-300 ml-2 shrink-0">{item.total} candidates <span className="text-surface-400 font-normal">({Math.round(pct)}%)</span></span>
                                 </div>
                             );
                         })}
@@ -159,7 +159,7 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
             )}
 
             {insights && insights.length > 0 && (
-                <div className="border-t border-[#edebe9] pt-4 mt-auto">
+                <div className="border-t border-[#edebe9] dark:border-slate-800 pt-4 mt-auto">
                     <h4 className="text-[11px] font-bold text-surface-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <Sparkles size={12} className="text-[#0078d4]" />
                         Key Segment Insights
@@ -174,7 +174,7 @@ export const DemographicGroupCard = React.memo(function DemographicGroupCard({
                                         "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
                                         isPositive ? "bg-[#107c10]" : isWarning ? "bg-[#a4262c]" : "bg-[#0078d4]"
                                     )} />
-                                    <span className="text-[#323130] leading-normal font-medium">{insight.text}</span>
+                                    <span className="text-[#323130] dark:text-slate-300 leading-normal font-medium">{insight.text}</span>
                                 </li>
                             );
                         })}

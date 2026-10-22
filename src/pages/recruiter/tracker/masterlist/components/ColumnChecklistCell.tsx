@@ -82,10 +82,10 @@ export const ColumnChecklistCell = ({ app, col, rowLocalChanges }: any) => {
                             zIndex: 2147483001,
                             width: 260
                         }}
-                        className="bg-white border-2 border-surface-900 shadow-[0_10px_30px_rgba(0,0,0,0.15)] p-3 rounded-none text-left flex flex-col font-sans"
+                        className="bg-white dark:bg-slate-900 border-2 border-surface-900 shadow-[0_10px_30px_rgba(0,0,0,0.15)] p-3 rounded-none text-left flex flex-col font-sans"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-[#edebe9]">
+                        <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-[#edebe9] dark:border-slate-800">
                             <span className="text-[10px] font-bold text-surface-800 uppercase tracking-wider">
                                 {col.label}
                             </span>

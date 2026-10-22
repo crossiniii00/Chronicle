@@ -28,6 +28,10 @@ export const AuditService = {
         const response = await apiClient.get('/audit');
         return response.data.slice(0, 50);
     },
+    getRecent: async (limit = 6): Promise<AuditLog[]> => {
+        const response = await apiClient.get('/audit/recent', { params: { limit } });
+        return response.data;
+    },
     bulkDelete: async (ids: string[]): Promise<{ success: boolean; count: number }> => {
         const response = await apiClient.post('/audit/bulk-delete', { ids });
         return response.data;

@@ -9,7 +9,7 @@ import { ClientAssessmentTab } from '@/components/features/ApplicantManagement/D
 import { ClientInterviewTab } from '@/components/features/ApplicantManagement/DetailTabs/ClientInterviewTab';
 import { VerdictTab } from '@/components/features/ApplicantManagement/DetailTabs/VerdictTab';
 
-type ReprofileProcessTab = 'queue' | 'endorsement' | 'scheduling' | 'client_assessment' | 'client_interview' | 'verdict';
+type ReprofileProcessTab = 'queue' | 'scheduling' | 'client_assessment' | 'client_interview' | 'verdict';
 
 interface ReprofileDetailModalProps {
     applicant: Application;
@@ -25,7 +25,6 @@ interface ReprofileDetailModalProps {
     setClientInterviewRemarks: (remarks: string) => void;
     handleUpdateApplication: (id: string, patch: any) => void;
     onQueue: (app: Application, type: 'INITIAL' | 'FINAL') => void;
-    onRouteToSpecialized: (app: Application, name: string) => boolean | void | Promise<boolean | void>;
     handleGiveClientAssessmentGrade: (app: Application) => void;
     handleGiveClientInterviewVerdict: (app: Application, result: 'pass' | 'fail', reason?: string) => void;
     handlePromote: (app: Application, result: 'pass' | 'conditional' | 'fail', reason?: string) => void;
@@ -37,13 +36,13 @@ const getReprofileStageRank = (app: Application): number => {
     if (status === 'CLIENT_ASSESSMENT') return 2;
     if (status === 'CLIENT_INTERVIEW') return 3;
     if (['FINAL_VERDICT', 'PASSED', 'HIRED', 'HIRED_PROCESSED'].includes(status)) return 4;
-    
+
     if (['REJECTED', 'FAILED', 'WITHDRAWN'].includes(status)) {
         if (app.client_interview_remarks) return 3;
         if (app.client_assessment_score !== undefined && app.client_assessment_score !== null) return 2;
         return 1;
     }
-    
+
     return 1;
 };
 
@@ -61,7 +60,6 @@ export function ReprofileDetailModal({
     setClientInterviewRemarks,
     handleUpdateApplication,
     onQueue,
-    onRouteToSpecialized,
     handleGiveClientAssessmentGrade,
     handleGiveClientInterviewVerdict,
     handlePromote,
@@ -69,10 +67,15 @@ export function ReprofileDetailModal({
 }: ReprofileDetailModalProps) {
     const queue = getReprofileQueue(applicant);
     const hasCompletedAccount = queue.some(item => item.status === 'COMPLETED');
-    const isFinished = ['PASSED', 'FAILED', 'HIRED', 'HIRED_PROCESSED', 'REJECTED', 'WITHDRAWN', 'FOR_JOB_OFFER', 'For Job Offer', 'FOR PAN', 'For PAN', 'FOR_PAN', 'ACCEPTED OFFER', 'ACCEPTED_OFFER', 'Accepted Offer', 'SENT JO AND BGC', 'SENT_JO_AND_BGC', 'Sent JO and BGC'].includes(applicant.current_status) ||
-                       applicant.pis?.ops_validator_status === 'PASSED' ||
-                       applicant.pis?.ops_validator_status === 'FAILED' ||
-                       hasCompletedAccount;
+    const waitingAccounts = queue.filter(item => item.status === 'WAITING');
+
+    // Check if the active account failed
+    const isActiveAccountFailed = ['FAILED', 'REJECTED'].includes(applicant.current_status) || applicant.pis?.ops_validator_status === 'FAILED';
+
+    const isFinished = ['PASSED', 'HIRED', 'HIRED_PROCESSED', 'WITHDRAWN', 'FOR_JOB_OFFER', 'For Job Offer', 'FOR PAN', 'For PAN', 'FOR_PAN', 'ACCEPTED OFFER', 'ACCEPTED_OFFER', 'Accepted Offer', 'SENT JO AND BGC', 'SENT_JO_AND_BGC', 'Sent JO and BGC'].includes(applicant.current_status) ||
+        applicant.pis?.ops_validator_status === 'PASSED' ||
+        (isActiveAccountFailed && waitingAccounts.length === 0) ||
+        hasCompletedAccount;
     const [processTab, setProcessTab] = React.useState<ReprofileProcessTab>(isFinished ? 'verdict' : 'queue');
     const [showRegressPrompt, setShowRegressPrompt] = React.useState(false);
     const [showRejectionPrompt, setShowRejectionPrompt] = React.useState(false);
@@ -87,10 +90,10 @@ export function ReprofileDetailModal({
             .join(', ');
     };
     const cleanDepartment = cleanAccountString(applicant.department);
-    const waitingAccounts = queue.filter(item => item.status === 'WAITING');
+
     const failedAccounts = queue.filter(item => item.status === 'FAILED');
     const activeDepartment = activeAccount.toUpperCase();
-    const needsClientAssessment = ['KELLER POSTMAN', 'AUTO APPROVE'].includes(activeDepartment);
+    const needsClientAssessment = ['KELLER POSTMAN'].includes(activeDepartment);
     const needsClientInterview = needsClientAssessment || ['TENNIS CHANNEL', 'THE SAVINGS GROUP', 'ENERCARE'].includes(activeDepartment);
     const hasOpsEndorsement = applicant.current_status === 'FINAL_INTERVIEW_SCHEDULED';
     const formatSessionDate = (value?: string) => {
@@ -107,22 +110,21 @@ export function ReprofileDetailModal({
     };
     const processStatusByTab: Record<ReprofileProcessTab, Application['current_status']> = {
         queue: 'FINAL_INTERVIEW',
-        endorsement: 'FINAL_INTERVIEW',
         scheduling: 'FINAL_INTERVIEW',
         client_assessment: 'CLIENT_ASSESSMENT',
         client_interview: 'CLIENT_INTERVIEW',
         verdict: 'FINAL_VERDICT'
     };
-    const isSpecialized = ['KELLER POSTMAN', 'AUTO APPROVE'].includes(activeAccount.toUpperCase());
+    const isSpecialized = ['KELLER POSTMAN', 'AUTO APPROVE', 'PAESLER'].includes(activeAccount.toUpperCase());
     const processApplicant = {
         ...applicant,
         department: activeAccount || cleanDepartment,
-        current_status: (isFinished 
-            ? applicant.current_status 
-            : (applicant.metadata?.reprofile_stage || 
-               (processTab === 'scheduling' && applicant.current_status === 'FINAL_INTERVIEW_SCHEDULED' 
-                   ? 'FINAL_INTERVIEW_SCHEDULED' 
-                   : processStatusByTab[processTab]))) as Application['current_status'],
+        current_status: (isFinished
+            ? applicant.current_status
+            : (applicant.metadata?.reprofile_stage ||
+                (processTab === 'scheduling' && applicant.current_status === 'FINAL_INTERVIEW_SCHEDULED'
+                    ? 'FINAL_INTERVIEW_SCHEDULED'
+                    : processStatusByTab[processTab]))) as Application['current_status'],
         endorsed_to_recruiter_s: isSpecialized ? applicant.endorsed_to_recruiter_s : false,
         metadata: {
             ...(applicant.metadata || {}),
@@ -132,8 +134,7 @@ export function ReprofileDetailModal({
     const currentRank = getReprofileStageRank(applicant);
     const processTabs = [
         { id: 'queue', label: 'Reprofile Queue' },
-        { id: 'endorsement', label: 'Endorsement', locked: !activeAccount || currentRank < 1 },
-        { id: 'scheduling', label: 'Scheduling', locked: !activeAccount || currentRank < 1 || !applicant.metadata?.endorsement_confirmed },
+        { id: 'scheduling', label: 'Scheduling', locked: !activeAccount || currentRank < 1 },
         ...(needsClientAssessment ? [{ id: 'client_assessment' as const, label: 'Client Assessment', locked: !activeAccount || currentRank < 2 }] : []),
         ...(needsClientInterview ? [{ id: 'client_interview' as const, label: activeDepartment === 'ENERCARE' ? 'Client Interview Optional' : 'Client Interview', locked: !activeAccount || currentRank < 3 }] : []),
         { id: 'verdict', label: 'Verdict', locked: !activeAccount || currentRank < (needsClientInterview ? 4 : (needsClientAssessment ? 3 : 1)) }
@@ -153,7 +154,7 @@ export function ReprofileDetailModal({
                 onClick={onClose}
             />
             <div
-                className="relative w-full max-w-6xl bg-white border border-surface-200 rounded-md shadow-premium overflow-hidden flex flex-col max-h-[92vh]"
+                className="relative w-full max-w-6xl bg-white dark:bg-slate-900 border border-surface-200 rounded-md shadow-premium overflow-hidden flex flex-col max-h-[92vh]"
             >
                 <div className="flex items-start justify-between p-6 border-b border-surface-100 bg-surface-50">
                     <div className="flex items-center gap-4 min-w-0">
@@ -166,12 +167,12 @@ export function ReprofileDetailModal({
                             <p className="text-xs font-medium text-surface-500 mt-1">{applicant.position_title || 'Candidate'}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-surface-400 hover:text-surface-800 hover:bg-white rounded-sm transition-all">
+                    <button onClick={onClose} className="p-2 text-surface-400 hover:text-surface-800 hover:bg-white dark:bg-slate-900 rounded-sm transition-all">
                         <XCircle size={18} />
                     </button>
                 </div>
 
-                <div className="px-6 border-b border-surface-100 bg-white overflow-x-auto">
+                <div className="px-6 border-b border-surface-100 bg-white dark:bg-slate-900 overflow-x-auto">
                     <div className="flex gap-5">
                         {processTabs.map(tab => {
                             const isActive = processTab === tab.id;
@@ -198,14 +199,18 @@ export function ReprofileDetailModal({
                 <div className="flex-1 overflow-y-auto">
                     {processTab === 'queue' && (
                         <div className="grid grid-cols-[1fr_1.25fr] gap-0 min-h-[420px]">
-                            <section className="p-6 border-r border-surface-100 bg-white">
+                            <section className="p-6 border-r border-surface-100 bg-white dark:bg-slate-900">
                                 <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider mb-3">Current Active Account</p>
                                 <div className={cn(
                                     "p-5 border rounded-sm",
-                                    isFinished ? "border-emerald-500 bg-emerald-50/50" : "border-emerald-200 bg-emerald-50"
+                                    isActiveAccountFailed ? "border-red-200 bg-red-50" :
+                                        isFinished ? "border-emerald-500 bg-emerald-50/50" :
+                                            "border-emerald-200 bg-emerald-50"
                                 )}>
                                     <div className="flex items-center gap-3">
-                                        {isFinished ? (
+                                        {isActiveAccountFailed ? (
+                                            <XCircle size={18} className="text-red-700 shrink-0" />
+                                        ) : isFinished ? (
                                             <Trophy size={18} className="text-emerald-700 shrink-0" />
                                         ) : (
                                             <CheckCircle2 size={18} className="text-emerald-700 shrink-0" />
@@ -213,13 +218,17 @@ export function ReprofileDetailModal({
                                         <div>
                                             <p className={cn(
                                                 "text-lg font-bold uppercase",
-                                                isFinished ? "text-emerald-800" : "text-emerald-900"
+                                                isActiveAccountFailed ? "line-through text-red-900 decoration-red-500/70" :
+                                                    isFinished ? "text-emerald-800" : "text-emerald-900"
                                             )}>{activeAccount || 'No Active Account'}</p>
                                             <p className={cn(
                                                 "text-[11px] font-semibold mt-1",
-                                                isFinished ? "text-emerald-800" : "text-emerald-700"
+                                                isActiveAccountFailed ? "text-red-750" :
+                                                    isFinished ? "text-emerald-800" : "text-emerald-700"
                                             )}>
-                                                {isFinished ? 'Candidate successfully passed for this account.' : 'This is the account currently being tried for reprofile.'}
+                                                {isActiveAccountFailed ? 'Candidate failed for this account. Continue to the next account below.' :
+                                                    isFinished ? 'Candidate successfully passed for this account.' :
+                                                        'This is the account currently being tried for reprofile.'}
                                             </p>
                                         </div>
                                     </div>
@@ -228,15 +237,15 @@ export function ReprofileDetailModal({
                                 <div className="grid grid-cols-2 gap-3 mt-4">
                                     <button
                                         type="button"
-                                        disabled={!activeAccount || isFinished}
-                                        onClick={() => setProcessTab(isFinished ? 'verdict' : 'endorsement')}
+                                        disabled={!activeAccount || isFinished || isActiveAccountFailed}
+                                        onClick={() => setProcessTab(isFinished ? 'verdict' : 'scheduling')}
                                         className="px-4 py-3 bg-primary-600 text-white text-[11px] font-bold uppercase rounded-sm hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-sm"
                                     >
                                         {isFinished ? 'View Details' : 'Go to Scheduling'} <ArrowRight size={14} />
                                     </button>
                                     <button
                                         type="button"
-                                        disabled={!activeAccount || waitingAccounts.length === 0 || isFinished}
+                                        disabled={!activeAccount || waitingAccounts.length === 0}
                                         onClick={() => onFailActiveAccount(applicant)}
                                         className="px-4 py-3 bg-red-600 text-white text-[11px] font-bold uppercase rounded-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-sm"
                                     >
@@ -268,45 +277,62 @@ export function ReprofileDetailModal({
                             <section className="p-6 bg-surface-50/50">
                                 <p className="text-[10px] font-bold text-surface-400 uppercase tracking-wider mb-4">Reprofile Queue</p>
                                 <div className="space-y-2">
-                                    {queue.map((item, index) => (
-                                        <div
-                                            key={`${item.account}-${item.status}`}
-                                            className={cn(
-                                                "flex items-center justify-between gap-4 p-4 border rounded-sm bg-white shadow-sm",
-                                                item.status === 'ACTIVE' && "border-emerald-200 bg-emerald-50/60",
-                                                item.status === 'COMPLETED' && "border-emerald-500 bg-emerald-50/30",
-                                                item.status === 'WAITING' && "border-amber-200",
-                                                item.status === 'FAILED' && "border-red-100 bg-red-50/60"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <span className={cn(
-                                                    "w-7 h-7 rounded-sm border flex items-center justify-center text-[10px] font-bold",
-                                                    item.status === 'COMPLETED' ? "bg-emerald-600 border-emerald-600 text-white" : "bg-white border-surface-200 text-surface-500"
-                                                )}>
-                                                    {item.status === 'COMPLETED' ? <Check size={12} /> : index + 1}
-                                                </span>
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-bold text-surface-900 uppercase truncate">{item.account}</p>
-                                                    <p className={cn(
-                                                        "text-[10px] font-bold uppercase tracking-wider",
-                                                        item.status === 'COMPLETED' ? "text-emerald-700" :
-                                                        item.status === 'ACTIVE' ? "text-emerald-600" :
-                                                        item.status === 'FAILED' ? "text-red-500" : "text-surface-400"
-                                                    )}>{item.status}</p>
+                                    {queue.map((item, index) => {
+                                        const isActiveItem = item.account.toLowerCase() === activeAccount.toLowerCase();
+                                        const isItemFailed = item.status === 'FAILED' || (isActiveItem && isActiveAccountFailed);
+                                        const itemStatus = isItemFailed ? 'FAILED' : (isActiveItem ? 'ACTIVE' : item.status);
+
+                                        return (
+                                            <div
+                                                key={`${item.account}-${itemStatus}`}
+                                                className={cn(
+                                                    "flex items-center justify-between gap-4 p-4 border rounded-sm bg-white dark:bg-slate-900 shadow-sm relative overflow-hidden",
+                                                    itemStatus === 'ACTIVE' && "border-emerald-200 bg-emerald-50/60",
+                                                    itemStatus === 'COMPLETED' && "border-emerald-500 bg-emerald-50/30",
+                                                    itemStatus === 'WAITING' && "border-amber-200",
+                                                    itemStatus === 'FAILED' && "border-red-100 bg-red-50/30 opacity-70"
+                                                )}
+                                            >
+                                                {itemStatus === 'FAILED' && (
+                                                    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: 'visible' }}>
+                                                        <line x1="0" y1="0" x2="100%" y2="100%" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+                                                        <line x1="100%" y1="0" x2="0" y2="100%" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+                                                    </svg>
+                                                )}
+                                                <div className="flex items-center gap-3 min-w-0 relative z-10">
+                                                    <span className={cn(
+                                                        "w-7 h-7 rounded-sm border flex items-center justify-center text-[10px] font-bold",
+                                                        itemStatus === 'COMPLETED' ? "bg-emerald-600 border-emerald-600 text-white" :
+                                                            itemStatus === 'ACTIVE' ? "bg-emerald-500 border-emerald-500 text-white" :
+                                                                "bg-white dark:bg-slate-900 border-surface-200 text-surface-500"
+                                                    )}>
+                                                        {(itemStatus === 'COMPLETED' || itemStatus === 'ACTIVE') ? <Check size={12} /> : index + 1}
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className={cn(
+                                                            "text-sm font-bold text-surface-900 uppercase truncate",
+                                                            itemStatus === 'FAILED' && "line-through text-red-500 decoration-red-500/70"
+                                                        )}>{item.account}</p>
+                                                        <p className={cn(
+                                                            "text-[10px] font-bold uppercase tracking-wider",
+                                                            itemStatus === 'COMPLETED' ? "text-emerald-700" :
+                                                                itemStatus === 'ACTIVE' ? "text-emerald-600" :
+                                                                    itemStatus === 'FAILED' ? "text-red-500" : "text-surface-400"
+                                                        )}>{itemStatus}</p>
+                                                    </div>
                                                 </div>
+                                                {item.status === 'WAITING' && !isFinished && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onSetActiveAccount(applicant, item.account)}
+                                                        className="px-3 py-2 bg-primary-600 text-white text-[10px] font-bold uppercase rounded-sm hover:bg-primary-700 transition-all flex items-center gap-2 relative z-10"
+                                                    >
+                                                        Set Active <ArrowRight size={12} />
+                                                    </button>
+                                                )}
                                             </div>
-                                            {item.status === 'WAITING' && !isFinished && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onSetActiveAccount(applicant, item.account)}
-                                                    className="px-3 py-2 bg-primary-600 text-white text-[10px] font-bold uppercase rounded-sm hover:bg-primary-700 transition-all flex items-center gap-2"
-                                                >
-                                                    Set Active <ArrowRight size={12} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
 
                                 {failedAccounts.length > 0 && (
@@ -315,27 +341,6 @@ export function ReprofileDetailModal({
                                     </p>
                                 )}
                             </section>
-                        </div>
-                    )}
-
-                    {processTab === 'endorsement' && (
-                        <div className="p-6">
-                            <FinalInterviewTab
-                                mode="endorsement"
-                                applicant={processApplicant}
-                                finalInterviewNotes={finalInterviewNotes}
-                                setFinalInterviewNotes={setFinalInterviewNotes}
-                                onQueue={onQueue}
-                                setModalTab={(tab) => {
-                                    if (tab === 'final') setProcessTab('scheduling');
-                                    else setProcessTab(tab);
-                                }}
-                                validators={validators}
-                                handleUpdateApplication={handleUpdateApplication}
-                                onRouteToSpecialized={onRouteToSpecialized}
-                                onClose={onClose}
-                                fixedAccount={activeAccount}
-                            />
                         </div>
                     )}
 
@@ -353,7 +358,6 @@ export function ReprofileDetailModal({
                                 }}
                                 validators={validators}
                                 handleUpdateApplication={handleUpdateApplication}
-                                onRouteToSpecialized={onRouteToSpecialized}
                                 onClose={onClose}
                                 fixedAccount={activeAccount}
                             />
@@ -413,7 +417,46 @@ export function ReprofileDetailModal({
                     )}
                 </div>
 
-                <div className="flex justify-end p-5 border-t border-surface-100 bg-white">
+                <div className="flex justify-between items-center p-5 border-t border-surface-100 bg-white dark:bg-slate-900">
+                    <button
+                        onClick={async () => {
+                            const history = applicant.pis?.reprofile_history || applicant.metadata?.reprofile_history || [];
+                            const lastReprofile = history.length > 0 ? history[0] : null; // Use the very first entry which contains the true pre-reprofile state
+                            const prevStatus = lastReprofile?.previous_status || 'FINAL_INTERVIEW';
+                            const prevVerdict = prevStatus === 'FAILED' || prevStatus === 'REJECTED' ? 'FAILED' : null;
+                            const prevOpsValStatus = lastReprofile?.previous_ops_validator_status || 'Failed';
+                            const prevAccount = lastReprofile?.previous_account || applicant.metadata?.initial_account_assignment || applicant.pis?.initial_account_assignment || applicant.department;
+
+                            if (window.confirm(`Are you sure you want to cancel reprofiling? This will revert the applicant's status to ${prevStatus} and remove all reprofile records.`)) {
+                                await handleUpdateApplication(applicant.id, {
+                                    current_status: prevStatus,
+                                    final_verdict: prevVerdict,
+                                    rejection_reason: null, // Clear rejection reason since we're reverting
+                                    department: prevAccount,
+                                    metadata: {
+                                        ...(applicant.metadata || {}),
+                                        is_reprofiled: false,
+                                        reprofile_accounts: [],
+                                        reprofile_active_account: null,
+                                        reprofile_stage: null,
+                                        reprofile_history: [],
+                                        reprofile_last_failed_account: null
+                                    },
+                                    pis: {
+                                        ...(applicant.pis || {}),
+                                        ops_validator_status: prevOpsValStatus,
+                                        final_specific_status: prevStatus === 'FAILED' || prevStatus === 'REJECTED' ? 'OV - Failed' : 'Pending',
+                                        is_reprofiled: false,
+                                        reprofile_history: []
+                                    }
+                                });
+                                onClose();
+                            }
+                        }}
+                        className="px-6 py-2 border border-surface-200 text-surface-600 text-[11px] font-bold uppercase tracking-wider rounded-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-2"
+                    >
+                        <RotateCcw size={14} /> Cancel Reprofiling
+                    </button>
                     <button onClick={onClose} className="px-8 py-3 border border-surface-200 text-surface-700 text-xs font-semibold rounded-sm hover:bg-surface-50">
                         Close
                     </button>

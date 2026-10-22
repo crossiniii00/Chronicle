@@ -15,15 +15,101 @@ interface AccountTableProps {
     onMouseMove: (e: React.MouseEvent) => void;
     onEdit: (acc: MHRTAccount) => void;
     onDelete: (id: string) => void;
+    onInlineSave?: (id: string, field: keyof MHRTAccount, value: any) => void;
 }
+
+const MhrtEditableCell = ({
+    value,
+    field,
+    accountId,
+    onSave,
+    className,
+    renderContent,
+    options
+}: {
+    value: string;
+    field: keyof MHRTAccount;
+    accountId: string;
+    onSave?: (id: string, field: keyof MHRTAccount, val: any) => void;
+    className?: string;
+    renderContent?: (val: string) => React.ReactNode;
+    options?: string[];
+}) => {
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [localVal, setLocalVal] = React.useState(value || '');
+
+    React.useEffect(() => {
+        setLocalVal(value || '');
+    }, [value]);
+
+    if (!onSave) {
+        return (
+            <td className={className}>
+                {renderContent ? renderContent(value) : value}
+            </td>
+        );
+    }
+
+    if (isEditing) {
+        return (
+            <td className={cn(className, "p-0 relative")}>
+                {options ? (
+                    <select
+                        autoFocus
+                        value={localVal}
+                        onChange={(e) => setLocalVal(e.target.value)}
+                        onBlur={() => {
+                            setIsEditing(false);
+                            if (localVal !== value) onSave(accountId, field, localVal);
+                        }}
+                        className="w-full h-full p-4 min-h-[46px] outline-none border-2 border-primary-500 bg-white dark:bg-slate-900 text-xs font-semibold"
+                    >
+                        {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                ) : (
+                    <input
+                        autoFocus
+                        value={localVal}
+                        onChange={(e) => setLocalVal(e.target.value)}
+                        onBlur={() => {
+                            setIsEditing(false);
+                            if (localVal !== value) onSave(accountId, field, localVal);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                setIsEditing(false);
+                                if (localVal !== value) onSave(accountId, field, localVal);
+                            }
+                        }}
+                        className="w-full h-full p-4 min-h-[46px] outline-none border-2 border-primary-500 bg-white dark:bg-slate-900 text-xs font-semibold"
+                    />
+                )}
+            </td>
+        );
+    }
+
+    return (
+        <td
+            onClick={(e) => {
+                if (e.currentTarget.closest('[data-dragging="true"]')) return;
+                setIsEditing(true);
+            }}
+            className={cn(className, "cursor-pointer hover:bg-surface-50 group-hover:bg-surface-50/50 relative")}
+            title="Click to edit"
+        >
+            <div className="absolute inset-0 border border-transparent hover:border-primary-300 pointer-events-none" />
+            {renderContent ? renderContent(value) : value}
+        </td>
+    );
+};
 
 export function AccountTable({
     accounts, isLoading, isDragging, scrollRef,
     onMouseDown, onMouseLeave, onMouseUp, onMouseMove,
-    onEdit, onDelete
+    onEdit, onDelete, onInlineSave
 }: AccountTableProps) {
     return (
-        <div className={`bg-white border border-surface-200 rounded-sm shadow-sm transition-all ${isDragging ? 'cursor-grabbing select-none shadow-lg' : 'cursor-grab'}`}>
+        <div className={`bg-white dark:bg-slate-900 border border-surface-200 rounded-sm shadow-sm transition-all ${isDragging ? 'cursor-grabbing select-none shadow-lg' : 'cursor-grab'}`}>
             <div
                 ref={scrollRef}
                 onMouseDown={onMouseDown}
@@ -43,7 +129,7 @@ export function AccountTable({
                                     {header}
                                 </th>
                             ))}
-                            <th className="p-4 text-[10px] font-bold uppercase tracking-wider text-center w-[60px]">
+                            <th className="sticky right-0 z-30 bg-[#002060] p-4 text-[10px] font-bold uppercase tracking-wider text-center w-[80px] border-l border-white/20 shadow-[-4px_0_15px_rgba(0,0,0,0.1)]">
                                 <MoreHorizontal size={14} className="mx-auto" />
                             </th>
                         </tr>
@@ -60,7 +146,7 @@ export function AccountTable({
                             </tr>
                         ) : accounts.map((acc) => (
                             <tr key={acc.id} className="hover:bg-surface-50/80 transition-colors group">
-                                <td className="sticky left-0 z-10 bg-white group-hover:bg-surface-50 p-4 border-r border-surface-200 bg-white">
+                                <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-surface-50 p-4 border-r border-surface-200 bg-white dark:bg-slate-900">
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-sm bg-primary-50 text-primary-600 flex items-center justify-center font-bold text-xs ring-1 ring-primary-100 uppercase">
                                             {acc.account.charAt(0)}
@@ -71,68 +157,68 @@ export function AccountTable({
                                     </div>
                                 </td>
 
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.lob}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100 italic">{acc.pseudonym}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.position}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.campaignManager}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.teamManager}</td>
-                                <td className="p-4 text-[11px] font-bold text-[#002060] text-center border-r border-surface-100 bg-blue-50/30">{acc.baseSalary}</td>
-                                <td className="p-4 text-[11px] font-bold text-[#002060] text-center border-r border-surface-100 bg-blue-50/10">{acc.allowance}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.accountSpecificTracker}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100 truncate max-w-[150px]">{acc.assessments}</td>
-                                <td className="p-4 text-center border-r border-surface-100">
+                                <MhrtEditableCell field="lob" value={acc.lob} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="pseudonym" value={acc.pseudonym} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200 italic" />
+                                <MhrtEditableCell field="position" value={acc.position} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="campaignManager" value={acc.campaignManager} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="teamManager" value={acc.teamManager} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="baseSalary" value={acc.baseSalary} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-bold text-[#002060] text-center border border-surface-200 bg-blue-50/30" />
+                                <MhrtEditableCell field="allowance" value={acc.allowance} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-bold text-[#002060] text-center border border-surface-200 bg-blue-50/10" />
+                                <MhrtEditableCell field="accountSpecificTracker" value={acc.accountSpecificTracker} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="assessments" value={acc.assessments} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200 truncate max-w-[150px]" />
+                                <td className="p-4 text-center border border-surface-200">
                                     <button className="text-[9px] font-bold text-primary-600 hover:underline uppercase">View PDF</button>
                                 </td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.rosterLock}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">
+                                <MhrtEditableCell field="rosterLock" value={acc.rosterLock} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="toolTesting" value={acc.toolTesting} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" options={['Completed', 'Pending', 'N/A']} renderContent={(val) => (
                                     <span className={cn(
                                         "px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap",
-                                        acc.toolTesting === 'Completed' ? "bg-emerald-100 text-emerald-700" : "bg-surface-100 text-surface-600"
+                                        val === 'Completed' ? "bg-emerald-100 text-emerald-700" : "bg-surface-100 text-surface-600"
                                     )}>
-                                        {acc.toolTesting}
+                                        {val}
                                     </span>
-                                </td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.hoops}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.voiceType}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.direction}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100 uppercase">{acc.vertical}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.education}</td>
-                                <td className="p-4 text-[11px] font-semibold text-primary-700 text-center border-r border-surface-100">{acc.workExperience}</td>
-                                <td className="p-4 text-[11px] font-bold text-surface-900 text-center border-r border-surface-100">{acc.typingSpeed}</td>
-                                <td className="p-4 text-[11px] font-bold text-surface-900 text-center border-r border-surface-100">{acc.typingAccuracy}</td>
-                                <td className="p-4 text-[11px] font-bold text-vibrant-purple text-center border-r border-surface-100">{acc.cefr}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100 uppercase">{acc.ase}</td>
-                                <td className="p-4 text-center border-r border-surface-100 bg-surface-50/20">
+                                )} />
+                                <MhrtEditableCell field="hoops" value={acc.hoops} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="voiceType" value={acc.voiceType} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" options={['Voice', 'Non-Voice', 'Blended', 'Multi']} />
+                                <MhrtEditableCell field="direction" value={acc.direction} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" options={['Inbound', 'Outbound', 'Both']} />
+                                <MhrtEditableCell field="vertical" value={acc.vertical} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200 uppercase" />
+                                <MhrtEditableCell field="education" value={acc.education} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="workExperience" value={acc.workExperience} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-primary-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="typingSpeed" value={acc.typingSpeed} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-bold text-surface-900 text-center border border-surface-200" />
+                                <MhrtEditableCell field="typingAccuracy" value={acc.typingAccuracy} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-bold text-surface-900 text-center border border-surface-200" />
+                                <MhrtEditableCell field="cefr" value={acc.cefr} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-bold text-vibrant-purple text-center border border-surface-200" />
+                                <MhrtEditableCell field="ase" value={acc.ase} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200 uppercase" />
+                                <MhrtEditableCell field="ovStatus" value={acc.ovStatus} accountId={acc.id} onSave={onInlineSave} className="p-4 text-center border border-surface-200 bg-surface-50/20" options={['Verified', 'Pending', 'Failed']} renderContent={(val) => (
                                     <div className={cn(
                                         "inline-flex items-center gap-1.5 px-2 py-1 rounded-sm text-[9px] font-black uppercase tracking-wider",
-                                        acc.ovStatus === 'Verified' ? "bg-emerald-500 text-white shadow-sm" :
-                                            acc.ovStatus === 'Pending' ? "bg-vibrant-orange text-white shadow-sm" : "bg-red-500 text-white shadow-sm"
+                                        val === 'Verified' ? "bg-emerald-500 text-white shadow-sm" :
+                                            val === 'Pending' ? "bg-vibrant-orange text-white shadow-sm" : "bg-red-500 text-white shadow-sm"
                                     )}>
-                                        {acc.ovStatus === 'Verified' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                                        {acc.ovStatus}
+                                        {val === 'Verified' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                                        {val}
                                     </div>
-                                </td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.opsValidator}</td>
-                                <td className="p-4 text-[11px] font-medium text-surface-500 text-center border-r border-surface-100 italic">{acc.ovAvailability}</td>
-                                <td className="p-4 text-[11px] font-medium text-surface-500 text-center border-r border-surface-100 italic">{acc.clientAvailability}</td>
-                                <td className="p-4 text-[11px] font-bold text-surface-700 text-center border-r border-surface-100">
+                                )} />
+                                <MhrtEditableCell field="opsValidator" value={acc.opsValidator} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="ovAvailability" value={acc.ovAvailability} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-medium text-surface-500 text-center border border-surface-200 italic" />
+                                <MhrtEditableCell field="clientAvailability" value={acc.clientAvailability} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-medium text-surface-500 text-center border border-surface-200 italic" />
+                                <MhrtEditableCell field="location" value={acc.location} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-bold text-surface-700 text-center border border-surface-200" renderContent={(val) => (
                                     <div className="flex items-center justify-center gap-1">
                                         <MapPin size={10} className="text-red-500" />
-                                        {acc.location}
+                                        {val}
                                     </div>
-                                </td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-800 text-center border-r border-surface-100">{acc.operationsDirector}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-800 text-center border-r border-surface-100">{acc.trainer}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-800 text-center border-r border-surface-100">{acc.wfmPoc}</td>
-                                <td className="p-4 text-[11px] font-bold text-primary-600 text-center border-r border-surface-100 bg-primary-50/10 uppercase tracking-tighter">{acc.finalInterviewSchedule}</td>
-                                <td className="p-4 text-[10px] text-surface-500 text-center border-r border-surface-100 max-w-[150px] truncate">{acc.mustHaves}</td>
-                                <td className="p-4 text-[10px] text-surface-500 text-center border-r border-surface-100 max-w-[150px] truncate">{acc.niceToHaves}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.hmo}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.relocation}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.demographics}</td>
-                                <td className="p-4 text-[11px] font-semibold text-surface-700 text-center border-r border-surface-100">{acc.backgroundInvestigation}</td>
+                                )} />
+                                <MhrtEditableCell field="operationsDirector" value={acc.operationsDirector} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-800 text-center border border-surface-200" />
+                                <MhrtEditableCell field="trainer" value={acc.trainer} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-800 text-center border border-surface-200" />
+                                <MhrtEditableCell field="wfmPoc" value={acc.wfmPoc} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-800 text-center border border-surface-200" />
+                                <MhrtEditableCell field="finalInterviewSchedule" value={acc.finalInterviewSchedule} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-bold text-primary-600 text-center border border-surface-200 bg-primary-50/10 uppercase tracking-tighter" />
+                                <MhrtEditableCell field="mustHaves" value={acc.mustHaves} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[10px] text-surface-500 text-center border border-surface-200 max-w-[150px] truncate" />
+                                <MhrtEditableCell field="niceToHaves" value={acc.niceToHaves} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[10px] text-surface-500 text-center border border-surface-200 max-w-[150px] truncate" />
+                                <MhrtEditableCell field="hmo" value={acc.hmo} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="relocation" value={acc.relocation} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="demographics" value={acc.demographics} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
+                                <MhrtEditableCell field="backgroundInvestigation" value={acc.backgroundInvestigation} accountId={acc.id} onSave={onInlineSave} className="p-4 text-[11px] font-semibold text-surface-700 text-center border border-surface-200" />
 
-                                <td className="p-4 text-center">
+                                <td className="sticky right-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-surface-50 p-4 text-center border-l border-surface-200 shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">
                                     <div className="flex items-center justify-center gap-2">
                                         <button
                                             onClick={() => onEdit(acc)}

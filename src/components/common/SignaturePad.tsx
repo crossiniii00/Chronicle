@@ -51,7 +51,7 @@ export function SignaturePad({ onSave, onClear, defaultValue, height = 'h-64' }:
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="p-2 bg-white border border-surface-200 rounded-md text-surface-500 hover:text-red-600 hover:border-red-100 transition-all shadow-sm"
+                        className="p-2 bg-white dark:bg-slate-900 border border-surface-200 rounded-md text-surface-500 hover:text-red-600 hover:border-red-100 transition-all shadow-sm"
                         title="Clear Signature"
                     >
                         <Eraser size={16} />
