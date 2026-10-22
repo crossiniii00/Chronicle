@@ -1,0 +1,16 @@
+.env
+.env.*
+node_modules
+backups
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+uploads
+uploads/
+server/uploads
+api_logs.txt
+dist_backup
+dist_backup/
+.git
+.agents
